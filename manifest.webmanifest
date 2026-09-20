@@ -1,0 +1,9 @@
+{
+  "name": "Pocket — เงินและเป้าหมายของฉัน",
+  "short_name": "Pocket",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#17181b",
+  "theme_color": "#17181b",
+  "lang": "th"
+}

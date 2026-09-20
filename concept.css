@@ -1,0 +1,525 @@
+/* MePocket design concept layer
+   The original application structure and behavior remain unchanged. */
+:root {
+  --concept-navy: #123844;
+  --concept-deep: #082831;
+  --concept-mint: #7ee0cb;
+  --concept-cream: #fff4dc;
+  --concept-paper: #f7f8f3;
+  --concept-muted: #718087;
+  --ink: #142f36;
+  --paper: #f7f8f3;
+  --soft: #edf2ee;
+  --muted: #718087;
+  --line: #dfe5df;
+  --green: #7ee0cb;
+  --lime: #ffe29a;
+  --shadow: 0 15px 40px rgba(18,56,68,.09);
+}
+
+html, body { background: #d9e4e3; }
+body { color: var(--concept-deep); }
+.app { background: var(--concept-paper); box-shadow: 0 0 70px rgba(18,56,68,.18); }
+
+/* Home: warm overview instead of a black investment-app hero */
+.home-dark {
+  padding: max(22px,env(safe-area-inset-top)) 20px 28px;
+  border-radius: 0 0 38px 38px;
+  background: var(--concept-cream);
+  color: var(--concept-deep);
+}
+.home-dark::before {
+  content: "";
+  position: absolute;
+  width: 240px;
+  height: 240px;
+  top: -145px;
+  right: -90px;
+  border: 40px solid rgba(18,56,68,.055);
+  border-radius: 50%;
+}
+.home-dark .decor-grid {
+  inset: 0;
+  transform: none;
+  opacity: 1;
+  background:
+    radial-gradient(circle at 84% 17%,#7ee0cb 0 12px,transparent 13px),
+    radial-gradient(circle at 93% 30%,#123844 0 9px,transparent 10px),
+    radial-gradient(circle at 72% 31%,#ac9af3 0 5px,transparent 6px),
+    radial-gradient(circle at 89% 41%,#ff8d73 0 6px,transparent 7px);
+}
+.home-dark .decor-coin { display: none; }
+.page-top { margin: 0 0 24px; }
+.page-top .overline { color: #58757b; font-size: .7rem; letter-spacing: .09em; text-transform: uppercase; }
+.page-top h1 { color: var(--concept-deep); font-size: 2rem; letter-spacing: -.035em; }
+.profile-dot {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 16px 16px 16px 5px;
+  background: var(--concept-mint);
+  color: var(--concept-deep);
+  box-shadow: 0 7px 18px rgba(18,56,68,.1);
+}
+
+.account-panel { padding: 0; background: transparent; color: var(--concept-deep); border-radius: 0; box-shadow: none; }
+.panel-heading { align-items: center; padding-right: 94px; }
+.panel-heading h2 { margin-bottom: 3px; font-size: 1.45rem; letter-spacing: -.025em; }
+.panel-heading p { color: #6f8186; }
+.rate-button { color: #4f6b72; font-weight: 700; }
+
+/* Every real Pocket keeps its original gradient and flag badge.
+   The mint/lilac sheets beneath create the stacked-pocket silhouette. */
+.account-list {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  gap: 24px;
+  overflow-x: auto;
+  margin: 14px -6px 0;
+  padding: 19px 6px 24px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+.account-list::-webkit-scrollbar { display: none; }
+.account-list::before,
+.account-list::after {
+  content: "";
+  position: absolute;
+  z-index: -2;
+  top: 9px;
+  left: 27px;
+  width: calc(100% - 54px);
+  height: 178px;
+  border-radius: 29px 29px 29px 10px;
+  background: #d8cfff;
+  transform: rotate(-2.2deg);
+}
+.account-list::after { z-index: -1; top: 14px; left: 14px; width: calc(100% - 28px); background: #9ce7d8; transform: rotate(2deg); }
+.account-row {
+  position: relative;
+  flex: 0 0 calc(100% - 12px);
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  grid-template-rows: auto 1fr;
+  gap: 12px;
+  min-height: 192px;
+  padding: 20px;
+  overflow: hidden;
+  border: 0 !important;
+  border-radius: 29px 29px 29px 10px;
+  background: var(--account-gradient) !important;
+  color: #172d32;
+  box-shadow: 0 18px 35px rgba(18,56,68,.2);
+  scroll-snap-align: center;
+}
+.account-row::after {
+  content: "";
+  position: absolute;
+  width: 155px;
+  height: 155px;
+  right: -64px;
+  bottom: -78px;
+  border: 27px solid rgba(255,255,255,.27);
+  border-radius: 50%;
+}
+.account-row > * { position: relative; z-index: 1; }
+.account-row .flag-badge { grid-column: 1; grid-row: 1; background: rgba(255,255,255,.55); box-shadow: 0 5px 14px rgba(18,56,68,.08); }
+.account-row .account-name { grid-column: 2; grid-row: 1; align-self: center; }
+.account-row .account-name b { font-size: 1.08rem; }
+.account-row .account-name small { margin-top: 3px; background: rgba(255,255,255,.5) !important; color: #3b5459; }
+.account-row .account-balance { grid-column: 1 / 4; grid-row: 2; align-self: end; text-align: left; }
+.account-row .account-balance strong { font-size: 1.8rem; letter-spacing: -.035em; }
+.account-row .account-balance small { margin-top: 1px; color: #52676c; }
+.account-row .account-arrow { grid-column: 3; grid-row: 1; align-self: center; }
+.more-currencies { margin-top: -2px; color: #38575e; }
+.more-currencies b { padding: 7px 11px; border-radius: 999px; background: rgba(255,255,255,.55); }
+
+.interest-strip { margin-top: 10px; border: 1px solid rgba(18,56,68,.07); border-radius: 17px 17px 17px 6px; background: rgba(255,255,255,.62); color: var(--concept-deep); box-shadow: none; }
+.interest-icon { background: var(--concept-mint); color: var(--concept-navy); }
+.quick-menu { margin-top: 18px; }
+.quick-menu > p { color: #6f8186; }
+.quick-grid { gap: 8px; }
+.quick-grid button { min-width: 0; padding: 9px 3px; border: 1px solid rgba(18,56,68,.08); border-radius: 16px; background: rgba(255,255,255,.62); color: var(--concept-deep); }
+.quick-grid span { width: 34px; height: 34px; margin-bottom: 5px; border-radius: 11px; background: var(--concept-navy); color: var(--concept-mint); }
+.quick-grid b { font-size: .7rem; }
+
+.home-light { margin-top: 0; padding-top: 28px; border-radius: 0; background: var(--concept-paper); }
+.home-light .overline { color: #647b80; }
+.section-heading h2 { color: var(--concept-deep); letter-spacing: -.02em; }
+.outline-small { border-color: #cddbd6; background: #fff; color: var(--concept-navy); }
+.debit-card-art.compact { border-radius: 21px 21px 21px 7px; }
+.goal-card { border-radius: 23px 23px 23px 7px; }
+.goal-open { padding: 18px; }
+.progress i { background: var(--concept-navy); }
+.transaction-list { border: 1px solid var(--line); border-radius: 22px 22px 22px 7px; box-shadow: none; }
+.tx-icon { border-radius: 14px 14px 14px 5px; background: var(--concept-navy); color: var(--concept-mint); }
+
+/* Shared full-system treatment */
+.detail-dark, .card-detail-dark, .transfer-hero { background: var(--concept-navy); }
+.detail-dark .decor-grid { opacity: .65; }
+.round-back, .transfer-back { color: #fff; }
+.currency-tab { border-color: rgba(255,255,255,.22); background: rgba(255,255,255,.08); }
+.currency-tab.active { border-color: var(--concept-mint); background: var(--concept-mint); color: var(--concept-deep); box-shadow: none; }
+.account-hero, .all-account-card { border-radius: 27px 27px 27px 9px; }
+.account-actions span { border-radius: 15px 15px 15px 5px; background: var(--concept-mint); color: var(--concept-deep); }
+.inner-view { background: var(--concept-paper); }
+.inner-header .circle-action, .small-circle-action { border: 0; border-radius: 15px 15px 15px 5px; background: var(--concept-navy); color: #fff; }
+.profile-card { border-radius: 25px 25px 25px 8px; background: var(--concept-navy); }
+.profile-avatar { background: var(--concept-mint); color: var(--concept-deep); }
+.profile-stat, .menu-card, .settings-group { border: 1px solid var(--line); box-shadow: none; }
+.filter-row button.active { border-color: var(--concept-navy); background: var(--concept-navy); }
+.switch.on { background: #48cbb0; }
+.primary-button, .bank-next { background: var(--concept-navy); }
+.conversion-note { background: #e2f8f1; color: #236b5b; }
+.sheet-panel { border-radius: 28px 28px 0 0; }
+
+/* Floating dock; all five original destinations remain intact. */
+.bottom-nav {
+  left: 50%;
+  bottom: max(10px,env(safe-area-inset-bottom));
+  width: min(calc(100% - 20px),720px);
+  padding: 7px;
+  overflow: visible;
+  border: 1px solid rgba(255,255,255,.7);
+  border-radius: 23px;
+  background: rgba(255,255,255,.9);
+  box-shadow: 0 14px 40px rgba(18,56,68,.19);
+  backdrop-filter: blur(18px);
+}
+.bottom-nav button { height: 59px; border-radius: 16px; color: #7d8b8f; transform: none; }
+.bottom-nav button.active { width: auto; height: 59px; border-radius: 16px; background: var(--concept-navy); color: #fff; transform: none; box-shadow: none; }
+.bottom-nav button.active span { color: var(--concept-mint); }
+.bottom-nav button.active b { font-size: .65rem; }
+.bottom-nav button.active .icon { width: 23px; height: 23px; }
+.toast { background: var(--concept-deep); }
+
+@media (min-width:680px) {
+  .home-dark { padding: 34px 42px 32px; }
+  .account-list::before { left: 46px; width: calc(100% - 92px); }
+  .account-list::after { left: 28px; width: calc(100% - 56px); }
+  .account-row { flex-basis: calc(100% - 24px); }
+}
+
+@media (max-width:380px) {
+  .panel-heading { padding-right: 66px; }
+  .account-row { min-height: 180px; padding: 17px; }
+  .account-row .account-balance strong { font-size: 1.5rem; }
+  .quick-grid span { width: 31px; height: 31px; }
+  .quick-grid b { font-size: .64rem; }
+}
+
+/* Requested home refinement: original black field with a swipeable card deck. */
+.home-dark {
+  background: #17181b;
+  color: #fff;
+}
+.home-dark::before { display: none; }
+.home-dark .decor-grid {
+  inset: -30%;
+  opacity: 1;
+  transform: rotate(-17deg);
+  background-image:
+    linear-gradient(rgba(255,255,255,.055) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.055) 1px,transparent 1px);
+  background-size: 55px 55px;
+}
+.home-dark .decor-coin { display: grid; }
+.page-top .overline,
+.panel-heading p,
+.quick-menu > p { color: #a6a9ac; }
+.page-top h1,
+.account-panel,
+.panel-heading h2 { color: #fff; }
+.profile-dot {
+  border: 1px solid #44474b;
+  border-radius: 50%;
+  background: #26282b;
+  color: #fff;
+  box-shadow: none;
+}
+.rate-button { color: #a6a9ac; }
+
+.account-list {
+  position: relative;
+  display: block;
+  height: 286px;
+  margin: 14px 0 0;
+  padding: 0;
+  overflow: visible;
+  isolation: isolate;
+  touch-action: pan-x;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+.account-list.deck-dragging { cursor: grabbing; }
+.account-list::before,
+.account-list::after { display: none; }
+.account-row {
+  position: absolute;
+  inset: 23px 0 auto;
+  width: 100%;
+  min-height: 256px;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  grid-template-rows: auto 1fr auto;
+  border-radius: 28px;
+  transform-origin: center top;
+  transition: transform .24s ease, opacity .2s ease, filter .24s ease;
+  will-change: transform, opacity;
+}
+.account-row .account-id {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: start;
+  min-width: 104px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255,255,255,.48);
+  color: #172d32;
+  text-align: right;
+  line-height: 1.15;
+}
+.account-row .account-id b {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  font-size: .68rem;
+  white-space: nowrap;
+}
+.account-row .account-id .icon { width: 13px; height: 13px; }
+.account-row .account-name b { font-size: 1.12rem; }
+.account-row .account-name small {
+  width: auto;
+  max-width: none;
+  margin-top: 3px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent !important;
+  color: rgba(23,45,50,.62);
+  font-size: .65rem;
+  font-weight: 500;
+}
+.account-row .account-available {
+  grid-column: 1 / 4;
+  grid-row: 2;
+  align-self: center;
+  text-align: left;
+}
+.account-row .account-available small,
+.account-row .account-available strong,
+.account-row .account-available em { display: block; }
+.account-row .account-available small,
+.account-row .account-separated small {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #17383b;
+  font-size: .69rem;
+  font-style: normal;
+  font-weight: 700;
+}
+.account-row .account-available small .icon,
+.account-row .account-separated small .icon { width: 13px; height: 13px; }
+.account-row .account-available strong {
+  margin-top: 4px;
+  color: #102b31;
+  font-size: clamp(1.9rem,7vw,2.55rem);
+  line-height: 1.05;
+  letter-spacing: -.045em;
+}
+.account-row .account-available em {
+  margin-top: 4px;
+  color: rgba(23,45,50,.65);
+  font-size: .7rem;
+  font-style: normal;
+  font-weight: 700;
+}
+.account-row .account-footer {
+  grid-column: 1 / 4;
+  grid-row: 3;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 15px;
+  padding-top: 13px;
+  border-top: 1px solid rgba(23,45,50,.12);
+}
+.account-row .account-separated { text-align: left; }
+.account-row .account-separated strong {
+  display: block;
+  margin-top: 4px;
+  color: #102b31;
+  font-size: 1rem;
+}
+.account-row .account-book {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.55);
+  color: #102b31;
+  font-size: .7rem;
+  white-space: nowrap;
+}
+.account-row .account-book .icon { width: 15px; height: 15px; }
+.account-row.deck-active {
+  z-index: 3;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(var(--drag-y,0px)) rotate(var(--drag-rotate,0deg)) scale(1);
+}
+.account-row.deck-next {
+  z-index: 2;
+  opacity: 1;
+  pointer-events: none;
+  filter: brightness(.96);
+  transform: translateY(-10px) rotate(-.8deg) scale(.97);
+}
+.account-row.deck-last {
+  z-index: 1;
+  opacity: 1;
+  pointer-events: none;
+  filter: brightness(.92);
+  transform: translateY(-13px) rotate(.8deg) scale(.94);
+}
+.account-row.deck-hidden {
+  z-index: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-32px) scale(.88);
+}
+.account-row.leaving-up {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-115%) rotate(-4deg) scale(.97);
+}
+.account-row.leaving-down {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(115%) rotate(4deg) scale(.97);
+}
+.account-list.deck-dragging .account-row.deck-active { transition: none; }
+.more-currencies { color: #fff; }
+.more-currencies b { background: rgba(255,255,255,.1); }
+
+.quick-grid button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
+}
+.quick-grid span {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: #fff;
+  color: #111;
+}
+
+.debit-card-art.compact { border-radius: 20px; }
+.recent-block .tx-icon {
+  border-radius: 0;
+  background: transparent;
+  color: #111;
+}
+.recent-block .text-link {
+  background: transparent;
+  color: #111;
+}
+
+@media (min-width:680px) {
+  .account-list { height: 310px; }
+  .account-row { min-height: 280px; inset-inline: 0; }
+}
+
+@media (max-width:380px) {
+  .account-list { height: 260px; }
+  .account-row { min-height: 230px; padding: 16px; gap: 9px; }
+  .account-row .account-id { min-width: 78px; padding-inline: 7px; }
+  .account-row .account-id b { font-size: .59rem; }
+  .account-row .account-name b { font-size: .95rem; }
+  .account-row .account-name small { font-size: .56rem; }
+  .account-row .account-available strong { font-size: 1.8rem; }
+  .account-row .account-book { min-height: 32px; padding-inline: 9px; }
+  .quick-grid span { width: 50px; height: 50px; }
+}
+
+/* Opaque interest card prevents the decorative background from bleeding through. */
+.interest-strip,
+.home-dark .interest-strip {
+  border: 0;
+  border-radius: 20px;
+  background: #fff;
+  color: #18191b;
+  box-shadow: 0 10px 28px rgba(0,0,0,.08);
+  opacity: 1;
+}
+.home-dark .interest-strip small { color: #8f9396; }
+.interest-icon { border-radius: 10px; }
+
+/* Elevated-circle navigation inspired by the supplied reference. */
+.app { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+.bottom-nav {
+  left: 50%;
+  bottom: max(14px,env(safe-area-inset-bottom));
+  width: min(calc(100% - 32px),540px);
+  height: 60px;
+  padding: 0 10px;
+  overflow: visible;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(239,240,239,.96);
+  box-shadow: 0 13px 34px rgba(15,20,22,.16);
+  backdrop-filter: blur(18px);
+}
+.bottom-nav button {
+  position: relative;
+  width: 50px;
+  height: 50px;
+  min-width: 0;
+  align-self: center;
+  justify-self: center;
+  align-content: center;
+  padding: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #828b8e;
+  transform: none;
+  box-shadow: none;
+}
+.bottom-nav button b { display: none; }
+.bottom-nav button span { color: inherit; }
+.bottom-nav button .icon { width: 23px; height: 23px; }
+.bottom-nav button.active {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #17181b;
+  color: #fff;
+  transform: translateY(-13px);
+  box-shadow: 0 7px 17px rgba(0,0,0,.24);
+}
+.bottom-nav button.active span { color: #fff; }
+.bottom-nav button.active .icon { width: 24px; height: 24px; }
+.bottom-nav button.active::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -10px;
+  width: 18px;
+  height: 2px;
+  border-radius: 999px;
+  background: #17181b;
+  transform: translateX(-50%);
+}
+
+@media (max-width:380px) {
+  .bottom-nav { width: calc(100% - 22px); }
+  .bottom-nav button { width: 46px; height: 46px; }
+  .bottom-nav button.active { width: 50px; height: 50px; }
+}
