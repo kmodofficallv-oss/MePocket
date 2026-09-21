@@ -138,6 +138,8 @@
         <div class="all-account-cards" id="allAccountCards"></div>
         <div class="section-heading compact"><h2>กล่องเป้าหมาย</h2><button class="outline-small" data-action="add-goal"><svg class="icon icon-inline"><use href="#i-plus"/></svg> เพิ่มกล่อง</button></div>
         <div class="goal-list" id="goalList"></div>
+        <div class="section-heading compact external-bank-heading"><h2>ธนาคารภายนอก</h2><button class="outline-small" data-action="add-external-bank"><svg class="icon icon-inline"><use href="#i-plus"/></svg> เพิ่มธนาคาร</button></div>
+        <div class="external-bank-list" id="externalBankList"></div>
       </section>
 
       <section class="view inner-view" id="transactionsView" aria-labelledby="transactionsTitle">
@@ -211,26 +213,43 @@
       <div class="transfer-hero">
         <header class="transfer-head"><button class="transfer-back" data-close aria-label="กลับ"><svg class="icon"><use href="#i-arrow-left"/></svg></button><h2 id="bankTransferTitle">โอนเงิน</h2><span></span></header>
         <p class="transfer-kicker">จาก</p>
-        <div class="transfer-source-card">
+        <button type="button" class="transfer-source-card" data-transfer-picker="source" aria-haspopup="dialog">
           <span id="bankSourceFlag" class="flag-mini flag-th"></span>
           <div><b id="bankSourceName">Pocket Save</b><small id="bankSourceBalance">ยอดเงิน 0.00 THB</small></div>
-          <select id="bankTransferFrom" aria-label="เลือกบัญชีต้นทาง"></select>
           <svg class="icon"><use href="#i-down"/></svg>
-        </div>
+        </button>
+        <select id="bankTransferFrom" hidden aria-hidden="true" aria-label="เลือกบัญชีต้นทาง"></select>
       </div>
       <div class="transfer-body">
         <div class="bank-tabs" role="tablist"><button data-bank-tab="friend">เพื่อน</button><button class="active" data-bank-tab="account">บัญชี</button><button data-bank-tab="promptpay">พร้อมเพย์</button></div>
         <div class="bank-pane" data-bank-pane="friend"><div class="transfer-empty"><span>👥</span><b>รายชื่อเพื่อน</b><small>เลือกแท็บบัญชีเพื่อโอนไปธนาคาร</small></div></div>
         <form class="bank-pane active" data-bank-pane="account" id="bankTransferForm">
-          <button type="button" class="bank-choice" data-action="choose-bank"><img src="./assets/scb.svg" alt="" /><span><small>ธนาคาร</small><b>ธนาคารไทยพาณิชย์</b></span><svg class="icon"><use href="#i-chevron-right"/></svg></button>
-          <label class="line-field"><span>เลขที่บัญชี</span><input id="bankAccountNumber" inputmode="numeric" maxlength="13" autocomplete="off" placeholder="กรอกเลขที่บัญชี" /></label>
-          <label class="line-field"><span>จำนวนเงิน</span><div><input id="bankTransferAmount" inputmode="decimal" type="number" min="0" step="0.01" placeholder="0.00" /><b>THB</b></div></label>
-          <p class="bank-limit">วงเงินโอนคงเหลือวันนี้ <strong>200,000.00 THB</strong></p>
+          <button type="button" class="transfer-destination-card" data-transfer-picker="destination" aria-haspopup="dialog">
+            <span class="transfer-destination-icon" id="bankDestinationIcon">◎</span>
+            <span><small id="bankDestinationMeta">ไปยัง</small><b id="bankDestinationName">เลือกปลายทาง</b></span>
+            <svg class="icon"><use href="#i-down"/></svg>
+          </button>
+          <select id="bankTransferDestination" hidden aria-hidden="true" aria-label="เลือกบัญชีหรือกล่องปลายทาง"></select>
+          <div id="bankExternalFields">
+            <label class="line-field"><span>เลขที่บัญชี</span><input id="bankAccountNumber" inputmode="numeric" maxlength="13" autocomplete="off" placeholder="กรอกเลขที่บัญชี" /></label>
+          </div>
+          <label class="line-field"><span>จำนวนเงิน</span><div><input id="bankTransferAmount" inputmode="decimal" type="number" min="0" step="0.01" placeholder="0.00" /><b id="bankTransferCurrency">THB</b></div></label>
+          <p class="bank-conversion" id="bankTransferConversion">เลือกปลายทางเพื่อดูยอดที่จะได้รับ</p>
+          <p class="bank-limit" id="bankTransferLimit">วงเงินโอนคงเหลือวันนี้ <strong>200,000.00 THB</strong></p>
           <p class="form-error" id="bankTransferError"></p>
           <button class="bank-next" id="confirmBankTransfer" type="submit" disabled>ถัดไป</button>
         </form>
         <div class="bank-pane" data-bank-pane="promptpay"><div class="transfer-empty"><span>◎</span><b>พร้อมเพย์</b><small>ส่วนนี้เตรียมไว้สำหรับเวอร์ชันถัดไป</small></div></div>
       </div>
+    </section>
+  </div>
+
+  <div class="sheet transfer-picker-sheet" id="transferPickerSheet" aria-hidden="true">
+    <div class="sheet-backdrop" data-close-transfer-picker></div>
+    <section class="sheet-panel transfer-picker-panel" role="dialog" aria-modal="true" aria-labelledby="transferPickerTitle">
+      <div class="grabber"></div>
+      <div class="sheet-head"><div><p class="overline dark-text">MePocket</p><h2 id="transferPickerTitle">เลือกบัญชี</h2></div><button class="close-button" data-close-transfer-picker aria-label="ปิด"><svg class="icon"><use href="#i-x"/></svg></button></div>
+      <div class="transfer-picker-options" id="transferPickerOptions"></div>
     </section>
   </div>
 
@@ -274,6 +293,21 @@
     </section>
   </div>
 
+  <div class="sheet" id="externalBankSheet" aria-hidden="true">
+    <div class="sheet-backdrop" data-close></div>
+    <section class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="externalBankTitle">
+      <div class="grabber"></div>
+      <div class="sheet-head"><div><p class="overline dark-text">บัญชีปลายทางที่ใช้บ่อย</p><h2 id="externalBankTitle">เพิ่มธนาคารภายนอก</h2></div><button class="close-button" data-close aria-label="ปิด"><svg class="icon"><use href="#i-x"/></svg></button></div>
+      <form id="externalBankForm">
+        <label class="field">ธนาคาร<select id="externalBankCode"><option value="scb">ธนาคารไทยพาณิชย์ · SCB</option><option value="kbank">ธนาคารกสิกรไทย · KBank</option><option value="ktb">ธนาคารกรุงไทย · KTB</option><option value="bbl">ธนาคารกรุงเทพ · BBL</option><option value="bay">ธนาคารกรุงศรีอยุธยา · Krungsri</option></select></label>
+        <label class="field">ชื่อเรียกบัญชี<input id="externalBankNickname" maxlength="30" placeholder="เช่น บัญชีค่าใช้จ่าย" /></label>
+        <label class="field">เลขที่บัญชี<input id="externalBankAccountNumber" inputmode="numeric" maxlength="13" autocomplete="off" required placeholder="กรอกเลขที่บัญชี 10–13 หลัก" /></label>
+        <p class="form-error" id="externalBankError"></p>
+        <button class="primary-button" type="submit">บันทึกธนาคาร</button>
+      </form>
+    </section>
+  </div>
+
   <div class="sheet" id="cardEditSheet" aria-hidden="true">
     <div class="sheet-backdrop" data-close></div>
     <section class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="cardEditTitle">
@@ -305,7 +339,7 @@
 
   <aside class="deposit-popup" id="depositPopup" role="status" aria-live="assertive" aria-atomic="true">
     <span class="deposit-popup-icon"><svg class="icon"><use href="#i-deposit"/></svg></span>
-    <span class="deposit-popup-copy"><small id="depositPopupApp">MePocket · ตอนนี้</small><b id="depositPopupTitle">รายการเงินเข้า</b><strong id="depositPopupAmount">0.00 บาท</strong><em id="depositPopupDetail">เข้าบัญชี</em></span>
+    <span class="deposit-popup-copy"><small id="depositPopupApp">ตอนนี้</small><b id="depositPopupTitle">รายการเงินเข้า</b><strong id="depositPopupAmount">0.00 บาท</strong><em id="depositPopupDetail">เข้าบัญชี</em></span>
     <button type="button" data-close-deposit-popup aria-label="ปิดการแจ้งเตือน"><svg class="icon"><use href="#i-x"/></svg></button>
   </aside>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>

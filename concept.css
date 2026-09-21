@@ -272,8 +272,10 @@ body { color: var(--concept-deep); }
   grid-column: 3;
   grid-row: 1;
   align-self: start;
-  min-width: 104px;
-  padding: 7px 10px;
+  justify-self: end;
+  width: max-content;
+  min-width: 0;
+  padding: 5px 8px;
   border: 0;
   border-radius: 999px;
   background: rgba(255,255,255,.48);
@@ -285,7 +287,7 @@ body { color: var(--concept-deep); }
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 5px;
+  gap: 4px;
   font-size: .68rem;
   white-space: nowrap;
 }
@@ -396,12 +398,12 @@ body { color: var(--concept-deep); }
 .account-row.leaving-up {
   opacity: 0;
   pointer-events: none;
-  transform: translateY(-115%) rotate(-4deg) scale(.97);
+  transform: translateY(-62px) rotate(-2.5deg) scale(.965);
 }
 .account-row.leaving-down {
   opacity: 0;
   pointer-events: none;
-  transform: translateY(115%) rotate(4deg) scale(.97);
+  transform: translateY(62px) rotate(2.5deg) scale(.965);
 }
 .account-list.deck-dragging .account-row.deck-active { transition: none; }
 .more-currencies { color: #fff; }
@@ -440,7 +442,7 @@ body { color: var(--concept-deep); }
 @media (max-width:380px) {
   .account-list { height: 260px; }
   .account-row { min-height: 230px; padding: 16px; gap: 9px; }
-  .account-row .account-id { min-width: 78px; padding-inline: 7px; }
+  .account-row .account-id { width: max-content; min-width: 0; padding: 5px 7px; }
   .account-row .account-id b { font-size: .59rem; }
   .account-row .account-name b { font-size: .95rem; }
   .account-row .account-name small { font-size: .56rem; }
@@ -522,4 +524,428 @@ body { color: var(--concept-deep); }
   .bottom-nav { width: calc(100% - 22px); }
   .bottom-nav button { width: 46px; height: 46px; }
   .bottom-nav button.active { width: 50px; height: 50px; }
+}
+
+/* Keep the exchange-rate action on the same outer edge as the account deck. */
+.panel-heading {
+  width: 100%;
+  padding-right: 0;
+  align-items: flex-end;
+}
+.panel-heading > div { min-width: 0; }
+.rate-button {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  margin-left: auto;
+  padding: 8px 0 8px 12px;
+  text-align: right;
+}
+
+@media (max-width:380px) {
+  .panel-heading { padding-right: 0; }
+}
+
+/* Keep the full card visible while limiting the swipe travel itself. */
+.account-list {
+  overflow: visible;
+  border-radius: 0;
+  contain: none;
+}
+
+/* Carry the black, white and mint home language through the remaining views. */
+.detail-dark,
+.card-detail-dark,
+.transfer-hero { background: #17181b; }
+.detail-dark .decor-grid { opacity: 1; }
+.detail-top h1,
+.transfer-head h2 { color: #fff; }
+.round-back,
+.transfer-back {
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  color: #17181b;
+}
+.currency-tab {
+  border-color: rgba(255,255,255,.22);
+  border-radius: 999px;
+  background: rgba(255,255,255,.08);
+  color: #fff;
+}
+.currency-tab.active {
+  border-color: #fff;
+  background: #fff;
+  color: #17181b;
+}
+.account-hero,
+.all-account-card,
+.goal-card,
+.profile-card,
+.transaction-list,
+.menu-card,
+.settings-group,
+.profile-stat,
+.card-account-mini { border-radius: 24px; }
+.account-actions span,
+.card-exchange span {
+  border-radius: 50%;
+  background: #fff;
+  color: #17181b;
+}
+.inner-view,
+.detail-light,
+.card-detail-light,
+.transfer-body { background: #f5f6f3; }
+.inner-header .circle-action,
+.small-circle-action {
+  border: 0;
+  border-radius: 50%;
+  background: #17181b;
+  color: #fff;
+}
+.goal-dot { border-radius: 50%; }
+.goal-row,
+.menu-card,
+.settings-group,
+.profile-stat,
+.transaction-list {
+  border: 1px solid #e3e6e1;
+  box-shadow: none;
+}
+.tx-icon {
+  border-radius: 50%;
+  background: #eef1ed;
+  color: #17181b;
+}
+.menu-card button > span,
+.schedule-icon {
+  border-radius: 50%;
+  background: #eef1ed;
+  color: #17181b;
+}
+.filter-row button.active,
+.primary-button,
+.bank-next {
+  border-color: #17181b;
+  background: #17181b;
+  color: #fff;
+}
+.progress i { background: #17181b; }
+
+/* Consistent themed controls and dropdown cards. */
+.sheet-panel { background: #f7f8f5; }
+.field input,
+.field select,
+.field > select,
+.money-input {
+  border: 1px solid #e1e5df;
+  border-radius: 18px;
+  background-color: #fff;
+  color: #17181b;
+  box-shadow: none;
+}
+.field select,
+.field > select {
+  appearance: auto;
+  color-scheme: light;
+}
+.field select option,
+.field select optgroup { background: #fff; color: #17181b; }
+.conversion-note {
+  border-radius: 16px;
+  background: #e3f8f1;
+  color: #245f53;
+}
+.swap-route {
+  border: 1px solid #e0e4df;
+  background: #fff;
+  color: #17181b;
+}
+.close-button { background: #fff; color: #17181b; }
+
+/* Full-screen transfer uses the same card hierarchy as the home screen. */
+.transfer-hero {
+  min-height: 270px;
+  color: #fff;
+}
+.transfer-kicker { color: #a8adaf; }
+.transfer-source-card {
+  width: 100%;
+  border: 1px solid rgba(255,255,255,.45);
+  border-radius: 24px;
+  background: var(--source-gradient,#fff);
+  color: #172d32;
+  box-shadow: 0 15px 36px rgba(0,0,0,.24);
+  font: inherit;
+  text-align: left;
+}
+.transfer-source-card small { color: rgba(23,45,50,.62); }
+#bankTransferFrom[hidden],
+#bankTransferDestination[hidden] { display: none !important; }
+.transfer-body {
+  border-radius: 30px 30px 0 0;
+  color: #17181b;
+}
+.bank-tabs button.active { color: #17181b; }
+.bank-tabs button.active::after { background: #17181b; }
+.transfer-destination-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 13px;
+  border: 1px solid #e1e5df;
+  border-radius: 20px;
+  background: #fff;
+  color: #17181b;
+  font: inherit;
+  text-align: left;
+}
+.transfer-destination-card > span:nth-child(2) { min-width: 0; }
+.transfer-destination-card small,
+.transfer-destination-card b { display: block; }
+.transfer-destination-card small { color: #868b8d; font-size: .67rem; }
+.transfer-destination-card b {
+  margin-top: 2px;
+  overflow: hidden;
+  font-size: .9rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.transfer-destination-card > .icon { width: 19px; height: 19px; pointer-events: none; }
+.transfer-destination-icon {
+  width: 45px;
+  height: 45px;
+  display: grid !important;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--destination-accent,#17181b);
+  color: #17181b;
+  font-size: .8rem;
+  font-weight: 800;
+}
+.transfer-destination-icon.has-flag { background: #fff; }
+.transfer-destination-icon .flag-mini { width: 42px; height: 42px; margin: 0; }
+#bankExternalFields[hidden],
+.bank-limit[hidden] { display: none; }
+#bankExternalFields { display: grid; gap: 12px; }
+.bank-choice {
+  border: 1px solid #e1e5df;
+  border-radius: 20px;
+  background: #fff;
+}
+.bank-choice img,
+.bank-tile img { border-radius: 50%; }
+.line-field {
+  margin-top: 12px;
+  padding: 13px 14px;
+  border: 1px solid #e1e5df;
+  border-radius: 18px;
+  background: #fff;
+}
+.line-field input { color: #17181b; }
+.bank-conversion {
+  margin: 10px 2px 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #e4f7f1;
+  color: #276458;
+  font-size: .7rem;
+}
+.bank-limit { margin-inline: 2px; }
+.bank-next { border-radius: 18px; }
+.bank-next:disabled {
+  background: #dfe3de;
+  color: #969b97;
+}
+.bank-tile {
+  border-radius: 20px;
+  background: #fff;
+}
+
+.transfer-picker-sheet { z-index: 80; }
+.transfer-picker-panel {
+  max-height: min(78dvh,680px);
+  overflow: hidden;
+  background: #f4f5f2;
+}
+.transfer-picker-options {
+  display: grid;
+  gap: 18px;
+  max-height: min(60dvh,520px);
+  padding: 2px 2px 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.transfer-picker-group { display: grid; gap: 8px; }
+.transfer-picker-group > p {
+  margin: 0 4px 2px;
+  color: #777e7a;
+  font-size: .69rem;
+  font-weight: 750;
+}
+.transfer-picker-option {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) 30px;
+  gap: 12px;
+  align-items: center;
+  padding: 11px 12px;
+  border: 1px solid #e0e4df;
+  border-radius: 20px;
+  background: #fff;
+  color: #172d32;
+  font: inherit;
+  text-align: left;
+  box-shadow: 0 5px 16px rgba(24,37,31,.04);
+}
+.transfer-picker-option.selected {
+  border-color: #172d32;
+  box-shadow: 0 0 0 2px rgba(23,45,50,.08),0 7px 20px rgba(24,37,31,.08);
+}
+.transfer-picker-option-icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--picker-accent,#7ee0cb);
+  font-size: .78rem;
+  font-weight: 850;
+}
+.transfer-picker-option-icon.is-flag { background: #fff; }
+.transfer-picker-option-icon.is-flag .flag-mini { width: 44px; height: 44px; margin: 0; }
+.bank-picker-logo {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--bank-color);
+  color: var(--bank-ink);
+  font-size: .62rem;
+  font-weight: 900;
+}
+.transfer-picker-option-copy { min-width: 0; }
+.transfer-picker-option-copy b,
+.transfer-picker-option-copy small { display: block; }
+.transfer-picker-option-copy b {
+  overflow: hidden;
+  font-size: .86rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.transfer-picker-option-copy small {
+  margin-top: 3px;
+  overflow: hidden;
+  color: #7c827f;
+  font-size: .66rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.transfer-picker-option-check {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+}
+.transfer-picker-option.selected .transfer-picker-option-check {
+  background: #172d32;
+  color: #fff;
+}
+.transfer-picker-option-check .icon { width: 15px; height: 15px; }
+
+.external-bank-heading { margin-top: 28px; }
+.external-bank-list { display: grid; gap: 10px; }
+.external-bank-row {
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 13px 12px;
+  border: 1px solid #e1e5df;
+  border-radius: 19px;
+  background: #fff;
+}
+.bank-logo {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--bank-color);
+  color: var(--bank-ink);
+  font-size: .63rem;
+  font-weight: 900;
+}
+.external-bank-row > span:nth-child(2) { min-width: 0; }
+.external-bank-row b,
+.external-bank-row small { display: block; }
+.external-bank-row b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.external-bank-row small { margin-top: 3px; color: #858b88; font-size: .7rem; }
+.external-bank-row > button {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: #fff0f1;
+  color: #c83c49;
+}
+.external-bank-row > button .icon { width: 17px; height: 17px; }
+.external-bank-empty {
+  width: 100%;
+  min-height: 116px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 4px;
+  border: 2px dashed #cfd3cf;
+  border-radius: 21px;
+  background: rgba(255,255,255,.7);
+  color: #555b58;
+}
+.external-bank-empty > span {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 3px;
+  border-radius: 50%;
+  background: #17181b;
+  color: #fff;
+}
+.external-bank-empty > span .icon { width: 20px; height: 20px; }
+.external-bank-empty b { color: #17181b; }
+.external-bank-empty small { font-size: .7rem; }
+@media (min-width:680px) { .external-bank-list { grid-template-columns: 1fr 1fr; } }
+
+/* Native mobile date/time controls need shrinkable tracks to avoid overlap. */
+.schedule-date-grid {
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 10px;
+}
+.schedule-date-grid .field,
+.schedule-date-grid input {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.schedule-date-grid input { padding-inline: 12px; }
+.field .money-input input {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+@media (max-width:420px) {
+  .schedule-date-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
 }
