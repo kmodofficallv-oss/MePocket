@@ -5,8 +5,8 @@ self.addEventListener('message', event => {
   const { title, body } = event.data;
   event.waitUntil(self.registration.showNotification(title, {
     body,
-    icon: './assets/mepocket.svg',
-    badge: './assets/mepocket.svg',
+    icon: './assets/mepocket-192.png',
+    badge: './assets/mepocket-192.png',
     tag: `pocket-${Date.now()}`,
     renotify: false
   }));

@@ -50,6 +50,19 @@ body { color: var(--concept-deep); }
 }
 .home-dark .decor-coin { display: none; }
 .page-top { margin: 0 0 24px; }
+.app-brand-head {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.app-brand-head > img {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  border-radius: 14px;
+  box-shadow: 0 8px 20px rgba(0,0,0,.2);
+}
+.app-brand-head .overline { margin-bottom: 1px; }
 .page-top .overline { color: #58757b; font-size: .7rem; letter-spacing: .09em; text-transform: uppercase; }
 .page-top h1 { color: var(--concept-deep); font-size: 2rem; letter-spacing: -.035em; }
 .profile-dot {
@@ -231,6 +244,7 @@ body { color: var(--concept-deep); }
 .page-top h1,
 .account-panel,
 .panel-heading h2 { color: #fff; }
+.app-brand-head > img { box-shadow: 0 0 0 1px rgba(255,255,255,.14),0 8px 22px rgba(0,0,0,.28); }
 .profile-dot {
   border: 1px solid #44474b;
   border-radius: 50%;
