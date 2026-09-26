@@ -667,7 +667,7 @@ function renderPlans() {
     const ribbon = plan.badges.find(badge => badge.ribbon);
     const seats = planSeats[plan.id] ?? plan.minSeats;
     return `<article class="plan-card ${plan.id} ${plan.group === 'business' ? 'biz' : 'solo'}${ribbon ? ' has-ribbon' : ''}${isCurrent ? ' current' : ''}" data-plan-card="${plan.id}">
-      ${ribbon ? `<div class="plan-ribbon">${esc(ribbon.text)}</div>` : ''}
+      ${ribbon ? `<div class="plan-ribbon"><span>${esc(ribbon.text)}</span></div>` : ''}
       <header class="plan-head"><h2>${esc(plan.name)}${plan.badges.filter(badge => !badge.ribbon).map(badge => `<span class="plan-badge${badge.best ? ' best' : ''}${badge.dark ? ' dark' : ''}">${esc(badge.text)}</span>`).join('')}${isCurrent ? '<span class="plan-current-chip">ใช้อยู่</span>' : ''}</h2><p>${esc(plan.tagline)}</p></header>
       ${heroTitle ? `<div class="plan-hero"><b>${icon('sparkle')}<span>${esc(heroTitle)}</span></b>${heroLines.map(([mark, text]) => `<p><span>${esc(mark)}</span>${esc(text)}</p>`).join('')}</div>` : ''}
       <div class="plan-price">${plan.oldPrice ? `<s>${esc(plan.oldPrice)}</s>` : ''}<strong>${esc(plan.price)}</strong><small>${esc(plan.priceNote)}</small>${plan.priceSub ? `<small class="plan-price-sub">${esc(plan.priceSub)}</small>` : ''}</div>
@@ -1582,6 +1582,7 @@ document.addEventListener('click', event => { if (event.target.closest('[data-sh
   const _sync = syncPlanTabs; syncPlanTabs = function(){ const r = _sync.apply(this, arguments); onView(); return r; };
   const _render = renderPlans; renderPlans = function(){ const r = _render.apply(this, arguments); observe(); onView(); return r; };
   const _open = openPlans; openPlans = function(){ activeId = null; activeEl = null; instantId = null; return _open.apply(this, arguments); };
+  let sf = 0; window.addEventListener('scroll', () => { cancelAnimationFrame(sf); sf = requestAnimationFrame(() => { if (activeEl) tickIn(activeEl, activeId === instantId); }); }, {passive:true});
   observe(); onView();
 })();
 

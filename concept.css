@@ -1776,22 +1776,25 @@ body[data-active-view="plans"] .app { padding-bottom: 0; }
 .no-tick-anim .plan-limit > .icon,.no-tick-anim .plan-features li > .icon,.no-tick-anim .plan-hero > b > .icon,.no-tick-anim .plan-features > h3 > .icon:first-child{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){.plan-limit > .icon,.plan-features li > .icon,.plan-hero > b > .icon,.plan-features > h3 > .icon:first-child{opacity:1 !important;transform:none !important;animation:none !important}}
 /* badges, price and tag labels pop too */
-.plan-head h2 .plan-badge,.plan-price s,.plan-price strong,.plan-ribbon,.plan-limit em{opacity:0;transform:scale(.3)}
+.plan-head h2 .plan-badge,.plan-price s,.plan-price strong,.plan-ribbon > span,.plan-limit em{opacity:0;transform:scale(.3)}
+.plan-ribbon > span{display:inline-block}
 .plan-price strong,.plan-price s{transform-origin:0 70%}
 .plan-price strong{font-variant-numeric:tabular-nums}
-.plan-ribbon{transform-origin:50% 0}
+
 .tk .plan-badge{animation:badgePop .5s cubic-bezier(.3,1.8,.5,1) calc(var(--d,0ms) + 120ms) both}
 .tk .plan-badge + .plan-badge{animation-delay:calc(var(--d,0ms) + 230ms)}
-.tk.plan-ribbon{animation:badgePop .5s cubic-bezier(.3,1.7,.5,1) var(--d,0ms) both}
+.tk.plan-ribbon > span{animation:badgePop .5s cubic-bezier(.3,1.7,.5,1) var(--d,0ms) both}
 .tk.plan-price s{animation:badgePop .45s cubic-bezier(.3,1.8,.5,1) var(--d,0ms) both}
 .tk.plan-price strong{animation:pricePop .65s cubic-bezier(.3,1.7,.5,1) calc(var(--d,0ms) + 110ms) both}
-.tk.plan-limit em{animation:badgePop .45s cubic-bezier(.3,1.8,.5,1) calc(var(--d,0ms) + 90ms) both}
-.tk-out .plan-badge,.tk-out.plan-ribbon,.tk-out.plan-price s,.tk-out.plan-price strong,.tk-out.plan-limit em{animation:tickOut .22s ease-in both}
-.tk.tk-now .plan-badge,.tk.tk-now.plan-ribbon,.tk.tk-now.plan-price s,.tk.tk-now.plan-price strong,.tk.tk-now.plan-limit em{animation:none;opacity:1;transform:none}
+.plan-limit em{transform-origin:0 50%}
+.tk.plan-limit em{animation:tagPop .4s cubic-bezier(.25,1.3,.5,1) calc(var(--d,0ms) + 90ms) both}
+.tk-out .plan-badge,.tk-out.plan-ribbon > span,.tk-out.plan-price s,.tk-out.plan-price strong,.tk-out.plan-limit em{animation:tickOut .22s ease-in both}
+.tk.tk-now .plan-badge,.tk.tk-now.plan-ribbon > span,.tk.tk-now.plan-price s,.tk.tk-now.plan-price strong,.tk.tk-now.plan-limit em{animation:none;opacity:1;transform:none}
 @keyframes badgePop{0%{opacity:0;transform:scale(.3)}55%{opacity:1;transform:scale(1.18)}100%{opacity:1;transform:scale(1)}}
+@keyframes tagPop{0%{opacity:0;transform:scale(.9) translateY(4px)}60%{opacity:1;transform:scale(1.02)}100%{opacity:1;transform:none}}
 @keyframes pricePop{0%{opacity:0;transform:scale(.4) translateY(8px)}55%{opacity:1;transform:scale(1.14) translateY(-2px)}100%{opacity:1;transform:none}}
-.no-tick-anim .plan-head h2 .plan-badge,.no-tick-anim .plan-price s,.no-tick-anim .plan-price strong,.no-tick-anim .plan-ribbon,.no-tick-anim .plan-limit em{opacity:1;transform:none}
-@media (prefers-reduced-motion:reduce){.plan-head h2 .plan-badge,.plan-price s,.plan-price strong,.plan-ribbon,.plan-limit em{opacity:1 !important;transform:none !important;animation:none !important}}
+.no-tick-anim .plan-head h2 .plan-badge,.no-tick-anim .plan-price s,.no-tick-anim .plan-price strong,.no-tick-anim .plan-ribbon > span,.no-tick-anim .plan-limit em{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.plan-head h2 .plan-badge,.plan-price s,.plan-price strong,.plan-ribbon > span,.plan-limit em{opacity:1 !important;transform:none !important;animation:none !important}}
 /* soft pop when a button is pressed (overrides the app's own :active nudge) */
 .plans-view button,.pay-view button,.qr-sheet button{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .plans-view button,.pay-view button,.qr-sheet button{transition:transform .42s cubic-bezier(.3,1.7,.5,1),filter .2s,background-color .2s,color .2s,border-color .2s !important}
