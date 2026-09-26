@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#17181b">
+<script>/* theme before first paint: the saved MePocket choice, or the phone's setting */(function(){var p='auto';try{p=localStorage.getItem('mepocket-theme')||'auto'}catch(e){}var d=p==='auto'?(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):p;document.documentElement.setAttribute('data-theme',d);})();</script>
 <title>MePocket Plans</title>
 <meta name="description" content="เลือกแพลน MePocket — Individual และ Business">
 <style>
@@ -1968,6 +1969,26 @@ body[data-active-view="pay"]{background:#f5f6f3}
 @keyframes pricePop{0%{opacity:0;transform:scale(.4) translateY(8px)}55%{opacity:1;transform:scale(1.14) translateY(-2px)}100%{opacity:1;transform:none}}
 .no-tick-anim .plan-head h2 .plan-badge,.no-tick-anim .plan-price s,.no-tick-anim .plan-price strong,.no-tick-anim .plan-ribbon > span,.no-tick-anim .plan-limit em{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){.plan-head h2 .plan-badge,.plan-price s,.plan-price strong,.plan-ribbon > span,.plan-limit em{opacity:1 !important;transform:none !important;animation:none !important}}
+/* flash sale price: count up to full price -> strike -> drop to sale price; full price parks small at top-right */
+.plan-price .pp-main{display:inline-flex;align-items:flex-start;gap:6px}
+.plan-price .pp-main + small{flex-basis:100%}
+.plan-price .pp-main strong{position:relative;color:#fff}
+.plan-price .pp-main strong::after{content:'';position:absolute;left:-3px;right:-3px;top:54%;height:2px;margin-top:-1px;border-radius:2px;background:#ff4d5a;opacity:0;clip-path:inset(0 100% 0 0);pointer-events:none}
+.plan-price .pp-strike strong::after{opacity:1;clip-path:inset(0 0 0 0);transition:clip-path .26s cubic-bezier(.7,0,.2,1)}
+.plan-price .pp-strike.pp-show strong::after{opacity:0;transform:translateY(-5px);transition:opacity .28s ease,transform .28s ease}
+.plan-price .pp-old{position:relative;margin-top:3px;color:#ff6b76;font-size:.9rem;font-weight:900;line-height:1;text-decoration:none;white-space:nowrap;opacity:0;transform:scale(.3);transform-origin:0 50%}
+.plan-price .pp-old::after{content:'';position:absolute;left:-2px;right:-2px;top:52%;height:1.5px;margin-top:-.75px;border-radius:2px;background:currentColor}
+.tk.plan-price .pp-show .pp-old{animation:ppOldIn .6s cubic-bezier(.25,1.35,.5,1) both}
+.tk.plan-price .pp-show .pp-old::after{animation:ppStrike .3s ease-out .32s both}
+.tk.plan-price .pp-done .pp-old{animation:badgePop .45s cubic-bezier(.3,1.8,.5,1) calc(var(--d,0ms) + 110ms) both}
+.tk.plan-price .pp-done .pp-old::after{animation:none}
+.tk.tk-now.plan-price .pp-old{animation:none;opacity:1;transform:none}
+.tk.tk-now.plan-price .pp-old::after{animation:none}
+.tk-out.plan-price .pp-old{animation:tickOut .22s ease-in both}
+@keyframes ppOldIn{0%{opacity:0;transform:translate(-70px,12px) scale(2.1)}55%{opacity:1;transform:translate(2px,-1px) scale(.94)}100%{opacity:1;transform:none}}
+@keyframes ppStrike{0%{clip-path:inset(0 100% 0 0)}100%{clip-path:inset(0 0 0 0)}}
+.no-tick-anim .plan-price .pp-old{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.plan-price .pp-old{opacity:1 !important;transform:none !important;animation:none !important}.plan-price .pp-main strong::after{display:none}}
 /* soft pop when a button is pressed (overrides the app's own :active nudge) */
 button,.plan-card a{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 button{transition:transform .42s cubic-bezier(.3,1.7,.5,1),filter .2s,background-color .2s,color .2s,border-color .2s !important}
@@ -1976,9 +1997,417 @@ button.is-pressed{transform:scale(.93) !important;filter:brightness(.92);transit
 .plan-cta.is-pressed,.pay-cta.is-pressed,.pay-ghost.is-pressed,.pay-method.is-pressed,.plan-more.is-pressed{transform:scale(.96) !important}
 button:disabled.is-pressed{transform:none !important;filter:none}
 @media (prefers-reduced-motion:reduce){button,button.is-pressed{transition:none !important;transform:none !important}}
+
+
+
+
+/* ==THEME START== */
+/* MePocket themes: html[data-theme="light"] = white across the whole app, html[data-theme="dark"] = dark across the whole app.
+   The preference (auto / light / dark) is stored in localStorage "mepocket-theme" and applied in <head> before first paint. */
+@property --glow { syntax: '<color>'; inherits: true; initial-value: #7ee0cb; }
+html[data-theme="light"] { color-scheme: light; --hero-l: #eceee9; }
+html[data-theme="dark"] { color-scheme: dark; --page-d: #121315; --surface-d: #1c1d20; --raise-d: #26282c; --line-d: #2d2f33; --text-d: #eff0f1; --muted-d: #a3a7ab; }
+
+/* ---------- theme picker in Settings ---------- */
+.theme-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.theme-seg { display: flex; flex: none; gap: 2px; padding: 3px; border-radius: 12px; background: #eef0ec; }
+.theme-seg button { border: 0; border-radius: 9px; background: transparent; color: #6b7174; padding: 7px 10px; font: 700 .74rem 'Noto Sans Thai', system-ui, sans-serif; white-space: nowrap; transition: background .2s, color .2s; }
+.theme-seg button.active { background: #17181b; color: #fff; }
+html[data-theme="dark"] .theme-seg { background: #26282c; }
+html[data-theme="dark"] .theme-seg button { color: #a3a7ab; }
+html[data-theme="dark"] .theme-seg button.active { background: #eff0f1; color: #17181b; }
+@media (max-width:380px) { .theme-row { flex-wrap: wrap; } .theme-seg { width: 100%; } .theme-seg button { flex: 1; } }
+
+/* ================= LIGHT: the black hero areas turn light ================= */
+html[data-theme="light"] .home-dark,
+html[data-theme="light"] .detail-dark,
+html[data-theme="light"] .card-detail-dark,
+html[data-theme="light"] .transfer-hero { background: var(--hero-l); color: #17181b; }
+html[data-theme="light"] body .app { background: #f7f8f3; }
+html[data-theme="light"] body[data-active-view="cardDetail"] .app { background: var(--hero-l); }
+html[data-theme="light"] body[data-active-view="plans"] .app,
+html[data-theme="light"] .plans-view { background: #f2f3f0; }
+html[data-theme="light"] .home-dark .decor-grid,
+html[data-theme="light"] .detail-dark .decor-grid { background-image: linear-gradient(rgba(23,24,27,.055) 1px,transparent 1px), linear-gradient(90deg,rgba(23,24,27,.055) 1px,transparent 1px); }
+html[data-theme="light"] .decor-coin { background: #fff; border-color: #d3d6d1; color: #9a9ea1; }
+html[data-theme="light"] .card-pattern { background: repeating-radial-gradient(ellipse at 20% 10%,transparent 0 12px,rgba(23,24,27,.04) 13px 14px), radial-gradient(circle at 100% 0,rgba(88,243,142,.28),transparent 34%); }
+html[data-theme="light"] .page-top h1,
+html[data-theme="light"] .account-panel,
+html[data-theme="light"] .panel-heading h2,
+html[data-theme="light"] .detail-top h1,
+html[data-theme="light"] .transfer-head h2,
+html[data-theme="light"] .more-currencies,
+html[data-theme="light"] .quick-grid button,
+html[data-theme="light"] .account-actions button,
+html[data-theme="light"] .card-exchange { color: #17181b; }
+html[data-theme="light"] .page-top .overline,
+html[data-theme="light"] .panel-heading p,
+html[data-theme="light"] .quick-menu > p,
+html[data-theme="light"] .rate-button,
+html[data-theme="light"] .detail-updated,
+html[data-theme="light"] .transfer-kicker,
+html[data-theme="light"] #cardSubtitle { color: #676d70; }
+html[data-theme="light"] .app-brand-head > img { box-shadow: 0 0 0 1px rgba(23,24,27,.08), 0 8px 22px rgba(23,24,27,.12); }
+html[data-theme="light"] .profile-dot { border-color: #dfe2dd; background: #fff; color: #17181b; }
+html[data-theme="light"] .more-currencies b { background: rgba(23,24,27,.07); }
+html[data-theme="light"] .quick-grid span,
+html[data-theme="light"] .account-actions span,
+html[data-theme="light"] .round-back,
+html[data-theme="light"] .transfer-back { background: #17181b; color: #fff; }
+html[data-theme="light"] .card-exchange span { background: var(--green); color: #111; }
+html[data-theme="light"] .home-dark .interest-strip { box-shadow: 0 8px 24px rgba(23,24,27,.07); }
+html[data-theme="light"] .transfer-source-card { border-color: rgba(23,24,27,.08); }
+
+/* plans page: light page, the plan cards themselves stay dark like physical cards */
+html[data-theme="light"] .plans-view { color: #17181b; }
+html[data-theme="light"] .plans-top h1 { color: #17181b; }
+html[data-theme="light"] .plans-top .overline { color: #676d70; }
+html[data-theme="light"] .plan-share { border-color: #dfe2dd; background: #fff; color: #17181b; }
+html[data-theme="light"] .plan-group-toggle { border-color: #dfe2dd; background: #e9ebe7; }
+html[data-theme="light"] .plan-group-toggle button { color: #5d6366; }
+html[data-theme="light"] .plan-group-toggle button.active { border-color: #dfe2dd; background: #fff; color: #17181b; }
+html[data-theme="light"] .plan-group-note { border-color: #dfe2dd; background: #fff; color: #5d6366; }
+html[data-theme="light"] .plan-tabs { border-color: #dfe2dd; background: #e9ebe7; }
+html[data-theme="light"] .plan-tabs button { color: #676d70; }
+html[data-theme="light"] .plan-tabs button.active { background: #fff; color: #17181b; box-shadow: 0 2px 8px rgba(23,24,27,.08); }
+html[data-theme="light"] .plan-tabs button.active[data-plan-jump="plus"] { color: #16924a; }
+html[data-theme="light"] .plan-tabs button.active[data-plan-jump="ultra"] { color: #d9293a; }
+html[data-theme="light"] .plan-tabs button.active[data-plan-jump="scale"] { color: #2456d6; }
+html[data-theme="light"] .plan-tabs button.active[data-plan-jump="enterprise"] { color: #a4731a; }
+html[data-theme="light"] .plan-card { color: #fff; box-shadow: 0 18px 40px rgba(23,24,27,.16); }
+
+/* muted captions were ~3:1 on white; nudge them darker so they stay readable in sunlight */
+html[data-theme="light"] :is(.tx-copy small, .tx-money small, .setting-row small, .menu-card small, .interest-strip small, .card-available-head p, .bank-limit, .card-account-mini .balance-value, .pin-device-note, .detail-interest small, .settings-section-head small, .schedule-empty, .schedule-footnote, .demo-note) { color: #6f7478; }
+
+html[data-theme="light"] :is(.review-summary .review-amount, .slip-summary strong) { color: #0f9a4b; }
+html[data-theme="light"] .slip-card dt { color: #767b7f; }
+html[data-theme] .transfer-safety > span { color: #3a2a00; }
+
+/* grey captions inside the dark plan cards (both themes) */
+html[data-theme] .plan-card:not(.solo) .plan-hero p span,
+html[data-theme] .plan-limit small,
+html[data-theme] .plan-features li.no { color: #8d9196; }
+
+/* ===== generated dark surfaces (from styles.css + concept.css) ===== */
+html[data-theme="dark"] .overline{color:#aaacb0}
+html[data-theme="dark"] .dark-text{color:#bbbdbe}
+html[data-theme="dark"] .interest-strip small{color:#b2b4b6}
+html[data-theme="dark"] .light-zone{background:#1c1d1f;color:#eeeff1}
+html[data-theme="dark"] .text-link{color:#eff0f1}
+html[data-theme="dark"] .transaction-list{background:#1c1d1f}
+html[data-theme="dark"] .transaction{border-bottom:1px solid #323438}
+html[data-theme="dark"] .tx-copy small{color:#b3b5b7}
+html[data-theme="dark"] .tx-money small{color:#b3b5b7}
+html[data-theme="dark"] .positive{color:#70eba5}
+html[data-theme="dark"] .negative{color:#e27880}
+html[data-theme="dark"] .empty{color:#b5b7ba}
+html[data-theme="dark"] .hero-brand p{color:#cdcfd0}
+html[data-theme="dark"] .hero-balance small{color:#cfd1d3}
+html[data-theme="dark"] .inner-header .overline{color:#c3c4c6}
+html[data-theme="dark"] .inner-header h1{color:#efeff1}
+html[data-theme="dark"] .goal-row{background:#1c1d1f}
+html[data-theme="dark"] .goal-row small{color:#b7b9bb}
+html[data-theme="dark"] .filter-row button{border:1px solid #38393e;background:#1c1d1f;color:#c5c7c8}
+html[data-theme="dark"] .profile-stat{background:#1c1d1f}
+html[data-theme="dark"] .profile-stat span{color:#b6b8ba}
+html[data-theme="dark"] .menu-card{background:#1c1d1f}
+html[data-theme="dark"] .settings-group{background:#1c1d1f}
+html[data-theme="dark"] .menu-card button{border-bottom:1px solid #323438;color:#efeff1}
+html[data-theme="dark"] .setting-row{border-bottom:1px solid #323438;color:#efeff1}
+html[data-theme="dark"] .menu-card button>span{background:#27292c}
+html[data-theme="dark"] .menu-card small{color:#b5b7b9}
+html[data-theme="dark"] .setting-row small{color:#b5b7b9}
+html[data-theme="dark"] .settings-group>h2{color:#bdbfc1}
+html[data-theme="dark"] .demo-note{color:#b6b8ba}
+html[data-theme="dark"] .bottom-nav{border-top:1px solid #34363a}
+html[data-theme="dark"] .grabber{background:#333539}
+html[data-theme="dark"] .field{color:#cfd1d3}
+html[data-theme="dark"] .field>select{border:1px solid #37393d;background:#121314;color:#efeff1}
+html[data-theme="dark"] .money-input span{color:#c4c6c8}
+html[data-theme="dark"] .form-error{color:#e3787f}
+html[data-theme="dark"] .segment{background:#27292c}
+html[data-theme="dark"] .segment button{color:#c5c7c8}
+html[data-theme="dark"] .segment button.active{background:#1c1d1f;color:#eeeff1}
+html[data-theme="dark"] .carousel-dots i.active{background:#1c1d1f}
+html[data-theme="dark"] .goal-delete{color:#d8838d}
+html[data-theme="dark"] .goal-row .row-delete{background:#371517;color:#db8088}
+html[data-theme="dark"] .add-account-card{border:2px dashed #3c3d42;color:#d8dbda}
+html[data-theme="dark"] .add-account-card b{color:#eeeff1}
+html[data-theme="dark"] .add-account-card:active{background:#153720}
+html[data-theme="dark"] .color-picker{border:1px solid #37393d;background:#121314}
+html[data-theme="dark"] .color-picker span{color:#eeefee}
+html[data-theme="dark"] .card-detail-dark .detail-top>div p{color:#adb1ae}
+html[data-theme="dark"] .card-available-head p{color:#b1b4b7}
+html[data-theme="dark"] .card-account-mini{background:#1c1d1f}
+html[data-theme="dark"] .card-account-mini>small{color:#b3b5b7}
+html[data-theme="dark"] .card-info-note{background:#121314;color:#bec0c2}
+html[data-theme="dark"] .small-circle-action.active{background:#153721;color:#6bf0a2}
+html[data-theme="dark"] .reorder-hint{background:#153721;color:#84d6a6}
+html[data-theme="dark"] .compact-card-open{background:#1c1d1f;color:#eeeff1}
+html[data-theme="dark"] .settings-section-head h2{color:#bdbfc1}
+html[data-theme="dark"] .settings-section-head small{color:#aeb0b3}
+html[data-theme="dark"] .schedule-empty{border:1px dashed #393a3e;color:#b3b5b7}
+html[data-theme="dark"] .schedule-item{background:#121314}
+html[data-theme="dark"] .schedule-item small{color:#bfc1c3}
+html[data-theme="dark"] .schedule-item em{color:#71eaa5}
+html[data-theme="dark"] .schedule-item.failed em{color:#e17a83}
+html[data-theme="dark"] .schedule-item>button{background:#371517;color:#db8088}
+html[data-theme="dark"] .schedule-footnote{color:#b3b5b8}
+html[data-theme="dark"] .transfer-sheet{background:#1c1d1f}
+html[data-theme="dark"] .transfer-screen{background:#1c1d1f;color:#eeeff1}
+html[data-theme="dark"] .bank-tabs{border-bottom:1px solid #333438}
+html[data-theme="dark"] .bank-tabs button{color:#b7b9ba}
+html[data-theme="dark"] .bank-choice small{color:#b8babc}
+html[data-theme="dark"] .line-field{border-bottom:1px solid #36383c}
+html[data-theme="dark"] .line-field>span{color:#bbbdbe}
+html[data-theme="dark"] .bank-limit{color:#b3b6b8}
+html[data-theme="dark"] .bank-limit strong{color:#d8d9da}
+html[data-theme="dark"] .transfer-empty{color:#bfc1c2}
+html[data-theme="dark"] .transfer-empty b{color:#eeeff1}
+html[data-theme="dark"] .bank-tile{border:1px solid #35373b}
+html[data-theme="dark"] .bank-tile small{color:#b7babb}
+html[data-theme="dark"] .bank-tile>.icon{color:#6feca3}
+html[data-theme="dark"] .deposit-popup{background:rgba(18, 19, 20, 0.94);color:#eeeff1}
+html[data-theme="dark"] .deposit-popup.failed .deposit-popup-icon{background:#371517;color:#e27983}
+html[data-theme="dark"] .deposit-popup-copy small{color:#bec0c1}
+html[data-theme="dark"] .deposit-popup-copy em{color:#c6c7c9}
+html[data-theme="dark"] .deposit-popup>button{background:#2a2b2e;color:#cccdcf}
+html[data-theme="dark"]{background:#313236}
+html[data-theme="dark"] body{background:#313236}
+html[data-theme="dark"] .account-list::before{background:#1b1537}
+html[data-theme="dark"] .home-light .overline{color:#c6cdce}
+html[data-theme="dark"] .outline-small{border-color:#3b3c41;background:#1c1d1f}
+html[data-theme="dark"] .quick-grid span{background:#1c1d1f;color:#f0f0f0}
+html[data-theme="dark"] .recent-block .tx-icon{color:#f0f0f0}
+html[data-theme="dark"] .recent-block .text-link{color:#f0f0f0}
+html[data-theme="dark"] .interest-strip{background:#1c1d1f;color:#efeff1}
+html[data-theme="dark"] .home-dark .interest-strip{background:#1c1d1f;color:#efeff1}
+html[data-theme="dark"] .home-dark .interest-strip small{color:#b4b7b9}
+html[data-theme="dark"] .bottom-nav{background:rgba(39, 40, 43, 0.96)}
+html[data-theme="dark"] .bottom-nav button{color:#b9bec0}
+html[data-theme="dark"] .round-back{background:#1c1d1f;color:#eeeff1}
+html[data-theme="dark"] .transfer-back{background:#1c1d1f;color:#eeeff1}
+html[data-theme="dark"] .currency-tab.active{border-color:#2c2e31;background:#1c1d1f;color:#eeeff1}
+html[data-theme="dark"] .account-actions span{background:#1c1d1f;color:#eeeff1}
+html[data-theme="dark"] .inner-view{background:#121314}
+html[data-theme="dark"] .detail-light{background:#121314}
+html[data-theme="dark"] .card-detail-light{background:#121314}
+html[data-theme="dark"] .transfer-body{background:#121314}
+html[data-theme="dark"] .goal-row{border:1px solid #35373b}
+html[data-theme="dark"] .menu-card{border:1px solid #35373b}
+html[data-theme="dark"] .settings-group{border:1px solid #35373b}
+html[data-theme="dark"] .profile-stat{border:1px solid #35373b}
+html[data-theme="dark"] .transaction-list{border:1px solid #35373b}
+html[data-theme="dark"] .tx-icon{background:#27282b;color:#eeeff1}
+html[data-theme="dark"] .menu-card button > span{background:#27282b;color:#eeeff1}
+html[data-theme="dark"] .schedule-icon{background:#27282b;color:#eeeff1}
+html[data-theme="dark"] .sheet-panel{background:#121314}
+html[data-theme="dark"] .field input{border:1px solid #36383c;background-color:#1c1d1f;color:#eeeff1}
+html[data-theme="dark"] .field select{border:1px solid #36383c;background-color:#1c1d1f;color:#eeeff1}
+html[data-theme="dark"] .field > select{border:1px solid #36383c;background-color:#1c1d1f;color:#eeeff1}
+html[data-theme="dark"] .money-input{border:1px solid #36383c;background-color:#1c1d1f;color:#eeeff1}
+html[data-theme="dark"] .field select option{background:#1c1d1f;color:#eeeff1}
+html[data-theme="dark"] .field select optgroup{background:#1c1d1f;color:#eeeff1}
+html[data-theme="dark"] .conversion-note{background:#15372c;color:#89d2c3}
+html[data-theme="dark"] .swap-route{border:1px solid #36383c;background:#1c1d1f;color:#eeeff1}
+html[data-theme="dark"] .close-button{background:#1c1d1f;color:#eeeff1}
+html[data-theme="dark"] .transfer-body{color:#eeeff1}
+html[data-theme="dark"] .bank-tabs button.active{color:#eeeff1}
+html[data-theme="dark"] .transfer-destination-card{border:1px solid #36383c;background:#1c1d1f;color:#eeeff1}
+html[data-theme="dark"] .transfer-destination-card small{color:#babdbe}
+html[data-theme="dark"] .bank-choice{border:1px solid #36383c;background:#1c1d1f}
+html[data-theme="dark"] .line-field{border:1px solid #36383c;background:#1c1d1f}
+html[data-theme="dark"] .line-field input{color:#eeeff1}
+html[data-theme="dark"] .bank-conversion{background:#15372d;color:#8ad1c3}
+html[data-theme="dark"] .bank-next:disabled{background:#2f3134;color:#b1b5b2}
+html[data-theme="dark"] .bank-tile{background:#1c1d1f}
+html[data-theme="dark"] .transfer-picker-panel{background:#121314}
+html[data-theme="dark"] .transfer-picker-group > p{color:#c3c6c5}
+html[data-theme="dark"] .transfer-picker-option{border:1px solid #36383c;background:#1c1d1f;color:#8fc0cc}
+html[data-theme="dark"] .transfer-picker-option-copy small{color:#c1c4c2}
+html[data-theme="dark"] .external-bank-row{border:1px solid #36383c;background:#1c1d1f}
+html[data-theme="dark"] .external-bank-row small{color:#bbbebd}
+html[data-theme="dark"] .external-bank-row > button{background:#371517;color:#db8088}
+html[data-theme="dark"] .external-bank-empty{border:2px dashed #3c3d42;color:#d8dbda}
+html[data-theme="dark"] .external-bank-empty b{color:#eeeff1}
+html[data-theme="dark"] .transfer-flow-screen{color:#8fc0cc}
+html[data-theme="dark"] .review-mark{background:#153721;color:#71e9a5}
+html[data-theme="dark"] .flow-overline{color:#babebc}
+html[data-theme="dark"] .review-card > div{border-bottom:1px solid #323337}
+html[data-theme="dark"] .review-card span{color:#bbbebd}
+html[data-theme="dark"] .review-card small{color:#b3b7b5}
+html[data-theme="dark"] .review-note{background:#15372a;color:#93c8bb}
+html[data-theme="dark"] .flow-actions{border-top:1px solid #35363a}
+html[data-theme="dark"] .secondary-flow-button{border:1px solid #383a3e;background:#1c1d1f;color:#eeeff1}
+html[data-theme="dark"] .slip-card > p{color:#b9bcba}
+html[data-theme="dark"] .slip-route i{background:#37393d}
+html[data-theme="dark"] .slip-card dt{color:#b3b7b5}
+html[data-theme="dark"] .favorite-list-head{color:#bfc2c0}
+html[data-theme="dark"] .favorite-transfer{border:1px solid #36383c;background:#1c1d1f;color:#8fc0cc}
+html[data-theme="dark"] .favorite-transfer > span:first-child{background:#153728;color:#72e8ac}
+html[data-theme="dark"] .favorite-transfer small{color:#babebc}
+html[data-theme="dark"] .favorite-empty{color:#babebc}
+html[data-theme="dark"] .favorite-empty b{color:#8fc0cc}
+html[data-theme="dark"] .pin-screen{color:#eeeff1;background:#1c1d1f}
+html[data-theme="dark"] .pin-brand{color:#eeeff1}
+html[data-theme="dark"] .pin-lock{background:#153724;color:#6ceeaa}
+html[data-theme="dark"] .pin-lock.scanning{background:#153722}
+html[data-theme="dark"] .pin-copy h1{color:#eeeff1}
+html[data-theme="dark"] .pin-copy p{color:#c4c7c5}
+html[data-theme="dark"] .pin-dots i{border-color:#43454a}
+html[data-theme="dark"] .pin-error{color:#e27982}
+html[data-theme="dark"] .pin-keypad button{background:#121314;color:#eeeff1}
+html[data-theme="dark"] .pin-keypad button:active{color:#85d6a2}
+html[data-theme="dark"] .pin-keypad .pin-bio{color:#6ceeaa;background:#153721}
+html[data-theme="dark"] .pin-keypad .pin-delete{color:#eeeff1}
+html[data-theme="dark"] .pin-device-note{color:#b3b7b4}
+html[data-theme="dark"] .transfer-flow-sheet{background:#1c1d1f}
+html[data-theme="dark"] .transfer-flow-screen{background:#1c1d1f}
+html[data-theme="dark"] .flow-head{background:#1c1d1f;color:#eeeff1}
+html[data-theme="dark"] .flow-back{color:#eeeff1}
+html[data-theme="dark"] .flow-content{background:#1c1d1f}
+html[data-theme="dark"] .transfer-safety{background:#372d15;color:#e5e3e0}
+html[data-theme="dark"] .review-card{background:#1c1d1f}
+html[data-theme="dark"] .review-card > .review-summary{border-bottom:1px solid #333539}
+html[data-theme="dark"] .review-summary > span{color:#eeeff1}
+html[data-theme="dark"] .review-summary .review-amount{color:#6af1a5}
+html[data-theme="dark"] .review-summary small{color:#b7bbb8}
+html[data-theme="dark"] .review-card > .review-route{border-bottom:1px solid #323437}
+html[data-theme="dark"] .review-route > span{color:#d2d4d2}
+html[data-theme="dark"] .review-route > b{color:#eeeff1}
+html[data-theme="dark"] .review-route > small{color:#b7bbb8}
+html[data-theme="dark"] .flow-actions{background:#1c1d1f}
+html[data-theme="dark"] .success-screen{background:#121314;color:#eeeff1}
+html[data-theme="dark"] .success-top{background:#1c1d1f}
+html[data-theme="dark"] .success-top h2{color:#eeeff1}
+html[data-theme="dark"] .success-top p{color:#bfc2c0}
+html[data-theme="dark"] .slip-card{background:#1c1d1f;color:#eeeff1}
+html[data-theme="dark"] .slip-summary p{color:#eeeff1}
+html[data-theme="dark"] .slip-summary strong{color:#6af1a5}
+html[data-theme="dark"] .slip-summary small{color:#b9bcba}
+html[data-theme="dark"] .slip-route{border-block:1px solid #343539}
+html[data-theme="dark"] .slip-route > span + span{border-top:1px solid #343539}
+html[data-theme="dark"] .slip-route small{color:#d8dad8}
+html[data-theme="dark"] .slip-route b{color:#eeeff1}
+html[data-theme="dark"] .success-actions{background:#121314}
+html[data-theme="dark"] .favorite-flow-button{border:1px solid #36383c;background:#1c1d1f;color:#eeeff1}
+html[data-theme="dark"] .favorite-flow-button.active{color:#6eeda8;background:#153721}
+html[data-theme="dark"] .account-history .tx-icon{color:#eeeff1}
+html[data-theme="dark"] .transfer-pin-screen{background:#1c1d1f;color:#eeeff1}
+html[data-theme="dark"] .transfer-pin-lock{background:#153724;color:#6ceeaa}
+html[data-theme="dark"] .transfer-pin-copy p{color:#c4c7c5}
+html[data-theme="dark"] .transfer-pin-copy strong{color:#6ceeaa}
+html[data-theme="dark"] .transfer-pin-copy small{color:#bbbebc}
+html[data-theme="dark"] .transfer-pin-dots i{border:2px solid #43454a}
+html[data-theme="dark"] .transfer-pin-error{color:#e27982}
+html[data-theme="dark"] .transfer-pin-keypad button{background:#121314;color:#eeeff1}
+html[data-theme="dark"] body[data-active-view="accounts"] .app{background:#121314}
+html[data-theme="dark"] body[data-active-view="transactions"] .app{background:#121314}
+html[data-theme="dark"] body[data-active-view="profile"] .app{background:#121314}
+html[data-theme="dark"] body[data-active-view="settings"] .app{background:#121314}
+html[data-theme="dark"] .plan-restrictions li.no{color:#b7b9bc}
+html[data-theme="dark"] .plan-seats button:disabled{color:#d7d8db}
+html[data-theme="dark"] body[data-active-view="pay"]{background:#121314}
+html[data-theme="dark"] .pay-back{background:#1c1d1f}
+html[data-theme="dark"] .pay-sum{background:#1c1d1f}
+html[data-theme="dark"] .pay-method{background:#1c1d1f}
+html[data-theme="dark"] .pay-ghost{background:#1c1d1f}
+html[data-theme="dark"] .qr-card{background:#1c1d1f}
+html[data-theme="dark"] .qr-note{background:#121314}
+html[data-theme="dark"] .qr-time{background:#372f15}
+html[data-theme="dark"] .qr-time small{color:#c9bb92}
+
+/* ================= DARK: hand-tuned on top of the generated surfaces ================= */
+html[data-theme="dark"], html[data-theme="dark"] body { background: var(--page-d); }
+html[data-theme="dark"] body { color: var(--text-d); }
+/* the design's colour variables double as text colours: point them at light tones (solid uses are re-set below) */
+html[data-theme="dark"] { --ink: #eff0f1; --concept-deep: #eff0f1; --muted: #a3a7ab; --concept-muted: #a3a7ab; --line: #2d2f33; --soft: #26282c; --paper: #121315; --concept-paper: #121315; }
+html[data-theme="dark"] .pay-method .tick,
+html[data-theme="dark"] .qr-save,
+html[data-theme="dark"] .currency-tab.active,
+html[data-theme="dark"] .account-actions span { color: #17181b; }
+html[data-theme="dark"] .profile-avatar { color: #0f2a30; }
+html[data-theme="dark"] .outline-small { color: #eff0f1; }
+html[data-theme="dark"] .splash-screen,
+html[data-theme="dark"] .pin-screen { background: var(--page-d); }
+html[data-theme="dark"] .account-hero p { color: rgba(23,45,50,.62); }
+html[data-theme="dark"] .account-hero .book-button { color: #102b31; }
+html[data-theme="dark"] .transfer-picker-option-icon { color: #172d32; }
+html[data-theme="dark"] .money-input input { border: 0; background: transparent; }
+html[data-theme="dark"] .add-account-card,
+html[data-theme="dark"] .external-bank-empty { border-color: #3a3c41; background: rgba(255,255,255,.03); color: #a3a7ab; }
+html[data-theme="dark"] .add-account-card b,
+html[data-theme="dark"] .external-bank-empty b { color: #eff0f1; }
+html[data-theme="dark"] .app,
+html[data-theme="dark"] .inner-view,
+html[data-theme="dark"] .light-zone,
+html[data-theme="dark"] .home-light,
+html[data-theme="dark"] .detail-light,
+html[data-theme="dark"] .card-detail-light,
+html[data-theme="dark"] .transfer-body,
+html[data-theme="dark"] body[data-active-view="settings"] .app { background: var(--page-d); }
+html[data-theme="dark"] .app { box-shadow: none; }
+html[data-theme="dark"] .home-dark,
+html[data-theme="dark"] .detail-dark,
+html[data-theme="dark"] .card-detail-dark,
+html[data-theme="dark"] .transfer-hero,
+html[data-theme="dark"] body[data-active-view="cardDetail"] .app,
+html[data-theme="dark"] body[data-active-view="plans"] .app { background: #17181b; }
+html[data-theme="dark"] .home-light,
+html[data-theme="dark"] .card-detail-light { border-top: 1px solid var(--line-d); }
+
+/* solid black buttons would vanish on a black page: flip them to white */
+html[data-theme="dark"] .primary-button,
+html[data-theme="dark"] .bank-next:not(:disabled),
+html[data-theme="dark"] .filter-row button.active,
+html[data-theme="dark"] .inner-header .circle-action,
+html[data-theme="dark"] .small-circle-action,
+html[data-theme="dark"] .schedule-add,
+html[data-theme="dark"] .quick-grid span,
+html[data-theme="dark"] .account-actions span,
+html[data-theme="dark"] .round-back,
+html[data-theme="dark"] .transfer-back,
+html[data-theme="dark"] .external-bank-empty > span,
+html[data-theme="dark"] .qr-exp button,
+html[data-theme="dark"] .pay-cta,
+html[data-theme="dark"] .card-exchange span { border-color: #eff0f1; background: #eff0f1; color: #17181b; }
+html[data-theme="dark"] .bank-next:disabled { background: #26282c; color: #6f7377; }
+html[data-theme="dark"] .switch:not(.on) { background: #3a3c41; }
+
+/* floating dock */
+html[data-theme="dark"] .bottom-nav { background: rgba(34,35,39,.94); box-shadow: 0 13px 34px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.06); }
+html[data-theme="dark"] .bottom-nav button { color: #8f9498; }
+html[data-theme="dark"] .bottom-nav button.active { background: #eff0f1; color: #17181b; box-shadow: 0 7px 17px rgba(0,0,0,.5); }
+html[data-theme="dark"] .bottom-nav button.active span { color: #17181b; }
+html[data-theme="dark"] .bottom-nav button.active::after { background: #eff0f1; }
+
+/* profile + toast keep their brand tone but lift off the page */
+html[data-theme="dark"] .profile-card { background: #16333b; }
+html[data-theme="dark"] .toast { background: #eff0f1; color: #17181b; }
+
+/* checkout screens use var(--ink) for text */
+html[data-theme="dark"] .pay-view,
+html[data-theme="dark"] .qr-card { color: var(--text-d); }
+html[data-theme="dark"] .pay-method .ico { background: #26282c; }
+html[data-theme="dark"] .qr-plan { background: #eff0f1; color: #17181b; }
+html[data-theme="dark"] .qr-box { background: #fff; border-radius: 16px; }
+html[data-theme="dark"] .qr-sheet { background: rgba(0,0,0,.65); }
+
+/* ================= glow backgrounds ================= */
+/* plans: a soft backlight behind the card in view, in that plan's colour (app.js sets --glow and --glow-y) */
+.plans-view { position: relative; isolation: isolate; --glow: #7ee0cb; transition: --glow .6s ease; }
+.plans-view::before { content: ""; position: absolute; left: 50%; top: calc(var(--glow-y, 200px) - 70px); z-index: -1; width: min(460px, 118vw); height: 780px; transform: translateX(-50%); pointer-events: none;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--glow) 28%, transparent), color-mix(in srgb, var(--glow) 11%, transparent) 60%, transparent); filter: blur(24px); }
+html[data-theme="light"] .plans-view::before { background: radial-gradient(closest-side, color-mix(in srgb, var(--glow) 22%, transparent), color-mix(in srgb, var(--glow) 8%, transparent) 60%, transparent); }
+/* dark mode: a faint mint light at the top of every plain page so the black isn't flat */
+html[data-theme="dark"] .inner-view,
+html[data-theme="dark"] .pay-view { background: radial-gradient(120% 340px at 85% -60px, rgba(126,224,203,.13), transparent 70%), radial-gradient(90% 260px at 0% -40px, rgba(156,98,255,.09), transparent 70%), var(--page-d); }
+@media (prefers-reduced-motion:reduce) { .plans-view { transition: none; } }
+
+/* ==THEME END== */
 </style>
 </head>
-<body data-active-view="plans" style="background:#17181b">
+<body data-active-view="plans">
   <svg class="icon-sprite" aria-hidden="true">
     <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 8 5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></symbol>
     <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></symbol>
@@ -2246,7 +2675,7 @@ function renderPlans() {
       ${ribbon ? `<div class="plan-ribbon"><span>${esc(ribbon.text)}</span></div>` : ''}
       <header class="plan-head"><h2>${esc(plan.name)}${plan.badges.filter(badge => !badge.ribbon).map(badge => `<span class="plan-badge${badge.best ? ' best' : ''}${badge.dark ? ' dark' : ''}">${esc(badge.text)}</span>`).join('')}${isCurrent ? '<span class="plan-current-chip">ใช้อยู่</span>' : ''}</h2><p>${esc(plan.tagline)}</p></header>
       ${heroTitle ? `<div class="plan-hero"><b>${icon('sparkle')}<span>${esc(heroTitle)}</span></b>${heroLines.map(([mark, text]) => `<p><span>${esc(mark)}</span>${esc(text)}</p>`).join('')}</div>` : ''}
-      <div class="plan-price">${plan.oldPrice ? `<s>${esc(plan.oldPrice)}</s>` : ''}<strong>${esc(plan.price)}</strong><small>${esc(plan.priceNote)}</small>${plan.priceSub ? `<small class="plan-price-sub">${esc(plan.priceSub)}</small>` : ''}</div>
+      <div class="plan-price">${plan.oldPrice ? `<span class="pp-main"><strong>${esc(plan.price)}</strong><del class="pp-old">${esc(plan.oldPrice)}</del></span>` : `<strong>${esc(plan.price)}</strong>`}<small>${esc(plan.priceNote)}</small>${plan.priceSub ? `<small class="plan-price-sub">${esc(plan.priceSub)}</small>` : ''}</div>
       <div class="plan-action"><button type="button" class="plan-cta" ${plan.contactOnly ? `data-contact-plan="${plan.id}"` : `data-select-plan="${plan.id}"`} ${isCurrent ? 'disabled' : ''}>${ctaLabel}</button>${plan.saveNote ? `<p>${esc(plan.saveNote)}</p>` : ''}</div>
       ${plan.minSeats ? `<div class="plan-seats"><button type="button" data-seat-plan="${plan.id}" data-seat-step="-1" aria-label="ลดจำนวนที่นั่ง" ${seats <= plan.minSeats ? 'disabled' : ''}>−</button><b>${seats} seats</b><button type="button" data-seat-plan="${plan.id}" data-seat-step="1" aria-label="เพิ่มจำนวนที่นั่ง" ${seats >= 99 ? 'disabled' : ''}>+</button></div>` : ''}
       ${plan.learnMore ? `<button type="button" class="plan-secondary" data-plan-learn="${plan.id}">Learn more</button>` : ''}
@@ -2300,6 +2729,7 @@ function jumpToPlan(id, smooth = true) {
   syncPlanTabs(id);
 }
 
+const PLAN_GLOW = {starter:'#9fb3c8', plus:'#43d67a', ultra:'#ff4d5a', team:'#48cbb0', scale:'#3b7bff', enterprise:'#e3b04b'};
 function syncPlanTabs(forceId) {
   const grid = $('#planGrid');
   if (!grid) return;
@@ -2308,6 +2738,7 @@ function syncPlanTabs(forceId) {
     let best = Infinity;
     [...grid.children].forEach(card => { const distance = Math.abs(planCardOffset(card) - grid.scrollLeft); if (distance < best) { best = distance; activeId = card.dataset.planCard; } });
   }
+  const glow = PLAN_GLOW[activeId], plansView = $('#plansView'); if (glow && plansView) { plansView.style.setProperty('--glow', glow); plansView.style.setProperty('--glow-y', grid.offsetTop + 'px'); }   // backlight behind the plan in view
   $$('#planTabs [data-plan-jump]').forEach(button => { const active = button.dataset.planJump === activeId; button.classList.toggle('active', active); button.setAttribute('aria-selected', String(active)); });
   [...grid.children].forEach(card => card.classList.toggle('in-view', card.dataset.planCard === activeId));
 }
@@ -2347,10 +2778,12 @@ function openPay(id){
   show('pay');
   if (location.hash !== '#pay') history.pushState({pay:id}, '', '#pay');
 }
+if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', e => { let p = 'auto'; try { p = localStorage.getItem('mepocket-theme') || 'auto'; } catch (x) {} if (p !== 'auto') return; document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light'); show(document.body.dataset.activeView || 'plans'); });
 function show(view){
   $$('.view').forEach(v => v.classList.toggle('active', v.id === (view === 'pay' ? 'payView' : 'plansView')));
   document.body.dataset.activeView = view;
-  const color = view === 'pay' ? '#f5f6f3' : '#17181b';
+  const light = document.documentElement.getAttribute('data-theme') !== 'dark';
+  const color = light ? (view === 'pay' ? '#f5f6f3' : '#f2f3f0') : (view === 'pay' ? '#121315' : '#17181b');
   document.documentElement.style.backgroundColor = color; document.body.style.backgroundColor = color;
   $('meta[name="theme-color"]').setAttribute('content', color);
   window.scrollTo(0, 0);
@@ -2409,7 +2842,7 @@ openPlans();
 /* tick marks + sparkles: pop in on the plan in view, tick in as rows scroll into sight, shrink away as they scroll out */
 (function(){
   const ROWS = '.plan-ribbon, .plan-head h2, .plan-price, .plan-limit, .plan-features li, .plan-hero > b, .plan-features > h3';
-  const seen = new Set();
+  const seen = new Set(), played = new Set();   // played: flash-sale plans already animated since the plans page opened
   let activeId = null, activeEl = null, instantId = null;
   const kind = r => r.matches('.plan-hero > b') ? 'tk-star' : r.matches('.plan-features > h3') ? 'tk-h3' : '';
   const tickIn = (card, instant) => {
@@ -2426,17 +2859,41 @@ openPlans();
   const countUp = (el, delay) => {
     if (!el) return;
     const txt = el.dataset.v || (el.dataset.v = el.textContent);
-    const m = txt.match(/^(\D*)([\d,]+)(.*)$/); if (!m) return;
-    const end = Number(m[2].replace(/,/g, '')), t0 = performance.now() + delay, dur = 650;
-    cancelAnimationFrame(el._raf);
-    const step = now => {
-      const k = Math.min(1, Math.max(0, (now - t0) / dur)), e = 1 - Math.pow(1 - k, 3);
-      el.textContent = m[1] + Math.round(end * e).toLocaleString('en-US') + m[3];
-      if (k < 1) el._raf = requestAnimationFrame(step); else { el.textContent = txt; el.style.minWidth = ''; }
+    const re = /^(\D*)([\d,]+)(.*)$/, m = txt.match(re); if (!m) return;
+    const num = s => Number(s.replace(/,/g, '')), fmt = (p, v) => p[1] + Math.round(v).toLocaleString('en-US') + p[3];
+    const main = el.closest('.pp-main'), oldEl = main && main.querySelector('.pp-old'), om = oldEl && oldEl.textContent.match(re);
+    cancelAnimationFrame(el._raf); (el._timers || []).forEach(clearTimeout); el._timers = [];
+    if (main) main.classList.remove('pp-strike', 'pp-show', 'pp-done');
+    const done = () => { el.textContent = txt; el.style.minWidth = ''; };
+    const tween = (from, to, p, t0, dur, end) => {
+      const step = now => {
+        const k = Math.min(1, Math.max(0, (now - t0) / dur)), e = 1 - Math.pow(1 - k, 3);
+        el.textContent = fmt(p, from + (to - from) * e);
+        if (k < 1) el._raf = requestAnimationFrame(step); else end();
+      };
+      el._raf = requestAnimationFrame(step);
     };
-    el.textContent = txt; el.style.minWidth = el.offsetWidth + 'px';
-    el.textContent = m[1] + '0' + m[3];
-    el._raf = requestAnimationFrame(step);
+    if (!om) {   // no flash sale: plain count-up
+      el.textContent = txt; el.style.minWidth = el.offsetWidth + 'px';
+      el.textContent = fmt(m, 0);
+      tween(0, num(m[2]), m, performance.now() + delay, 650, done);
+      return;
+    }
+    const pid = el.closest('.plan-card')?.dataset.planCard;
+    if (played.has(pid)) { done(); main.classList.add('pp-done'); return; }   // already played once this visit: show the final price
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { done(); main.classList.add('pp-show'); return; }
+    // flash sale: count up to the full price -> strike it -> drop to the sale price while the full price shrinks to the top-right
+    const full = num(om[2]), sale = num(m[2]);
+    el.style.minWidth = ''; el.textContent = fmt(om, 0);
+    tween(0, full, om, performance.now() + delay, 650, () => {
+      el.textContent = fmt(om, full);
+      main.classList.add('pp-strike');
+      el._timers.push(setTimeout(() => {
+        main.classList.add('pp-show');
+        if (el.animate) el.animate([{transform:'scale(1)'}, {transform:'scale(1.1)', offset:.35}, {transform:'scale(1)'}], {duration:460, easing:'ease-out'});
+        tween(full, sale, m, performance.now(), 620, () => { done(); main.classList.remove('pp-strike'); played.add(pid); });
+      }, 380));
+    });
   };
   const tickOut = r => {
     if (!r.classList.contains('tk')) return;
@@ -2457,6 +2914,8 @@ openPlans();
     const id = card.dataset.planCard;
     if (id === activeId) { instantId = id; activeEl = card; tickIn(card, true); return; }   // same plan re-rendered (e.g. seats changed): no replay
     if (activeEl) activeEl.querySelectorAll('.tk, .tk-out').forEach(r => r.classList.remove('tk', 'tk-now', 'tk-out'));
+    const leaving = activeEl && activeEl.querySelector('.pp-main strong');   // swiped away mid flash-sale: stop it so it replays in full next time
+    if (leaving) { cancelAnimationFrame(leaving._raf); (leaving._timers || []).forEach(clearTimeout); }
     activeId = id; activeEl = card; instantId = null;
     tickIn(card, false);
   };

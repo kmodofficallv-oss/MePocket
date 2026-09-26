@@ -1795,6 +1795,26 @@ body[data-active-view="plans"] .app { padding-bottom: 0; }
 @keyframes pricePop{0%{opacity:0;transform:scale(.4) translateY(8px)}55%{opacity:1;transform:scale(1.14) translateY(-2px)}100%{opacity:1;transform:none}}
 .no-tick-anim .plan-head h2 .plan-badge,.no-tick-anim .plan-price s,.no-tick-anim .plan-price strong,.no-tick-anim .plan-ribbon > span,.no-tick-anim .plan-limit em{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){.plan-head h2 .plan-badge,.plan-price s,.plan-price strong,.plan-ribbon > span,.plan-limit em{opacity:1 !important;transform:none !important;animation:none !important}}
+/* flash sale price: count up to full price -> strike -> drop to sale price; full price parks small at top-right */
+.plan-price .pp-main{display:inline-flex;align-items:flex-start;gap:6px}
+.plan-price .pp-main + small{flex-basis:100%}
+.plan-price .pp-main strong{position:relative;color:#fff}
+.plan-price .pp-main strong::after{content:'';position:absolute;left:-3px;right:-3px;top:54%;height:2px;margin-top:-1px;border-radius:2px;background:#ff4d5a;opacity:0;clip-path:inset(0 100% 0 0);pointer-events:none}
+.plan-price .pp-strike strong::after{opacity:1;clip-path:inset(0 0 0 0);transition:clip-path .26s cubic-bezier(.7,0,.2,1)}
+.plan-price .pp-strike.pp-show strong::after{opacity:0;transform:translateY(-5px);transition:opacity .28s ease,transform .28s ease}
+.plan-price .pp-old{position:relative;margin-top:3px;color:#ff6b76;font-size:.9rem;font-weight:900;line-height:1;text-decoration:none;white-space:nowrap;opacity:0;transform:scale(.3);transform-origin:0 50%}
+.plan-price .pp-old::after{content:'';position:absolute;left:-2px;right:-2px;top:52%;height:1.5px;margin-top:-.75px;border-radius:2px;background:currentColor}
+.tk.plan-price .pp-show .pp-old{animation:ppOldIn .6s cubic-bezier(.25,1.35,.5,1) both}
+.tk.plan-price .pp-show .pp-old::after{animation:ppStrike .3s ease-out .32s both}
+.tk.plan-price .pp-done .pp-old{animation:badgePop .45s cubic-bezier(.3,1.8,.5,1) calc(var(--d,0ms) + 110ms) both}
+.tk.plan-price .pp-done .pp-old::after{animation:none}
+.tk.tk-now.plan-price .pp-old{animation:none;opacity:1;transform:none}
+.tk.tk-now.plan-price .pp-old::after{animation:none}
+.tk-out.plan-price .pp-old{animation:tickOut .22s ease-in both}
+@keyframes ppOldIn{0%{opacity:0;transform:translate(-70px,12px) scale(2.1)}55%{opacity:1;transform:translate(2px,-1px) scale(.94)}100%{opacity:1;transform:none}}
+@keyframes ppStrike{0%{clip-path:inset(0 100% 0 0)}100%{clip-path:inset(0 0 0 0)}}
+.no-tick-anim .plan-price .pp-old{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.plan-price .pp-old{opacity:1 !important;transform:none !important;animation:none !important}.plan-price .pp-main strong::after{display:none}}
 /* soft pop when a button is pressed (overrides the app's own :active nudge) */
 .plans-view button,.pay-view button,.qr-sheet button{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .plans-view button,.pay-view button,.qr-sheet button{transition:transform .42s cubic-bezier(.3,1.7,.5,1),filter .2s,background-color .2s,color .2s,border-color .2s !important}
@@ -1803,3 +1823,133 @@ body[data-active-view="plans"] .app { padding-bottom: 0; }
 .plans-view .plan-cta.is-pressed,.plans-view .plan-more.is-pressed,.pay-view .pay-cta.is-pressed,.pay-view .pay-ghost.is-pressed,.pay-view .pay-method.is-pressed{transform:scale(.96) !important}
 .plans-view button:disabled.is-pressed,.pay-view button:disabled.is-pressed,.qr-sheet button:disabled.is-pressed{transform:none !important;filter:none}
 @media (prefers-reduced-motion:reduce){.plans-view button,.pay-view button,.qr-sheet button,.plans-view button.is-pressed,.pay-view button.is-pressed,.qr-sheet button.is-pressed{transition:none !important;transform:none !important}}
+
+/* ---------- home wallet: black leather pouch holding the Pocket cards ---------- */
+.wallet{position:relative;width:100%;height:330px;margin:6px 0 0;touch-action:none;user-select:none;-webkit-user-select:none;transition:height .55s cubic-bezier(.2,.9,.25,1);--wallet-ease:top .55s cubic-bezier(.2,.9,.25,1),height .55s cubic-bezier(.2,.9,.25,1),transform .55s cubic-bezier(.2,.9,.25,1.08),opacity .25s ease,filter .4s ease}
+.wallet button{-webkit-tap-highlight-color:transparent}
+.wallet-hint{position:absolute;left:0;right:0;top:12px;margin:0;text-align:center;font-size:.8rem;color:var(--wallet-muted,#a6a9ac);opacity:0;transform:translateY(6px);transition:opacity .45s ease,transform .45s ease,top .55s cubic-bezier(.2,.9,.25,1);pointer-events:none;z-index:1}
+.wallet-hint.is-on{opacity:1;transform:none}
+.wallet.is-open .wallet-hint{top:62px}
+.wallet-eye{position:absolute;left:50%;top:34px;z-index:1;width:40px;height:40px;margin-left:-20px;display:grid;place-items:center;padding:0;border:0;border-radius:50%;background:transparent;color:var(--wallet-ink,#fff);opacity:.45;cursor:pointer;transition:top .55s cubic-bezier(.2,.9,.25,1),opacity .25s ease,transform .3s cubic-bezier(.3,1.4,.5,1)}
+/* a card coming up squeezes the eye down behind it */
+.wallet.is-lifting .wallet-eye{transform:translateY(10px) scale(.5);opacity:.12;pointer-events:none}
+.wallet-eye svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.wallet-eye .eye-on,.wallet.is-peek .wallet-eye .eye-off{display:none}
+.wallet.is-peek .wallet-eye .eye-on{display:block}
+.wallet.is-peek .wallet-eye{opacity:.7}
+.wallet.is-open .wallet-eye{top:84px}
+.wallet-card{position:absolute;left:calc(50% - min(150px,50% - 8px));top:90px;width:min(300px,calc(100% - 16px));height:190px;transform-origin:50% 100%;outline:1px solid transparent;backface-visibility:hidden;transition:var(--wallet-ease);cursor:grab}
+.wallet-card.is-dragged{transition:none}
+.wallet-face{position:absolute;inset:0;box-sizing:border-box;padding:16px 17px 15px;border-radius:18px;background:var(--wc-grad);color:#fff;display:flex;flex-direction:column;overflow:hidden;text-align:left;box-shadow:0 8px 18px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.28);transition:box-shadow .3s ease}
+.wallet-card.is-shown .wallet-face{box-shadow:0 16px 32px color-mix(in srgb,var(--wc-glow) 45%,transparent),inset 0 1px 0 rgba(255,255,255,.28)}
+.wf-shape{position:absolute;pointer-events:none}
+.wf-a{left:150px;top:-70px;width:230px;height:200px;border-radius:46% 54% 60% 40%/50% 45% 55% 50%;background:rgba(255,255,255,.16)}
+.wf-b{left:-60px;top:100px;width:260px;height:180px;border-radius:60% 40% 50% 50%/55% 60% 40% 45%;background:rgba(8,20,60,.16)}
+.wf-c{left:205px;top:112px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.1)}
+.wf-top,.wf-bottom{position:relative;display:flex;justify-content:space-between;gap:10px}
+.wf-top{align-items:flex-start;text-shadow:0 1px 2px rgba(0,0,0,.18)}
+.wf-top>div,.wf-bottom>div{display:flex;flex-direction:column;min-width:0}
+.wf-top b{font-size:1rem;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wf-top small{font-size:.6rem;color:rgba(255,255,255,.82)}
+.wf-code{flex:none;padding:4px 9px;border-radius:999px;background:rgba(255,255,255,.2);font:700 .66rem/1.2 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.1em}
+.wf-bottom{margin-top:auto;align-items:flex-end;text-shadow:0 1px 3px rgba(0,0,0,.22)}
+.wf-bottom small{font-size:.6rem;font-weight:700;color:rgba(255,255,255,.85);min-height:13px}
+.wf-bottom strong{font:700 1.38rem/1.15 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:-.03em;white-space:nowrap}
+.wf-no{flex:none;white-space:nowrap;font:600 .66rem/1.6 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.1em;color:rgba(255,255,255,.9)}
+.wallet-hit{position:absolute;inset:0;width:100%;height:100%;padding:0;border:0;border-radius:18px;background:transparent;cursor:inherit}
+.wallet-pleat,.wallet-pouch{position:absolute;left:calc(50% - min(165px,50%));width:min(330px,100%);transform-origin:50% 100%;border-top:1px solid rgba(255,255,255,.2);transition:var(--wallet-ease)}
+.wallet-pleat{top:206px;height:118px;border-radius:12px 12px 4px 4px;box-shadow:0 -10px 18px rgba(0,0,0,.35);pointer-events:none;opacity:0}
+.wallet-pouch{top:200px;height:128px;z-index:20;border-radius:12px 12px 18px 18px;box-shadow:0 20px 40px rgba(0,0,0,.45);cursor:pointer}
+.wallet-pouch .wallet-hit{border-radius:inherit}
+.wl-edge,.wl-skin,.wl-stitch{position:absolute;pointer-events:none;border-radius:inherit}
+.wl-edge,.wl-skin{inset:0;background:linear-gradient(180deg,#303236 0,#1a1b1d 20px,#101112 100%)}
+/* see-through keeps the left, right and bottom edges solid and fades only the middle */
+.wl-edge{-webkit-mask-image:linear-gradient(to right,#000 0,#000 16px,transparent 44px,transparent calc(100% - 44px),#000 calc(100% - 16px),#000 100%),linear-gradient(to top,#000 0,#000 14px,transparent 40px);mask-image:linear-gradient(to right,#000 0,#000 16px,transparent 44px,transparent calc(100% - 44px),#000 calc(100% - 16px),#000 100%),linear-gradient(to top,#000 0,#000 14px,transparent 40px)}
+.wl-skin{transition:opacity .35s ease}
+.wallet.is-peek .wl-skin{opacity:.38}
+.wl-stitch{inset:8px;border:1px dashed rgba(255,255,255,.13);border-radius:8px 8px 12px 12px}
+.wallet-pleat .wl-stitch{inset:8px 8px auto;height:0;border-width:1px 0 0;border-radius:0}
+@media (prefers-reduced-motion:reduce){.wallet,.wallet-card,.wallet-pleat,.wallet-pouch,.wallet-hint,.wallet-eye{transition:none!important}}
+
+/* ---------- one card look across the app (same as the wallet cards) ---------- */
+.flow-card{position:relative;overflow:hidden;background:var(--wc-grad)!important;color:#fff!important;text-shadow:0 1px 2px rgba(0,0,0,.18)}
+.flow-card:after,.flow-card::after{display:none!important}
+.flow-card>.fl-shape{position:absolute!important;z-index:0!important;pointer-events:none}
+.flow-card>*:not(.fl-shape):not(.goal-delete){position:relative;z-index:1}
+.fl-a{left:50%;top:-37%;width:77%;height:105%;border-radius:46% 54% 60% 40%/50% 45% 55% 50%;background:rgba(255,255,255,.16)}
+.fl-b{left:-20%;top:53%;width:87%;height:95%;border-radius:60% 40% 50% 50%/55% 60% 40% 45%;background:rgba(8,20,60,.16)}
+.fl-c{left:68%;top:59%;width:40%;aspect-ratio:1;border-radius:50%;background:rgba(255,255,255,.1)}
+.all-account-card.flow-card{box-shadow:0 10px 24px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.25)}
+.all-account-card.flow-card small,.all-account-card.flow-card .card-top span{color:rgba(255,255,255,.86)}
+.all-account-card.flow-card strong{font-family:'IBM Plex Mono',ui-monospace,monospace;letter-spacing:-.03em}
+.goal-card.flow-card{box-shadow:0 10px 24px rgba(0,0,0,.16),inset 0 1px 0 rgba(255,255,255,.25)}
+.goal-card.flow-card small,.goal-card.flow-card .goal-meta{color:rgba(255,255,255,.9)}
+.goal-card.flow-card .progress{background:rgba(255,255,255,.28)}
+.goal-card.flow-card .progress i{background:#fff}
+.goal-card.flow-card .goal-delete{background:rgba(255,255,255,.22);color:#fff}
+.goal-dot{background:var(--wc-grad,var(--goal))!important}
+.account-color-preview.flow-card{display:flex;align-items:center;gap:12px;min-height:118px;box-sizing:border-box;margin-bottom:16px;padding:18px;border-radius:20px;box-shadow:0 10px 24px rgba(0,0,0,.16)}
+.account-color-preview.flow-card b{font-size:1.1rem}
+#accountCreatePreview{align-items:flex-start;justify-content:space-between}
+.acp-code{padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.2);font:700 .7rem/1.2 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.1em;text-shadow:none}
+.color-presets button{background:var(--swatch)}
+.add-account-card.is-full{border-style:solid;opacity:.75}
+.add-account-card.is-full>span{background:#8a8f93}
+
+/* ---------- debit card: black card ---------- */
+.debit-card-art{color:#e9ebee;background:linear-gradient(115deg,transparent 32%,rgba(255,255,255,.06) 46%,transparent 60%),repeating-linear-gradient(115deg,rgba(255,255,255,.022) 0 1px,transparent 1px 5px),radial-gradient(120% 90% at 88% -12%,color-mix(in srgb,var(--card-color) 34%,transparent),transparent 58%),linear-gradient(135deg,#25262a 0%,#0d0d0f 55%,#19191c 100%)!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1),0 14px 30px rgba(0,0,0,.3)}
+.debit-card-art:before{background:repeating-radial-gradient(ellipse at 10% 90%,transparent 0 9px,rgba(255,255,255,.03) 10px 11px)!important;opacity:1}
+.debit-card-art:after{color:rgba(255,255,255,.045)!important}
+.debit-card-art .card-glow{display:none}
+.debit-card-art .card-brand b{background:linear-gradient(180deg,#f7f8fa 0%,#b3b8bf 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.debit-card-art .card-brand small{color:rgba(233,235,238,.58)!important}
+.debit-card-art>strong,.debit-card-art .card-holder{color:#d7dadf;text-shadow:0 1px 0 rgba(0,0,0,.6)}
+
+/* ---------- flags on cards + flag picker ---------- */
+.wf-flag,.flag-pick{position:relative;overflow:hidden}
+.wf-flag{flex:none;width:26px;height:26px;border-radius:50%;box-shadow:0 0 0 2px rgba(255,255,255,.75),0 2px 6px rgba(0,0,0,.18)}
+.wf-flag[hidden]{display:none}
+.wf-top{align-items:center}
+.wf-top>.wf-flag+div{margin-right:auto}
+.wallet-face .wf-top{align-items:flex-start}
+.wallet-face .wf-flag{margin-top:1px}
+.acp-title{display:flex;align-items:center;gap:10px}
+.edit-currency{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;margin:0 0 14px;font-size:.82rem}
+.edit-currency small{flex-basis:100%;color:var(--muted,#8b8e92);font-size:.7rem}
+.flag-field{display:block}
+.flag-field-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.flag-toggle{border:0;background:transparent;padding:4px;display:grid;place-items:center}
+.flag-picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(36px,1fr));gap:9px;transition:opacity .2s}
+.flag-picker.is-off{opacity:.35}
+.flag-pick{width:36px;height:36px;border:0;border-radius:50%;padding:0;box-shadow:0 0 0 1px rgba(0,0,0,.14);cursor:pointer;transition:transform .15s,box-shadow .15s}
+.flag-pick.active{box-shadow:0 0 0 2px var(--paper,#fff),0 0 0 4px #17181b;transform:scale(1.06)}
+html[data-theme="dark"] .flag-pick.active{box-shadow:0 0 0 2px #1c1d20,0 0 0 4px #eff0f1}
+/* wallet: full account number + copy only with the eye open */
+.wf-no-full{display:none;align-items:center;gap:4px}
+.wallet.is-peek .wf-no-full{display:inline-flex}
+.wallet.is-peek .wf-no-mask{display:none}
+.wf-copy{position:relative;z-index:3;display:grid;place-items:center;width:24px;height:24px;margin:-4px -4px -4px 0;padding:0;border:0;border-radius:50%;background:rgba(255,255,255,.2);color:#fff;cursor:pointer}
+.wf-copy .icon{width:13px;height:13px}
+/* account detail: the same card */
+.account-hero.flow-card,.account-hero.flow-card *{color:#fff}
+.account-hero.flow-card p,.account-hero.flow-card .hero-balance span,.account-hero.flow-card .hero-balance small,.account-hero.flow-card .hero-split span{color:rgba(255,255,255,.85)!important}
+.account-hero.flow-card .hero-balance strong{font-family:'IBM Plex Mono',ui-monospace,monospace;letter-spacing:-.03em;color:#fff!important}
+.account-hero.flow-card .account-number{border:0;background:rgba(255,255,255,.2)!important;color:#fff!important;cursor:pointer;font:700 .72rem/1.2 'IBM Plex Mono',ui-monospace,monospace}
+.account-hero.flow-card .book-button{background:rgba(255,255,255,.2)!important;color:#fff!important}
+.account-hero.flow-card .hero-split{border-top-color:rgba(255,255,255,.22)!important}
+.account-hero.flow-card{box-shadow:0 16px 32px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.28)}
+/* flags (circle) */
+.flag-cn{background:radial-gradient(circle at 30% 32%,#ffde00 0 13%,transparent 14%),radial-gradient(circle at 52% 18%,#ffde00 0 4%,transparent 5%),radial-gradient(circle at 60% 34%,#ffde00 0 4%,transparent 5%),#de2910}
+.flag-kr{background:radial-gradient(circle,transparent 0 26%,#fff 27%),linear-gradient(#cd2e3a 50%,#0047a0 50%)}
+.flag-hk{background:radial-gradient(circle,#fff 0 18%,transparent 19%),#de2910}
+.flag-ch{background:linear-gradient(#fff,#fff) center/18% 56% no-repeat,linear-gradient(#fff,#fff) center/56% 18% no-repeat,#d52b1e}
+.flag-sg{background:radial-gradient(circle at 30% 26%,#fff 0 16%,transparent 17%),linear-gradient(to bottom,#ef3340 0 50%,#fff 50%)}
+.wf-flag.flag-ch::before,.wf-flag.flag-ch::after,.flag-pick.flag-ch::before,.flag-pick.flag-ch::after,.wf-flag.flag-sg::after,.flag-pick.flag-sg::after{display:none}
+
+/* cards give a small springy bounce when pointed at / touched */
+.wallet-face{transition:box-shadow .3s ease,transform .38s cubic-bezier(.34,1.7,.5,1)}
+@media (hover:hover){.wallet:not(.is-dragging) .wallet-card:hover .wallet-face{transform:translateY(-6px) scale(1.012)}}
+.wallet-card.is-poke .wallet-face{animation:wallet-poke .42s cubic-bezier(.3,1.5,.5,1)}
+@keyframes wallet-poke{0%{transform:translateY(0) scale(1)}35%{transform:translateY(-7px) scale(1.018)}70%{transform:translateY(1px) scale(.996)}100%{transform:translateY(0) scale(1)}}
+@media (hover:hover){.wallet-card.is-poke .wallet-face{animation:none}}
+@media (prefers-reduced-motion:reduce){.wallet-face{transition:none}.wallet-card.is-poke .wallet-face{animation:none}.wallet-card:hover .wallet-face{transform:none!important}}

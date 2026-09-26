@@ -11,8 +11,12 @@
   <title>MePocket — Full System Concept</title>
   <link rel="icon" type="image/svg+xml" href="./assets/mepocket.svg" />
   <link rel="apple-touch-icon" sizes="180x180" href="./assets/apple-touch-icon.png?v=2" />
+  <script>/* theme before first paint: auto follows the phone, or the saved light/dark choice */(function(){var p='auto';try{p=localStorage.getItem('mepocket-theme')||'auto'}catch(e){}var d=p==='auto'?(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):p;var r=document.documentElement;r.setAttribute('data-theme',d);r.setAttribute('data-theme-pref',p);})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&display=swap" />
   <link rel="stylesheet" href="./styles.css" />
   <link rel="stylesheet" href="./concept.css" />
+  <link rel="stylesheet" href="./theme.css" />
   <link rel="manifest" href="./manifest.webmanifest" />
 </head>
 <body class="auth-locked" data-active-view="home">
@@ -89,7 +93,7 @@
               <div><h2 id="accountListTitle">บัญชีของฉัน</h2><p>อัปเดตล่าสุด <span id="updatedAt">วันนี้</span></p></div>
               <button class="rate-button" data-nav="settings">อัตราแลกเปลี่ยน <svg class="icon icon-inline"><use href="#i-info"/></svg></button>
             </div>
-            <div class="account-list" id="accountList"></div>
+            <div class="wallet" id="accountList" aria-label="บัญชีของฉันในกระเป๋า"></div>
             <button class="more-currencies" data-nav="accounts"><span class="more-flags" aria-hidden="true"><span class="flag-mini flag-au"></span><span class="flag-mini flag-ch"></span><span class="flag-mini flag-eu"></span><span class="flag-mini flag-gb"></span><span class="flag-mini flag-jp"></span><span class="flag-mini flag-sg"></span></span><b>แสดงเพิ่มเติม⌄</b></button>
           </section>
 
@@ -195,6 +199,7 @@
           <button class="setting-row" data-nav="plans"><span><b>แพลนของฉัน</b><small id="currentPlanLabel">STARTER · ฿0</small></span><i><svg class="icon"><use href="#i-chevron-right"/></svg></i></button>
         </section>
         <section class="settings-group"><h2>การแสดงผล</h2>
+          <div class="setting-row theme-row"><span><b>ธีม</b><small>สว่าง มืด หรือตามเครื่อง</small></span><div class="theme-seg" role="radiogroup" aria-label="เลือกธีม"><button type="button" role="radio" data-theme-pick="auto">อัตโนมัติ</button><button type="button" role="radio" data-theme-pick="light">สว่าง</button><button type="button" role="radio" data-theme-pick="dark">มืด</button></div></div>
           <button class="setting-row" data-setting="hideBalances"><span>ซ่อนยอดเงิน</span><i class="switch" id="hideBalancesSwitch"></i></button>
           <button class="setting-row" data-setting="compactNumbers"><span>ย่อจำนวนเงินขนาดใหญ่</span><i class="switch" id="compactNumbersSwitch"></i></button>
         </section>
@@ -397,8 +402,10 @@
     <section class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="accountCreateTitle">
       <div class="grabber"></div><div class="sheet-head"><div><p class="overline dark-text">เพิ่มบัญชีหลัก</p><h2 id="accountCreateTitle">สร้าง Pocket ใหม่</h2></div><button class="close-button" data-close aria-label="ปิด"><svg class="icon"><use href="#i-x"/></svg></button></div>
       <form id="accountForm">
+        <div class="account-color-preview flow-card" id="accountCreatePreview" aria-hidden="true"><i class="fl-shape fl-a"></i><i class="fl-shape fl-b"></i><i class="fl-shape fl-c"></i><span class="acp-title"><span class="wf-flag flag-th" id="accountCreatePreviewFlag"></span><b id="accountCreatePreviewName">Pocket ใหม่</b></span><span class="acp-code" id="accountCreatePreviewCode">THB</span></div>
         <label class="field">ชื่อ Pocket<input id="accountName" maxlength="30" required placeholder="เช่น Pocket ท่องเที่ยว" /></label>
         <label class="field">สกุลเงิน<select id="accountCurrency"><option value="THB">THB — บาทไทย</option><option value="USD">USD — ดอลลาร์สหรัฐ</option></select></label>
+        <div class="field flag-field"><div class="flag-field-head"><span>ธงบนการ์ด</span><button type="button" class="flag-toggle" id="accountFlagToggle" aria-pressed="true" aria-label="แสดงธงบนการ์ด"><i class="switch on"></i></button></div><div class="flag-picker" id="accountFlagPicker" aria-label="เลือกธง"></div></div>
         <label class="field">ยอดเงินเริ่มต้น<div class="money-input"><span id="accountCurrencyLabel">THB</span><input id="accountBalance" inputmode="decimal" type="number" min="0" step="0.01" value="0" /></div></label>
         <label class="field">สีการ์ด<div class="color-picker"><input id="accountColor" type="color" value="#58f38e" aria-label="เลือกสีการ์ด Pocket" /><span id="accountColorValue">#58F38E</span></div></label>
         <div class="color-presets" aria-label="สีการ์ดแนะนำ"><button type="button" data-account-color="#58f38e" style="--swatch:#58f38e" aria-label="เขียวมิ้นต์"></button><button type="button" data-account-color="#9c62ff" style="--swatch:#9c62ff" aria-label="ม่วง"></button><button type="button" data-account-color="#b7f542" style="--swatch:#b7f542" aria-label="เขียวมะนาว"></button><button type="button" data-account-color="#5db8ff" style="--swatch:#5db8ff" aria-label="ฟ้า"></button><button type="button" data-account-color="#ff9f5c" style="--swatch:#ff9f5c" aria-label="ส้ม"></button><button type="button" data-account-color="#ff7e9d" style="--swatch:#ff7e9d" aria-label="ชมพู"></button></div>
@@ -410,12 +417,14 @@
   <div class="sheet" id="accountColorSheet" aria-hidden="true">
     <div class="sheet-backdrop" data-close></div>
     <section class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="accountColorEditTitle">
-      <div class="grabber"></div><div class="sheet-head"><div><p class="overline dark-text">ปรับหน้าตา Pocket</p><h2 id="accountColorEditTitle">แก้ไขสีการ์ด</h2></div><button class="close-button" data-close aria-label="ปิด"><svg class="icon"><use href="#i-x"/></svg></button></div>
+      <div class="grabber"></div><div class="sheet-head"><div><p class="overline dark-text">ปรับหน้าตา Pocket</p><h2 id="accountColorEditTitle">แก้ไขการ์ด</h2></div><button class="close-button" data-close aria-label="ปิด"><svg class="icon"><use href="#i-x"/></svg></button></div>
       <form id="accountColorEditForm">
-        <div class="account-color-preview" id="accountColorPreview"><span id="accountColorPreviewFlag"></span><b id="accountColorPreviewName">Pocket</b></div>
+        <div class="account-color-preview flow-card" id="accountColorPreview"><i class="fl-shape fl-a"></i><i class="fl-shape fl-b"></i><i class="fl-shape fl-c"></i><span class="acp-title"><span class="wf-flag flag-th" id="accountColorPreviewFlag"></span><b id="accountColorPreviewName">Pocket</b></span></div>
+        <p class="edit-currency">สกุลเงิน <b id="accountEditCurrency">THB</b><small>เปลี่ยนสกุลเงินไม่ได้หลังสร้าง เพื่อไม่ให้ยอดเงินเพี้ยน</small></p>
+        <div class="field flag-field"><div class="flag-field-head"><span>ธงบนการ์ด</span><button type="button" class="flag-toggle" id="accountEditFlagToggle" aria-pressed="true" aria-label="แสดงธงบนการ์ด"><i class="switch on"></i></button></div><div class="flag-picker" id="accountEditFlagPicker" aria-label="เลือกธง"></div></div>
         <label class="field">สีการ์ด<div class="color-picker"><input id="accountEditColor" type="color" value="#58f38e" aria-label="เลือกสีการ์ด Pocket" /><span id="accountEditColorValue">#58F38E</span></div></label>
         <div class="color-presets" aria-label="สีการ์ดแนะนำ"><button type="button" data-account-edit-color="#58f38e" style="--swatch:#58f38e" aria-label="เขียวมิ้นต์"></button><button type="button" data-account-edit-color="#9c62ff" style="--swatch:#9c62ff" aria-label="ม่วง"></button><button type="button" data-account-edit-color="#b7f542" style="--swatch:#b7f542" aria-label="เขียวมะนาว"></button><button type="button" data-account-edit-color="#5db8ff" style="--swatch:#5db8ff" aria-label="ฟ้า"></button><button type="button" data-account-edit-color="#ff9f5c" style="--swatch:#ff9f5c" aria-label="ส้ม"></button><button type="button" data-account-edit-color="#ff7e9d" style="--swatch:#ff7e9d" aria-label="ชมพู"></button></div>
-        <button class="primary-button" type="submit">บันทึกสีการ์ด</button>
+        <button class="primary-button" type="submit">บันทึกการ์ด</button>
       </form>
     </section>
   </div>

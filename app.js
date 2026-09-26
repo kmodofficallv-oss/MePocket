@@ -1,7 +1,15 @@
 const STORAGE_KEY = 'pocket-finance-state-v2';
 const PIN_HASH_KEY = 'mepocket-pin-hash-v1';
 const BIOMETRIC_CREDENTIAL_KEY = 'mepocket-biometric-credential-v1';
-const RATES_TO_THB = { THB: 1, USD: 35.2 };
+// example rates for the ledger (THB per 1 unit); not live market data
+const RATES_TO_THB = { THB: 1, USD: 35.2, EUR: 38.1, GBP: 44.6, JPY: 0.235, CNY: 4.85, SGD: 26.6, AUD: 22.9, HKD: 4.5, KRW: 0.025, CHF: 40.2 };
+const CURRENCIES = {
+  THB: { name: 'บาทไทย', flag: 'th', badge: '฿' }, USD: { name: 'ดอลลาร์สหรัฐ', flag: 'us', badge: '$' }, EUR: { name: 'ยูโร', flag: 'eu', badge: '€' },
+  GBP: { name: 'ปอนด์สเตอร์ลิง', flag: 'gb', badge: '£' }, JPY: { name: 'เยนญี่ปุ่น', flag: 'jp', badge: '¥' }, CNY: { name: 'หยวนจีน', flag: 'cn', badge: '¥' },
+  SGD: { name: 'ดอลลาร์สิงคโปร์', flag: 'sg', badge: '$' }, AUD: { name: 'ดอลลาร์ออสเตรเลีย', flag: 'au', badge: '$' }, HKD: { name: 'ดอลลาร์ฮ่องกง', flag: 'hk', badge: '$' },
+  KRW: { name: 'วอนเกาหลีใต้', flag: 'kr', badge: '₩' }, CHF: { name: 'ฟรังก์สวิส', flag: 'ch', badge: 'Fr' }
+};
+const FLAGS = { th: 'ไทย', us: 'สหรัฐอเมริกา', eu: 'สหภาพยุโรป', gb: 'สหราชอาณาจักร', jp: 'ญี่ปุ่น', cn: 'จีน', sg: 'สิงคโปร์', au: 'ออสเตรเลีย', hk: 'ฮ่องกง', kr: 'เกาหลีใต้', ch: 'สวิตเซอร์แลนด์' };
 const BANK_CATALOG = {
   scb:{code:'SCB',name:'ธนาคารไทยพาณิชย์',color:'#e3d7ff',ink:'#4b2387'},
   kbank:{code:'KBANK',name:'ธนาคารกสิกรไทย',color:'#d8f5df',ink:'#167440'},
@@ -155,7 +163,7 @@ const seedState = {
   accounts: [
     { id:'thb', currency:'THB', flag:'🇹🇭', badge:'฿', badgeColor:'#52e884', name:'Pocket Save', accountNo:'206-974523-6', balance:26450, gradient:'linear-gradient(135deg,#caffdf 0%,#70f6a3 52%,#14bf8a 100%)', tag:'#eef1ef', country:'ประเทศไทย', rateText:'ดอกเบี้ยสูงสุด 3% ต่อปี' },
     { id:'usd', currency:'USD', flag:'🇺🇸', badge:'$', badgeColor:'#9c62ff', name:'Pocket USD', accountNo:'957906585', balance:95.75, gradient:'linear-gradient(135deg,#f4eaff 0%,#d6b8ff 50%,#8e47f7 100%)', tag:'#eee6ff', country:'สหรัฐอเมริกา', rateText:'บัญชีสกุลเงินดอลลาร์สหรัฐ' },
-    { id:'fcd', currency:'USD', flag:'🇺🇸', badge:'◎', badgeColor:'#9cdb29', name:'Pocket FCD - USD', accountNo:'206-974567-4', balance:520.30, gradient:'linear-gradient(135deg,#f2ffd8 0%,#c8ff5b 53%,#8ed817 100%)', tag:'#dff9e6', country:'ประเทศไทย', rateText:'ดอกเบี้ยสูงสุด 4.50% ต่อปี' }
+    { id:'fcd', currency:'USD', flag:'🇺🇸', badge:'◎', badgeColor:'#9cdb29', name:'Pocket ออมเงิน', accountNo:'206-974567-4', balance:520.30, gradient:'linear-gradient(135deg,#f2ffd8 0%,#c8ff5b 53%,#8ed817 100%)', tag:'#dff9e6', country:'ประเทศไทย', rateText:'ดอกเบี้ยสูงสุด 4.50% ต่อปี' }
   ],
   goals: [
     { id:'trip', name:'เที่ยวญี่ปุ่น', balance:7800, target:20000, color:'#a987ff', icon:'✈' },
@@ -180,6 +188,8 @@ const clone = value => JSON.parse(JSON.stringify(value));
 const esc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
 
 let state = loadState();
+// older saves: the FCD card is now the savings card
+state.accounts.forEach(account => { if (account.id === 'fcd' && account.name === 'Pocket FCD - USD') account.name = 'Pocket ออมเงิน'; });
 let selectedAccountId = 'thb';
 let activeView = 'home';
 let entryType = 'income';
@@ -351,7 +361,18 @@ function initializeAppLock() {
 }
 
 function icon(name, className = 'icon') { return `<svg class="${className}" aria-hidden="true"><use href="#i-${name}"/></svg>`; }
-function flagClass(account) { return account.currency === 'THB' ? 'flag-th' : 'flag-us'; }
+function flagClass(account) { return `flag-${account.flagCode || CURRENCIES[account.currency]?.flag || 'us'}`; }
+const showsFlag = account => account.showFlag !== false;
+function accountDescription(account) {
+  if (account.currency === 'THB') return 'บัญชีออมทรัพย์ประเทศไทย';
+  if (account.id === 'fcd') return 'บัญชีออมเงินสกุลดอลลาร์สหรัฐ';
+  return `บัญชีเงินฝากสกุล${CURRENCIES[account.currency]?.name || account.currency}`;
+}
+const maskAccountNo = no => String(no).replace(/[0-9A-Za-z]/g, '•');
+async function copyAccountNo(no) {
+  try { await navigator.clipboard.writeText(no); notify('คัดลอกเลขบัญชีแล้ว'); }
+  catch { const ta = document.createElement('textarea'); ta.value = no; ta.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); notify('คัดลอกเลขบัญชีแล้ว'); } catch { notify(no); } ta.remove(); }
+}
 function flagHTML(account, mini = false) {
   const countryClass = flagClass(account);
   return mini
@@ -402,132 +423,259 @@ function accountGradient(color) {
 
 function accountTagClass(account) { return account.id === 'usd' ? 'purple-tag' : account.id === 'fcd' ? 'green-tag' : ''; }
 
-function accountRowHTML(account) {
+/* ---------- home wallet: the Pocket cards live in a black leather pouch ----------
+   closed: the cards stack out of the pouch (swipe up/down to switch, tap the front card for its details)
+   open (tap or pull down the pouch): an accordion of pockets; drag a card up (or tap it) to pull it out in front
+   eye: see the balances faintly through the middle of the leather */
+const WALLET = { cardH: 190, closedArea: 330, cardTop: [90, 78, 66], cardS: [1, .95, .9], shade: [1, .93, .86], caseTop: 200, caseH: 128, sink: 38, openArea: 480, frontBase: 438, pleatH: 118, persp: 700 };
+const walletState = { open: false, shown: null, drag: 0, dragIdx: null, leaving: 0, peek: false, hintOn: true, lift: {} };
+const walletCardPresets = {                          // the approved looks for the three starting colours
+  '#52e884': ['#10c59c', '#0ea29d', '#1570e8'],
+  '#9c62ff': ['#5536f2', '#9a43ef', '#ef5aa6'],
+  '#9cdb29': ['#f5832b', '#ef4f4f', '#d23a7c']
+};
+function hexToHsl(hex) {
+  const n = parseInt(hex.slice(1), 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
+  let h = 0, s = 0;
+  if (d) { s = d / (1 - Math.abs(2 * l - 1)); h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; if (h < 0) h += 360; }
+  return [h, s, l];
+}
+function hslLuminance(h, s, l) {
+  const k = n => (n + h / 30) % 12, a = s * Math.min(l, 1 - l), f = n => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
+  const lin = v => v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4);
+  return .2126 * lin(f(0)) + .7152 * lin(f(8)) + .0722 * lin(f(4));
+}
+const hsl = (h, s, l) => `hsl(${Math.round((h + 360) % 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%)`;
+function walletCardColors(account) {
+  const base = /^#[0-9a-f]{6}$/i.test(account.badgeColor || '') ? account.badgeColor.toLowerCase() : '#52e884';
+  const preset = walletCardPresets[base];
+  if (preset) return { grad: `linear-gradient(135deg,${preset[0]} 0%,${preset[1]} 50%,${preset[2]} 100%)`, glow: mixHex(preset[1], '#000000', 0) };
+  const [h, s0] = hexToHsl(base), s = Math.max(.55, Math.min(.85, s0));
+  const shift = h < 60 || h >= 300 ? -40 : 40;              // warm colours drift toward pink, cool ones toward blue
+  // keep every stop dark enough for white text (yellows and limes are very bright at the same lightness)
+  const fit = (hh, l) => { while (l > .3 && hslLuminance(hh, s, l) > .26) l -= .02; return hsl(hh, s, l); };
+  const c1 = fit(h - 12 * Math.sign(shift), .5), c2 = fit(h + 8 * Math.sign(shift), .45), c3 = fit(h + shift, .5);
+  return { grad: `linear-gradient(135deg,${c1} 0%,${c2} 50%,${c3} 100%)`, glow: c2 };
+}
+function walletCardFace(account) {
+  const code = account.currency;
   const equivalent = account.currency === 'THB' ? '' : `≈ ${formatAmount(account.balance * rateOf(account.currency), 'THB')}`;
-  const separatedTHB = state.goals.reduce((sum, goal) => sum + Number(goal.balance || 0), 0);
-  const separatedAmount = separatedTHB / rateOf(account.currency);
-  const description = account.currency === 'THB'
-    ? 'บัญชีออมทรัพย์ประเทศไทย'
-    : account.id === 'fcd' ? 'บัญชีเงินฝากเงินตราต่างประเทศ' : 'บัญชีเงินฝากสกุลดอลลาร์สหรัฐ';
-  return `<button class="account-row" data-account="${esc(account.id)}" style="--account-gradient:${account.gradient}" aria-label="เปิดบัญชี ${esc(account.name)}">
-    ${flagHTML(account)}
-    <span class="account-name"><b>${esc(account.name)}</b><small>${esc(description)}</small></span>
-    <span class="account-id"><b>${esc(account.accountNo || account.id)} ${icon('copy','icon icon-inline')}</b></span>
-    <span class="account-available">
-      <small>ยอดเงินที่ใช้ได้ ${icon('info','icon icon-inline')}</small>
-      <strong class="balance-value">${formatAmount(account.balance, account.currency)}</strong>
-      ${equivalent ? `<em class="balance-value">${equivalent}</em>` : ''}
-    </span>
-    <span class="account-footer">
-      <span class="account-separated"><small>ยอดเงินที่แยกเก็บได้ ${icon('info','icon icon-inline')}</small><strong class="balance-value">${formatAmount(separatedAmount, account.currency)}</strong></span>
-      <span class="account-book">${icon('book','icon icon-inline')}<b>สมุดบัญชี</b>${icon('chevron-right','icon icon-inline')}</span>
-    </span>
-  </button>`;
+  const description = accountDescription(account);
+  const no = String(account.accountNo || account.id);
+  const flag = showsFlag(account) ? `<span class="wf-flag ${flagClass(account)}" aria-hidden="true"></span>` : '';
+  return `<div class="wallet-face">
+      <i class="wf-shape wf-a"></i><i class="wf-shape wf-b"></i><i class="wf-shape wf-c"></i>
+      <div class="wf-top">${flag}<div><b>${esc(account.name)}</b><small>${esc(description)}</small></div><span class="wf-code">${esc(code)}</span></div>
+      <div class="wf-bottom"><div><small>ยอดเงินที่ใช้ได้</small><strong class="balance-value">${formatAmount(account.balance, account.currency)}</strong><small class="balance-value">${equivalent}</small></div><span class="wf-no"><span class="wf-no-mask" aria-label="เลขบัญชีถูกซ่อน เปิดตาเพื่อดู">${esc(maskAccountNo(no))}</span><span class="wf-no-full">${esc(no)}<button type="button" class="wf-copy" data-wallet-copy="${esc(no)}" aria-label="คัดลอกเลขบัญชี ${esc(no)}">${icon('copy','icon')}</button></span></span></div>
+    </div>`;
 }
-
-function updateHomeAccountDeck() {
-  const deck = $('#accountList');
-  const cards = $$('.account-row', deck);
-  if (!cards.length) return;
-  homeDeckIndex = (homeDeckIndex + cards.length) % cards.length;
-  deck.setAttribute('aria-label', 'ปัดขึ้นหรือลงเพื่อสลับบัญชี');
-  cards.forEach((card, index) => {
-    const depth = (index - homeDeckIndex + cards.length) % cards.length;
-    card.classList.remove('deck-active', 'deck-next', 'deck-last', 'deck-hidden', 'leaving-up', 'leaving-down');
-    card.style.removeProperty('--drag-y');
-    card.style.removeProperty('--drag-rotate');
-    if (depth === 0) card.classList.add('deck-active');
-    else if (depth === 1) card.classList.add('deck-next');
-    else if (depth === 2) card.classList.add('deck-last');
-    else card.classList.add('deck-hidden');
-    card.tabIndex = depth === 0 ? 0 : -1;
-    card.setAttribute('aria-hidden', depth === 0 ? 'false' : 'true');
-  });
+// the wallet card look, reused by the accounts page, goal boxes and colour previews
+const MAX_POCKETS = 4;                               // the pouch holds four cards
+const FLOW_SHAPES = '<i class="fl-shape fl-a"></i><i class="fl-shape fl-b"></i><i class="fl-shape fl-c"></i>';
+const flowVars = color => { const look = walletCardColors({ badgeColor: color }); return `--wc-grad:${look.grad};--wc-glow:${look.glow}`; };
+const WALLET_LEATHER = '<i class="wl-edge"></i><i class="wl-skin"></i><i class="wl-stitch"></i>';
+function walletHTML() {
+  const n = state.accounts.length;
+  const cards = state.accounts.map((account, index) => {
+    const look = walletCardColors(account);
+    return `<div class="wallet-card" data-wallet-card="${index}" data-account-id="${esc(account.id)}" style="--wc-grad:${look.grad};--wc-glow:${look.glow}">${walletCardFace(account)}<button type="button" class="wallet-hit" data-wallet-pick="${index}"></button></div>`;
+  }).join('');
+  const pleats = Array.from({ length: n }, (_, k) => `<div class="wallet-pleat" data-wallet-slot="${k}" aria-hidden="true">${WALLET_LEATHER}</div>`).join('');
+  return `<p class="wallet-hint" role="status"></p>
+    <button type="button" class="wallet-eye" data-wallet-eye aria-pressed="false" aria-label="มองยอดเงินผ่านกระเป๋า"><svg class="eye-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><svg class="eye-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.9 10.9 0 0 1 12 5c6.4 0 10 7 10 7a18 18 0 0 1-3.2 4.1"/><path d="M6.6 6.6C3.9 8.4 2 12 2 12s3.6 7 10 7a10.6 10.6 0 0 0 5.4-1.5"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button>
+    ${cards}${pleats}
+    <div class="wallet-pouch" data-wallet-pouch>${WALLET_LEATHER}<button type="button" class="wallet-hit" data-wallet-toggle aria-label="เปิดกระเป๋า"></button></div>`;
 }
-
-function switchHomeAccount(direction) {
-  if (homeDeckAnimating) return;
-  const cards = $$('#accountList .account-row');
-  if (cards.length < 2) return;
-  const activeCard = cards[homeDeckIndex];
-  homeDeckAnimating = true;
-  activeCard?.classList.add(direction > 0 ? 'leaving-up' : 'leaving-down');
-  clearTimeout(homeDeckAnimationTimer);
-  homeDeckAnimationTimer = setTimeout(() => {
-    homeDeckIndex = (homeDeckIndex + direction + cards.length) % cards.length;
-    homeDeckAnimating = false;
-    updateHomeAccountDeck();
-  }, 240);
-}
-
-function bindHomeAccountDeck() {
-  const deck = $('#accountList');
-  if (!deck || deck.dataset.deckBound === 'true') return;
-  deck.dataset.deckBound = 'true';
-
-  deck.addEventListener('pointerdown', event => {
-    if (homeDeckAnimating || (event.pointerType === 'mouse' && event.button !== 0) || !event.target.closest('.deck-active')) return;
-    homeDeckPointerId = event.pointerId;
-    homeDeckStartY = event.clientY;
-    homeDeckCurrentY = event.clientY;
-    homeDeckWasDragged = false;
-    deck.classList.add('deck-dragging');
-    deck.setPointerCapture?.(event.pointerId);
-  });
-
-  deck.addEventListener('pointermove', event => {
-    if (event.pointerId !== homeDeckPointerId) return;
-    homeDeckCurrentY = event.clientY;
-    const distance = Math.max(-52, Math.min(52, homeDeckCurrentY - homeDeckStartY));
-    if (Math.abs(distance) > 6) {
-      homeDeckWasDragged = true;
-      event.preventDefault();
-    }
-    const activeCard = $('.account-row.deck-active', deck);
-    activeCard?.style.setProperty('--drag-y', `${distance}px`);
-    activeCard?.style.setProperty('--drag-rotate', `${distance / 38}deg`);
-  });
-
-  const finishDrag = event => {
-    if (event.pointerId !== homeDeckPointerId) return;
-    const distance = homeDeckCurrentY - homeDeckStartY;
-    homeDeckSuppressClick = homeDeckWasDragged;
-    homeDeckPointerId = null;
-    deck.classList.remove('deck-dragging');
-    deck.releasePointerCapture?.(event.pointerId);
-    const activeCard = $('.account-row.deck-active', deck);
-    activeCard?.style.removeProperty('--drag-y');
-    activeCard?.style.removeProperty('--drag-rotate');
-    if (homeDeckWasDragged && Math.abs(distance) >= 28) switchHomeAccount(distance < 0 ? 1 : -1);
+const walletTf = (a, d, r, s, x = 0) => `perspective(${WALLET.persp}px) rotateX(${a}deg) translateY(${d}px) translateX(${x}px) rotate(${r}deg) scale(${s})`;
+// cards behind the front one sit a little askew, alternating left / right, like real cards in a wallet
+const walletSkew = depth => depth === 0 ? [0, 0] : depth % 2 ? [-9, -1.4] : [8, 1.2];
+function walletGeom(n) {
+  const step = n > 1 ? Math.min(54, 150 / (n - 1)) : 0;
+  return {
+    baseY: k => WALLET.frontBase - (n - 1 - k) * step,
+    ang: k => n > 1 ? 16 - 26 * (k / (n - 1)) : -10,
+    slotOf: (i, active) => n - 1 - ((i - active + n) % n),
+    frontTop: () => WALLET.frontBase - 132 + 10 + 48,   // in front of the pouch, leaving its top strip free to tap
+    // card top at which a card in slot k has fully cleared the rim of its pocket (its own pleat, or the pouch for the front slot)
+    clearTop: k => Math.min(WALLET.frontBase - (n - 1 - k) * step - 110, WALLET.frontBase - 122) - WALLET.cardH - 8
   };
-
-  deck.addEventListener('pointerup', finishDrag);
-  deck.addEventListener('pointercancel', finishDrag);
-  deck.addEventListener('click', event => {
-    if (!homeDeckSuppressClick) return;
+}
+function layoutWallet() {
+  const box = $('#accountList'); if (!box) return;
+  const n = state.accounts.length; if (!n) { box.innerHTML = ''; return; }
+  homeDeckIndex = (homeDeckIndex + n) % n;
+  const w = walletState, g = walletGeom(n), active = homeDeckIndex, open = w.open;
+  if (w.shown != null && w.shown >= n) w.shown = null;
+  box.classList.toggle('is-open', open); box.classList.toggle('is-peek', w.peek); box.classList.toggle('is-dragging', w.dragIdx != null); box.classList.toggle('has-shown', open && w.shown != null); box.classList.toggle('is-lifting', (w.dragIdx != null && w.drag < -8) || w.leaving > 0);
+  box.style.height = (open ? (w.shown != null ? g.frontTop() + WALLET.cardH + 18 : WALLET.openArea) : WALLET.closedArea) + 'px';
+  $$('.wallet-card', box).forEach(card => {
+    const i = Number(card.dataset.walletCard), dragging = w.dragIdx === i;
+    let top, ang = 0, d = 0, r = 0, s = 1, z, op = 1, shade = 1, glow = false, x = 0;
+    if (!open) {
+      const pos = (i - active + n) % n, p = Math.min(pos, 2);
+      top = WALLET.cardTop[p]; s = WALLET.cardS[p]; z = 10 - p; shade = WALLET.shade[p]; if (pos > 2) op = 0;
+      [x, r] = walletSkew(p);
+      if (pos === 0) {
+        if (w.leaving > 0) { d = -60; r = -2.5; op = 0; }
+        else if (w.leaving < 0) { top = WALLET.caseTop + WALLET.caseH - WALLET.cardH - 8; op = 0; }
+        else if (dragging) { d = w.drag; r = w.drag * .015; }
+      }
+    } else if (w.lift[i]) {
+      // mid-move between pocket and front: held just above the rim, in front of or behind the pleats
+      const k = g.slotOf(i, active);
+      top = g.clearTop(k); ang = g.ang(k) * .5; z = w.lift[i] === 'front' ? 50 : 2 + 2 * k;
+    } else if (w.shown === i) {
+      // the pulled-out card rests in front of the pouch, below the stack, so it never covers the other cards
+      const k = g.slotOf(i, active), slotTop = g.baseY(k) - WALLET.cardH, frontTop = g.frontTop();
+      top = frontTop; d = dragging ? w.drag : 0; z = 50; glow = true;
+    } else {
+      const k = g.slotOf(i, active);
+      top = g.baseY(k) - WALLET.cardH; ang = g.ang(k); z = 2 + 2 * k; d = dragging ? w.drag : 0; shade = .8 + .2 * (k / Math.max(1, n - 1));
+    }
+    card.style.top = top + 'px'; card.style.zIndex = z; card.style.opacity = op;
+    card.style.transform = walletTf(ang, d, r, s, x); card.style.filter = `brightness(${shade})`;
+    card.classList.toggle('is-shown', glow); card.classList.toggle('is-dragged', dragging);
+    const account = state.accounts[i], hit = $('.wallet-hit', card);
+    const front = !open && (i - active + n) % n === 0;
+    hit.tabIndex = front || open ? 0 : -1;
+    hit.setAttribute('aria-label', !open ? (front ? `เปิดบัญชี ${account.name}` : account.name) : w.shown === i ? `เปิดบัญชี ${account.name}` : `ดึง ${account.name} ออกมาดู`);
+    card.setAttribute('aria-hidden', !open && !front ? 'true' : 'false');
+  });
+  $$('.wallet-pleat', box).forEach(pleat => {
+    const k = Number(pleat.dataset.walletSlot);
+    if (open) { pleat.style.top = (g.baseY(k) + 8 - WALLET.pleatH) + 'px'; pleat.style.zIndex = 3 + 2 * k; pleat.style.opacity = 1; pleat.style.transform = walletTf(g.ang(k), 0, 0, 1); }
+    else { pleat.style.top = (WALLET.caseTop + 6) + 'px'; pleat.style.zIndex = 11; pleat.style.opacity = 0; pleat.style.transform = walletTf(0, 0, 0, 1); }
+  });
+  const pouch = $('.wallet-pouch', box), last = g.baseY(n - 1);
+  pouch.style.top = (open ? last + 10 - 132 : WALLET.caseTop) + 'px';
+  pouch.style.height = (open ? 142 : WALLET.caseH) + 'px';   // a little deeper than the front card so nothing shows under it
+  pouch.style.transform = walletTf(open ? g.ang(n - 1) : 0, 0, 0, 1);
+  $('.wallet-hit', pouch).setAttribute('aria-label', open ? 'ปิดกระเป๋า' : 'เปิดกระเป๋า');
+  const eye = $('.wallet-eye', box);
+  eye.setAttribute('aria-pressed', String(w.peek));
+  eye.setAttribute('aria-label', w.peek ? 'ซ่อนยอดเงินในกระเป๋า' : 'มองยอดเงินผ่านกระเป๋า');
+  const hint = $('.wallet-hint', box);
+  hint.textContent = !open ? 'ปัดขึ้น–ลงเพื่อสลับการ์ด · แตะกระเป๋าเพื่อเปิด' : w.shown != null ? 'แตะการ์ดเพื่อเข้าบัญชี · ดันขึ้นเพื่อเก็บเข้าช่อง' : 'ลากการ์ดใบไหนก็ได้ขึ้นมาเพื่อดู';
+  hint.classList.toggle('is-on', w.hintOn && w.dragIdx == null);
+  updateBalanceVisibility();
+}
+function setWalletOpen(open) {
+  const w = walletState;
+  if (!open && w.shown != null) homeDeckIndex = w.shown;   // the card you were looking at becomes the front card
+  Object.values(walletLiftTimers).forEach(clearTimeout);
+  Object.assign(w, { open, shown: null, drag: 0, dragIdx: null, lift: {} });
+  layoutWallet();
+}
+// a card never slides straight through the leather: it rises over the pocket rim first, then drops in / comes forward
+const walletLiftTimers = {};
+function walletMove(i, toFront) {
+  const w = walletState;
+  clearTimeout(walletLiftTimers[i]);
+  w.lift[i] = toFront ? 'slot' : 'front';      // rise behind the pleats when pulling out, stay in front when putting back
+  if (toFront) { if (w.shown != null && w.shown !== i) walletMove(w.shown, false); }
+  else if (w.shown === i) w.shown = null;
+  layoutWallet();
+  walletLiftTimers[i] = setTimeout(() => {
+    delete w.lift[i];
+    if (toFront) w.shown = i;
+    layoutWallet();
+  }, 300);
+}
+function switchHomeAccount(direction) {
+  const n = state.accounts.length;
+  if (walletState.leaving || walletState.open || n < 2) return;
+  Object.assign(walletState, { leaving: direction, drag: 0, dragIdx: null }); layoutWallet();
+  clearTimeout(homeDeckAnimationTimer);
+  homeDeckAnimationTimer = setTimeout(() => { homeDeckIndex = (homeDeckIndex + direction + n) % n; walletState.leaving = 0; layoutWallet(); }, 240);
+}
+function updateHomeAccountDeck() { layoutWallet(); }
+function bindHomeAccountDeck() {
+  const box = $('#accountList');
+  if (!box || box.dataset.deckBound === 'true') return;
+  box.dataset.deckBound = 'true';
+  const w = walletState;
+  let startY = 0, lastDy = 0, moved = false, pid = null, idx = null, onPouch = false;
+  const tick = () => { w.hintOn = !w.hintOn; $('.wallet-hint', box)?.classList.toggle('is-on', w.hintOn && w.dragIdx == null); setTimeout(tick, w.hintOn ? 5000 : 4000); };
+  setTimeout(tick, 5000);                               // hint: 5 s on, 4 s off, forever
+  box.addEventListener('pointerdown', event => {
+    if (w.leaving || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    const card = event.target.closest('[data-wallet-card]');
+    idx = card ? Number(card.dataset.walletCard) : null;
+    onPouch = !!event.target.closest('[data-wallet-pouch]');
+    if (card) { card.classList.remove('is-poke'); void card.offsetWidth; card.classList.add('is-poke'); }
+    startY = event.clientY; lastDy = 0; moved = false; pid = event.pointerId;
+  });
+  box.addEventListener('pointermove', event => {
+    if (event.pointerId !== pid) return;
+    const dy = event.clientY - startY; lastDy = dy;
+    if (!moved && Math.abs(dy) > 6) { moved = true; try { box.setPointerCapture(pid); } catch (e) {} }
+    if (!moved || idx == null) return;
     event.preventDefault();
+    const n = state.accounts.length, g = walletGeom(n);
+    if (!w.open) { if (idx !== homeDeckIndex) return; w.drag = dy < 0 ? Math.max(-120, dy) : Math.min(WALLET.sink, dy * .45); }
+    else if (w.shown === idx) w.drag = Math.max(g.clearTop(g.slotOf(idx, homeDeckIndex)) - 30 - g.frontTop(), Math.min(90, dy));   // lift it back over its pocket, or flick it down
+    else w.drag = Math.max(-280, Math.min(4, dy * .25));   // a card in its pocket can't be pushed through the bottom of the pouch
+    w.dragIdx = idx; layoutWallet();
+  });
+  const finish = event => {
+    if (event.pointerId !== pid) return;
+    pid = null;
+    try { box.releasePointerCapture(event.pointerId); } catch (e) {}
+    if (!moved) return;
+    homeDeckSuppressClick = true; setTimeout(() => { homeDeckSuppressClick = false; }, 0);
+    const d = w.drag, dragged = w.dragIdx;
+    w.drag = 0; w.dragIdx = null;
+    if (!w.open) {
+      if (dragged != null) { if (d < -45) return switchHomeAccount(1); if (d > 22) return switchHomeAccount(-1); }
+      else if (onPouch && lastDy > 30) return setWalletOpen(true);
+      return layoutWallet();
+    }
+    if (dragged == null) { if (onPouch && lastDy < -40) return setWalletOpen(false); return layoutWallet(); }
+    if (w.shown === dragged) { if (d < -60 || d > 60) return walletMove(dragged, false); }
+    else if (d < -70) return walletMove(dragged, true);
+    layoutWallet();
+  };
+  box.addEventListener('animationend', event => { event.target.closest('.wallet-card')?.classList.remove('is-poke'); });
+  box.addEventListener('pointerup', finish);
+  box.addEventListener('pointercancel', finish);
+  box.addEventListener('click', event => {
+    if (homeDeckSuppressClick) { event.preventDefault(); event.stopPropagation(); return; }
+    const copy = event.target.closest('[data-wallet-copy]');
+    if (copy) { event.stopPropagation(); if (w.peek) copyAccountNo(copy.dataset.walletCopy); return; }
+    if (event.target.closest('[data-wallet-eye]')) { event.stopPropagation(); w.peek = !w.peek; return layoutWallet(); }
+    if (event.target.closest('[data-wallet-toggle]')) { event.stopPropagation(); return setWalletOpen(!w.open); }
+    const pick = event.target.closest('[data-wallet-pick]');
+    if (!pick) return;
     event.stopPropagation();
-    homeDeckSuppressClick = false;
+    const i = Number(pick.dataset.walletPick), account = state.accounts[i];
+    if (!w.open) { if (i === homeDeckIndex && account) openDetail(account.id); return; }
+    if (w.shown === i) { if (account) openDetail(account.id); return; }
+    if (!w.lift[i]) walletMove(i, true);
   }, true);
-  deck.addEventListener('wheel', event => {
-    if (homeDeckWheelLocked || Math.abs(event.deltaY) < 12) return;
+  box.addEventListener('wheel', event => {
+    if (w.open || homeDeckWheelLocked || Math.abs(event.deltaY) < 12) return;
     event.preventDefault();
     homeDeckWheelLocked = true;
     switchHomeAccount(event.deltaY > 0 ? 1 : -1);
     setTimeout(() => { homeDeckWheelLocked = false; }, 430);
-  }, { passive:false });
-  deck.addEventListener('keydown', event => {
-    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+  }, { passive: false });
+  box.addEventListener('keydown', event => {
+    if (w.open || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return;
     event.preventDefault();
     switchHomeAccount(event.key === 'ArrowDown' ? 1 : -1);
   });
 }
 
 function renderAccounts() {
-  $('#accountList').innerHTML = state.accounts.map(accountRowHTML).join('');
+  $('#accountList').innerHTML = walletHTML();
   updateHomeAccountDeck();
-  const cards = state.accounts.map((account,index) => `<article class="account-card-shell ${reorderMode?'sorting':''}"><button class="all-account-card" data-account="${esc(account.id)}" style="background:${account.gradient}"><div class="card-top"><b>${flagHTML(account,true)} ${esc(account.name)}</b><span>${icon('chevron-right')}</span></div><strong class="balance-value">${formatAmount(account.balance,account.currency)}</strong>${account.currency === 'USD' ? `<small class="balance-value">≈ ${formatAmount(account.balance*rateOf(account.currency),'THB')}</small>` : '<small>พร้อมใช้และโอนไปยังกล่องเป้าหมาย</small>'}</button><div class="account-order-controls"><span>${icon('sort')}<b>ลำดับ ${index+1}</b></span><button data-edit-account-color="${esc(account.id)}" aria-label="แก้ไขสี ${esc(account.name)}">${icon('settings')}</button><button data-move-account="${esc(account.id)}" data-direction="-1" ${index===0?'disabled':''} aria-label="เลื่อน ${esc(account.name)} ขึ้น">${icon('up')}</button><button data-move-account="${esc(account.id)}" data-direction="1" ${index===state.accounts.length-1?'disabled':''} aria-label="เลื่อน ${esc(account.name)} ลง">${icon('down')}</button></div></article>`).join('');
-  $('#allAccountCards').innerHTML = `${cards}<button class="add-account-card" data-action="add-account"><span>${icon('plus')}</span><b>เพิ่ม Pocket ใหม่</b><small>สร้างบัญชี THB หรือ USD เพิ่มได้</small></button>`;
+  const cards = state.accounts.map((account,index) => `<article class="account-card-shell ${reorderMode?'sorting':''}"><button class="all-account-card flow-card" data-account="${esc(account.id)}" style="--wc-grad:${walletCardColors(account).grad}">${FLOW_SHAPES}<div class="card-top"><b>${showsFlag(account)?flagHTML(account,true):''} ${esc(account.name)}</b><span>${icon('chevron-right')}</span></div><strong class="balance-value">${formatAmount(account.balance,account.currency)}</strong>${account.currency !== 'THB' ? `<small class="balance-value">≈ ${formatAmount(account.balance*rateOf(account.currency),'THB')}</small>` : '<small>พร้อมใช้และโอนไปยังกล่องเป้าหมาย</small>'}</button><div class="account-order-controls"><span>${icon('sort')}<b>ลำดับ ${index+1}</b></span><button data-edit-account-color="${esc(account.id)}" aria-label="แก้ไขสี ${esc(account.name)}">${icon('settings')}</button><button data-move-account="${esc(account.id)}" data-direction="-1" ${index===0?'disabled':''} aria-label="เลื่อน ${esc(account.name)} ขึ้น">${icon('up')}</button><button data-move-account="${esc(account.id)}" data-direction="1" ${index===state.accounts.length-1?'disabled':''} aria-label="เลื่อน ${esc(account.name)} ลง">${icon('down')}</button></div></article>`).join('');
+  const left = MAX_POCKETS - state.accounts.length;
+  const addCard = left > 0
+    ? `<button class="add-account-card" data-action="add-account"><span>${icon('plus')}</span><b>เพิ่ม Pocket ใหม่</b><small>ใส่ในกระเป๋าได้อีก ${left} ใบ</small></button>`
+    : `<button class="add-account-card is-full" data-action="add-account" aria-disabled="true"><span>${icon('wallet')}</span><b>กระเป๋าเต็มแล้ว</b><small>ใส่การ์ดได้สูงสุด ${MAX_POCKETS} ใบ (${state.accounts.length}/${MAX_POCKETS})</small></button>`;
+  $('#allAccountCards').innerHTML = `${cards}${addCard}`;
   $('#allAccountCards').classList.toggle('reorder-active',reorderMode); $('#reorderAccounts').classList.toggle('active',reorderMode); $('#reorderHint').hidden=!reorderMode;
 }
 
@@ -546,7 +694,7 @@ function renderDebitCard() {
   $('#debitCardLarge').innerHTML=cardVisualHTML(false);
   $('#cardSubtitle').textContent=`${state.debitCard.title} Mastercard`;
   $('#cardUpdated').textContent=formatTime();
-  $('#cardAccountStrip').innerHTML=state.accounts.slice(0,3).map(account=>`<article class="card-account-mini"><div>${flagHTML(account,true)}<b>${esc(account.name)}</b></div><strong class="balance-value">${formatAmount(account.balance,account.currency)}</strong>${account.currency==='USD'?`<small class="balance-value">≈ ${formatAmount(account.balance*rateOf(account.currency),'THB')}</small>`:''}</article>`).join('');
+  $('#cardAccountStrip').innerHTML=state.accounts.slice(0,3).map(account=>`<article class="card-account-mini"><div>${flagHTML(account,true)}<b>${esc(account.name)}</b></div><strong class="balance-value">${formatAmount(account.balance,account.currency)}</strong>${account.currency!=='THB'?`<small class="balance-value">≈ ${formatAmount(account.balance*rateOf(account.currency),'THB')}</small>`:''}</article>`).join('');
   const expenses=[...state.transactions].filter(tx=>tx.type==='expense').sort((a,b)=>new Date(b.date)-new Date(a.date));
   $('#cardTransactions').innerHTML=expenses.length?expenses.map(tx=>transactionHTML(tx)).join(''):'<p class="empty">ยังไม่มีรายการใช้งานบัตร</p>';
 }
@@ -554,10 +702,10 @@ function renderDebitCard() {
 function renderGoals() {
   const cards = state.goals.map(goal => {
     const percent = Math.min(100, Math.round(goal.balance / goal.target * 100));
-    return `<article class="goal-card" style="--goal:${goal.color}"><button class="goal-open" data-goal-open="${esc(goal.id)}"><small>${icon('target','icon icon-inline')} เป้าหมาย</small><strong>${esc(goal.name)}</strong><div class="progress"><i style="width:${percent}%"></i></div><div class="goal-meta"><span class="balance-value">${formatAmount(goal.balance,'THB')}</span><span>${percent}%</span></div></button><button class="goal-delete" data-delete-goal="${esc(goal.id)}" aria-label="ลบกล่อง ${esc(goal.name)}">${icon('trash')}</button></article>`;
+    return `<article class="goal-card flow-card" style="--goal:${goal.color};${flowVars(goal.color)}">${FLOW_SHAPES}<button class="goal-open" data-goal-open="${esc(goal.id)}"><small>${icon('target','icon icon-inline')} เป้าหมาย</small><strong>${esc(goal.name)}</strong><div class="progress"><i style="width:${percent}%"></i></div><div class="goal-meta"><span class="balance-value">${formatAmount(goal.balance,'THB')}</span><span>${percent}%</span></div></button><button class="goal-delete" data-delete-goal="${esc(goal.id)}" aria-label="ลบกล่อง ${esc(goal.name)}">${icon('trash')}</button></article>`;
   }).join('');
   $('#goalCarousel').innerHTML = cards || '<p class="empty">ยังไม่มีกล่องเป้าหมาย</p>';
-  $('#goalList').innerHTML = state.goals.map(goal => { const percent=Math.min(100,Math.round(goal.balance/goal.target*100)); return `<article class="goal-row"><button class="goal-row-open" data-goal-open="${esc(goal.id)}"><span class="goal-dot" style="--goal:${goal.color}"></span><span><b>${esc(goal.name)}</b><small class="balance-value">${formatAmount(goal.balance,'THB')} จาก ${formatAmount(goal.target,'THB')}</small></span><strong>${percent}%</strong></button><button class="goal-delete row-delete" data-delete-goal="${esc(goal.id)}" aria-label="ลบกล่อง ${esc(goal.name)}">${icon('trash')}</button></article>`; }).join('') || '<p class="empty">ยังไม่มีกล่องเป้าหมาย</p>';
+  $('#goalList').innerHTML = state.goals.map(goal => { const percent=Math.min(100,Math.round(goal.balance/goal.target*100)); return `<article class="goal-row"><button class="goal-row-open" data-goal-open="${esc(goal.id)}"><span class="goal-dot" style="--goal:${goal.color};${flowVars(goal.color)}"></span><span><b>${esc(goal.name)}</b><small class="balance-value">${formatAmount(goal.balance,'THB')} จาก ${formatAmount(goal.target,'THB')}</small></span><strong>${percent}%</strong></button><button class="goal-delete row-delete" data-delete-goal="${esc(goal.id)}" aria-label="ลบกล่อง ${esc(goal.name)}">${icon('trash')}</button></article>`; }).join('') || '<p class="empty">ยังไม่มีกล่องเป้าหมาย</p>';
 }
 
 function renderExternalBanks() {
@@ -603,8 +751,9 @@ function renderTransactions() {
 }
 
 function accountCardHTML(account) {
-  const equivalent = account.currency === 'USD' ? `<small class="balance-value">≈ ${formatAmount(account.balance*rateOf(account.currency),'THB')}</small>` : '';
-  return `<section class="account-hero" style="background:${account.gradient}" aria-label="บัญชี ${esc(account.name)}"><div class="hero-head"><div class="hero-brand">${flagHTML(account)}<div><h2>${esc(account.name)}</h2><p>บัญชีดำเนินการในประเทศ${esc(account.country)}</p></div></div><span class="account-number">${esc(account.accountNo)} ${icon('copy','icon icon-inline')}</span></div><div class="hero-balance"><span>ยอดเงินที่ใช้ได้ ${icon('info','icon icon-inline')}</span><strong class="balance-value">${formatAmount(account.balance,account.currency)}</strong>${equivalent}</div><div class="hero-split"><div><span>${account.id==='fcd'?'บัญชีเงินฝากเงินตราต่างประเทศ':'ยอดเงินที่แยกเก็บได้'} ${icon('info','icon icon-inline')}</span><b class="balance-value">${account.id==='thb'?formatAmount(state.goals.reduce((sum,goal)=>sum+goal.balance,0),'THB'):formatAmount(account.balance*.15,account.currency)}</b></div><button class="book-button">${icon('book','icon icon-inline')} สมุดบัญชี ${icon('chevron-right','icon icon-inline')}</button></div></section>`;
+  const equivalent = account.currency !== 'THB' ? `<small class="balance-value">≈ ${formatAmount(account.balance*rateOf(account.currency),'THB')}</small>` : '';
+  const separated = account.id==='thb' ? formatAmount(state.goals.reduce((sum,goal)=>sum+goal.balance,0),'THB') : formatAmount(account.balance*.15,account.currency);
+  return `<section class="account-hero flow-card" style="--wc-grad:${walletCardColors(account).grad}" aria-label="บัญชี ${esc(account.name)}">${FLOW_SHAPES}<div class="hero-head"><div class="hero-brand">${showsFlag(account)?flagHTML(account):''}<div><h2>${esc(account.name)}</h2><p>${esc(accountDescription(account))}</p></div></div><button type="button" class="account-number" data-copy-account="${esc(account.accountNo)}" aria-label="คัดลอกเลขบัญชี ${esc(account.accountNo)}">${esc(account.accountNo)} ${icon('copy','icon icon-inline')}</button></div><div class="hero-balance"><span>ยอดเงินที่ใช้ได้ ${icon('info','icon icon-inline')}</span><strong class="balance-value">${formatAmount(account.balance,account.currency)}</strong>${equivalent}</div><div class="hero-split"><div><span>ยอดเงินที่แยกเก็บได้ ${icon('info','icon icon-inline')}</span><b class="balance-value">${separated}</b></div><button class="book-button">${icon('book','icon icon-inline')} สมุดบัญชี ${icon('chevron-right','icon icon-inline')}</button></div></section>`;
 }
 
 function renderDetail() {
@@ -670,7 +819,7 @@ function renderPlans() {
       ${ribbon ? `<div class="plan-ribbon"><span>${esc(ribbon.text)}</span></div>` : ''}
       <header class="plan-head"><h2>${esc(plan.name)}${plan.badges.filter(badge => !badge.ribbon).map(badge => `<span class="plan-badge${badge.best ? ' best' : ''}${badge.dark ? ' dark' : ''}">${esc(badge.text)}</span>`).join('')}${isCurrent ? '<span class="plan-current-chip">ใช้อยู่</span>' : ''}</h2><p>${esc(plan.tagline)}</p></header>
       ${heroTitle ? `<div class="plan-hero"><b>${icon('sparkle')}<span>${esc(heroTitle)}</span></b>${heroLines.map(([mark, text]) => `<p><span>${esc(mark)}</span>${esc(text)}</p>`).join('')}</div>` : ''}
-      <div class="plan-price">${plan.oldPrice ? `<s>${esc(plan.oldPrice)}</s>` : ''}<strong>${esc(plan.price)}</strong><small>${esc(plan.priceNote)}</small>${plan.priceSub ? `<small class="plan-price-sub">${esc(plan.priceSub)}</small>` : ''}</div>
+      <div class="plan-price">${plan.oldPrice ? `<span class="pp-main"><strong>${esc(plan.price)}</strong><del class="pp-old">${esc(plan.oldPrice)}</del></span>` : `<strong>${esc(plan.price)}</strong>`}<small>${esc(plan.priceNote)}</small>${plan.priceSub ? `<small class="plan-price-sub">${esc(plan.priceSub)}</small>` : ''}</div>
       <div class="plan-action"><button type="button" class="plan-cta" ${plan.contactOnly ? `data-contact-plan="${plan.id}"` : `data-select-plan="${plan.id}"`} ${isCurrent ? 'disabled' : ''}>${ctaLabel}</button>${plan.saveNote ? `<p>${esc(plan.saveNote)}</p>` : ''}</div>
       ${plan.minSeats ? `<div class="plan-seats"><button type="button" data-seat-plan="${plan.id}" data-seat-step="-1" aria-label="ลดจำนวนที่นั่ง" ${seats <= plan.minSeats ? 'disabled' : ''}>−</button><b>${seats} seats</b><button type="button" data-seat-plan="${plan.id}" data-seat-step="1" aria-label="เพิ่มจำนวนที่นั่ง" ${seats >= 99 ? 'disabled' : ''}>+</button></div>` : ''}
       ${plan.learnMore ? `<button type="button" class="plan-secondary" data-plan-learn="${plan.id}">Learn more</button>` : ''}
@@ -724,6 +873,7 @@ function jumpToPlan(id, smooth = true) {
   syncPlanTabs(id);
 }
 
+const PLAN_GLOW = {starter:'#9fb3c8', plus:'#43d67a', ultra:'#ff4d5a', team:'#48cbb0', scale:'#3b7bff', enterprise:'#e3b04b'};
 function syncPlanTabs(forceId) {
   const grid = $('#planGrid');
   if (!grid) return;
@@ -732,6 +882,7 @@ function syncPlanTabs(forceId) {
     let best = Infinity;
     [...grid.children].forEach(card => { const distance = Math.abs(planCardOffset(card) - grid.scrollLeft); if (distance < best) { best = distance; activeId = card.dataset.planCard; } });
   }
+  const glow = PLAN_GLOW[activeId], plansView = $('#plansView'); if (glow && plansView) { plansView.style.setProperty('--glow', glow); plansView.style.setProperty('--glow-y', grid.offsetTop + 'px'); }   // backlight behind the plan in view
   $$('#planTabs [data-plan-jump]').forEach(button => { const active = button.dataset.planJump === activeId; button.classList.toggle('active', active); button.setAttribute('aria-selected', String(active)); });
   [...grid.children].forEach(card => card.classList.toggle('in-view', card.dataset.planCard === activeId));
 }
@@ -781,13 +932,28 @@ function renderAll() {
 function updateBalanceVisibility() { $$('.balance-value').forEach(element => element.classList.toggle('balance-hidden',state.settings.hideBalances)); }
 
 function syncViewChrome(view) {
-  const dark=['home','accountDetail','cardDetail','plans'].includes(view);
-  const color=dark?'#17181b':'#f5f6f3';
+  const hero=['home','accountDetail','cardDetail','plans'].includes(view);
+  const light=document.documentElement.dataset.theme!=='dark';
+  const color=light?(view==='plans'?'#f2f3f0':hero?'#eceee9':'#f5f6f3'):(hero?'#17181b':'#121315');
   document.body.dataset.activeView=view;
   document.documentElement.style.backgroundColor=color;
   document.body.style.backgroundColor=color;
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content',color);
 }
+
+/* ---------- theme: auto (follow the phone) / light / dark ---------- */
+const THEME_KEY='mepocket-theme';
+const themeMedia=window.matchMedia?matchMedia('(prefers-color-scheme: dark)'):null;
+function themePref(){ try{ return localStorage.getItem(THEME_KEY)||'auto'; }catch(e){ return 'auto'; } }
+function applyTheme(pref=themePref()){
+  const theme=pref==='auto'?(themeMedia&&themeMedia.matches?'dark':'light'):pref;
+  document.documentElement.setAttribute('data-theme',theme);
+  document.documentElement.setAttribute('data-theme-pref',pref);
+  $$('[data-theme-pick]').forEach(button=>{ const on=button.dataset.themePick===pref; button.classList.toggle('active',on); button.setAttribute('aria-checked',String(on)); });
+  syncViewChrome(activeView);
+}
+if(themeMedia) (themeMedia.addEventListener?themeMedia.addEventListener('change',()=>{ if(themePref()==='auto') applyTheme(); }):themeMedia.addListener(()=>{ if(themePref()==='auto') applyTheme(); }));
+document.addEventListener('click',event=>{ const button=event.target.closest('[data-theme-pick]'); if(!button) return; try{ localStorage.setItem(THEME_KEY,button.dataset.themePick); }catch(e){} applyTheme(button.dataset.themePick); });
 
 /* ---------- checkout: PromptPay QR with the plan's amount ---------- */
 const PROMPTPAY_ID = '0066807237949';            // from the owner's PromptPay QR
@@ -1268,9 +1434,11 @@ function handleGoalSubmit(event) {
 function handleAccountSubmit(event) {
   event.preventDefault();
   const name=$('#accountName').value.trim(); const currency=$('#accountCurrency').value; const balance=Number($('#accountBalance').value)||0; const color=$('#accountColor').value;
-  if(!name || !['THB','USD'].includes(currency) || balance<0) return;
+  if(!name || !CURRENCIES[currency] || balance<0) return;
+  if(state.accounts.length>=MAX_POCKETS){ notify(`กระเป๋าเต็มแล้ว ใส่การ์ดได้สูงสุด ${MAX_POCKETS} ใบ`); closeSheets(); return; }
   const suffix=String(Date.now()).slice(-7);
-  state.accounts.push({id:`account-${Date.now()}`,currency,flag:currency==='THB'?'🇹🇭':'🇺🇸',badge:currency==='THB'?'฿':'$',badgeColor:color,name,accountNo:`${currency==='THB'?'206':'957'}-${suffix}`,balance:Number(balance.toFixed(2)),gradient:accountGradient(color),tag:mixHex(color,'#ffffff',.78),country:currency==='THB'?'ประเทศไทย':'สหรัฐอเมริกา',rateText:currency==='THB'?'บัญชีสกุลเงินบาท':'บัญชีสกุลเงินดอลลาร์สหรัฐ'});
+  state.accounts.push({id:`account-${Date.now()}`,currency,flagCode:createFlag.code,showFlag:createFlag.on,badge:CURRENCIES[currency].badge,badgeColor:color,name,accountNo:`${currency==='THB'?'206':'957'}-${suffix}`,balance:Number(balance.toFixed(2)),gradient:accountGradient(color),tag:mixHex(color,'#ffffff',.78),country:FLAGS[createFlag.code]||'ต่างประเทศ',rateText:`บัญชีสกุลเงิน${CURRENCIES[currency].name}`});
+  Object.assign(createFlag,{code:'th',on:true,picked:false});
   event.target.reset(); updateAccountCurrencyLabel(); updateColorValue('account'); closeSheets(); saveState(`สร้าง “${name}” แล้ว`);
 }
 
@@ -1299,7 +1467,9 @@ function moveAccount(id,direction) {
 function updateAccountColorPreview() {
   const color=$('#accountEditColor').value;
   $('#accountEditColorValue').textContent=color.toUpperCase();
-  $('#accountColorPreview').style.background=accountGradient(color);
+  $('#accountColorPreview').style.setProperty('--wc-grad',walletCardColors({badgeColor:color}).grad);   // same look as the wallet card
+  const flag=$('#accountColorPreviewFlag'); flag.className=`wf-flag flag-${editFlag.code}`; flag.hidden=!editFlag.on;
+  paintFlagPicker($('#accountEditFlagPicker'),editFlag); paintFlagToggle($('#accountEditFlagToggle'),editFlag.on);
 }
 
 function openAccountColorEditor(id) {
@@ -1307,8 +1477,9 @@ function openAccountColorEditor(id) {
   editingAccountColorId=id;
   const color=/^#[0-9a-f]{6}$/i.test(account.badgeColor||'')?account.badgeColor:'#58f38e';
   $('#accountEditColor').value=color;
-  $('#accountColorPreviewFlag').innerHTML=flagHTML(account,true);
+  Object.assign(editFlag,{code:account.flagCode||CURRENCIES[account.currency]?.flag||'us',on:showsFlag(account)});
   $('#accountColorPreviewName').textContent=account.name;
+  $('#accountEditCurrency').textContent=`${account.currency} — ${CURRENCIES[account.currency]?.name||''}`;
   updateAccountColorPreview();
   showSheet('#accountColorSheet');
 }
@@ -1320,7 +1491,8 @@ function handleAccountColorEdit(event) {
   account.badgeColor=color;
   account.gradient=accountGradient(color);
   account.tag=mixHex(color,'#ffffff',.78);
-  closeSheets(); saveState(`เปลี่ยนสี “${account.name}” แล้ว`);
+  account.flagCode=editFlag.code; account.showFlag=editFlag.on; account.country=FLAGS[editFlag.code]||account.country;
+  closeSheets(); saveState(`บันทึกการ์ด “${account.name}” แล้ว`);
 }
 
 function openCardEditor() {
@@ -1344,9 +1516,33 @@ function deleteGoal(id) {
 
 function updateColorValue(type) {
   const input=$(`#${type}Color`); const label=$(`#${type}ColorValue`); if(input&&label) label.textContent=input.value.toUpperCase();
+  if(type==='account') updateAccountCreatePreview();
 }
 
-function updateAccountCurrencyLabel(){ $('#accountCurrencyLabel').textContent=$('#accountCurrency').value; }
+// flag chosen in the "new Pocket" sheet (follows the currency until you pick one yourself)
+const createFlag = { code:'th', on:true, picked:false };
+// flag + colour of the card being edited
+const editFlag = { code:'th', on:true };
+function flagPickerHTML(prefix) {
+  return Object.entries(FLAGS).map(([code,label])=>`<button type="button" class="flag-pick flag-${code}" data-${prefix}-flag="${code}" aria-label="ธง${label}"></button>`).join('');
+}
+function paintFlagPicker(box, flag) {
+  if(!box) return;
+  $$('.flag-pick',box).forEach(button=>{ const on=button.className.includes(`flag-${flag.code}`); button.classList.toggle('active',on); button.setAttribute('aria-pressed',String(on)); });
+  box.classList.toggle('is-off',!flag.on);
+}
+function paintFlagToggle(button, on) { if(!button) return; button.setAttribute('aria-pressed',String(on)); $('.switch',button)?.classList.toggle('on',on); }
+function updateAccountCreatePreview() {
+  const preview=$('#accountCreatePreview'); if(!preview) return;
+  if(!createFlag.picked) createFlag.code=CURRENCIES[$('#accountCurrency').value]?.flag||'us';
+  const flag=$('#accountCreatePreviewFlag'); flag.className=`wf-flag flag-${createFlag.code}`; flag.hidden=!createFlag.on;
+  paintFlagPicker($('#accountFlagPicker'),createFlag); paintFlagToggle($('#accountFlagToggle'),createFlag.on);
+  preview.style.setProperty('--wc-grad',walletCardColors({badgeColor:$('#accountColor').value}).grad);
+  $('#accountCreatePreviewName').textContent=$('#accountName').value.trim()||'Pocket ใหม่';
+  $('#accountCreatePreviewCode').textContent=$('#accountCurrency').value;
+}
+
+function updateAccountCurrencyLabel(){ $('#accountCurrencyLabel').textContent=$('#accountCurrency').value; updateAccountCreatePreview(); }
 
 function handleSetting(key) { state.settings[key]=!state.settings[key]; saveState(); }
 
@@ -1418,7 +1614,7 @@ document.addEventListener('click', event => {
   if(action==='exchange-out') openTransfer(source,'account:thb');
   if(action==='income'||action==='expense') openEntry(action,source||'thb');
   if(action==='add-goal') showSheet('#goalSheet');
-  if(action==='add-account') showSheet('#accountSheet');
+  if(action==='add-account'){ if(state.accounts.length>=MAX_POCKETS){ notify(`กระเป๋าเต็มแล้ว ใส่การ์ดได้สูงสุด ${MAX_POCKETS} ใบ`); return; } updateAccountCreatePreview(); showSheet('#accountSheet'); }
   if(action==='add-external-bank') showSheet('#externalBankSheet');
   if(action==='add-schedule') openScheduleEditor();
   if(action==='enable-system-notifications') requestSystemNotifications();
@@ -1449,6 +1645,18 @@ $('#accountColorEditForm').addEventListener('submit',handleAccountColorEdit);
 $('#externalBankForm').addEventListener('submit',handleExternalBankSubmit);
 $('#externalBankAccountNumber').addEventListener('input',event=>{event.target.value=event.target.value.replace(/\D/g,'').slice(0,13);});
 $('#goalColor').addEventListener('input',()=>updateColorValue('goal'));
+$('#accountName').addEventListener('input',updateAccountCreatePreview);
+$('#accountFlagPicker').innerHTML=flagPickerHTML('create'); $('#accountEditFlagPicker').innerHTML=flagPickerHTML('edit');
+$('#accountCurrency').innerHTML=Object.entries(CURRENCIES).map(([code,c])=>`<option value="${code}">${code} — ${c.name}</option>`).join('');
+document.addEventListener('click',event=>{
+  const copy=event.target.closest('[data-copy-account]'); if(copy){ copyAccountNo(copy.dataset.copyAccount); return; }
+  const pickCreate=event.target.closest('[data-create-flag]'); if(pickCreate){ Object.assign(createFlag,{code:pickCreate.dataset.createFlag,picked:true,on:true}); updateAccountCreatePreview(); return; }
+  const pickEdit=event.target.closest('[data-edit-flag]'); if(pickEdit){ Object.assign(editFlag,{code:pickEdit.dataset.editFlag,on:true}); updateAccountColorPreview(); return; }
+  if(event.target.closest('#accountFlagToggle')){ createFlag.on=!createFlag.on; updateAccountCreatePreview(); return; }
+  if(event.target.closest('#accountEditFlagToggle')){ editFlag.on=!editFlag.on; updateAccountColorPreview(); }
+});
+// colour swatches show the card look they will give
+$$('[data-account-color],[data-account-edit-color],[data-goal-color]').forEach(button=>{ const color=button.dataset.accountColor||button.dataset.accountEditColor||button.dataset.goalColor; button.style.setProperty('--swatch',walletCardColors({badgeColor:color}).grad); });
 $('#accountColor').addEventListener('input',()=>updateColorValue('account'));
 $('#accountEditColor').addEventListener('input',updateAccountColorPreview);
 $('#accountCurrency').addEventListener('change',updateAccountCurrencyLabel);
@@ -1506,6 +1714,7 @@ let planScrollFrame=0;
 $('#planGrid').addEventListener('scroll',()=>{cancelAnimationFrame(planScrollFrame);planScrollFrame=requestAnimationFrame(()=>syncPlanTabs());},{passive:true});
 document.addEventListener('keydown',event=>{if(activeView!=='plans'||!$('#pinScreen').hidden||$('.sheet.open'))return;if(event.key==='ArrowRight'){stepPlan(1);event.preventDefault();}else if(event.key==='ArrowLeft'){stepPlan(-1);event.preventDefault();}});
 renderAll();
+applyTheme();
 syncViewChrome(activeView);
 initializeAppLock();
 processScheduledDeposits();
@@ -1527,7 +1736,7 @@ document.addEventListener('click', event => { if (event.target.closest('[data-sh
 /* tick marks + sparkles: pop in on the plan in view, tick in as rows scroll into sight, shrink away as they scroll out */
 (function(){
   const ROWS = '.plan-ribbon, .plan-head h2, .plan-price, .plan-limit, .plan-features li, .plan-hero > b, .plan-features > h3';
-  const seen = new Set();
+  const seen = new Set(), played = new Set();   // played: flash-sale plans already animated since the plans page opened
   let activeId = null, activeEl = null, instantId = null;
   const kind = r => r.matches('.plan-hero > b') ? 'tk-star' : r.matches('.plan-features > h3') ? 'tk-h3' : '';
   const tickIn = (card, instant) => {
@@ -1544,17 +1753,41 @@ document.addEventListener('click', event => { if (event.target.closest('[data-sh
   const countUp = (el, delay) => {
     if (!el) return;
     const txt = el.dataset.v || (el.dataset.v = el.textContent);
-    const m = txt.match(/^(\D*)([\d,]+)(.*)$/); if (!m) return;
-    const end = Number(m[2].replace(/,/g, '')), t0 = performance.now() + delay, dur = 650;
-    cancelAnimationFrame(el._raf);
-    const step = now => {
-      const k = Math.min(1, Math.max(0, (now - t0) / dur)), e = 1 - Math.pow(1 - k, 3);
-      el.textContent = m[1] + Math.round(end * e).toLocaleString('en-US') + m[3];
-      if (k < 1) el._raf = requestAnimationFrame(step); else { el.textContent = txt; el.style.minWidth = ''; }
+    const re = /^(\D*)([\d,]+)(.*)$/, m = txt.match(re); if (!m) return;
+    const num = s => Number(s.replace(/,/g, '')), fmt = (p, v) => p[1] + Math.round(v).toLocaleString('en-US') + p[3];
+    const main = el.closest('.pp-main'), oldEl = main && main.querySelector('.pp-old'), om = oldEl && oldEl.textContent.match(re);
+    cancelAnimationFrame(el._raf); (el._timers || []).forEach(clearTimeout); el._timers = [];
+    if (main) main.classList.remove('pp-strike', 'pp-show', 'pp-done');
+    const done = () => { el.textContent = txt; el.style.minWidth = ''; };
+    const tween = (from, to, p, t0, dur, end) => {
+      const step = now => {
+        const k = Math.min(1, Math.max(0, (now - t0) / dur)), e = 1 - Math.pow(1 - k, 3);
+        el.textContent = fmt(p, from + (to - from) * e);
+        if (k < 1) el._raf = requestAnimationFrame(step); else end();
+      };
+      el._raf = requestAnimationFrame(step);
     };
-    el.textContent = txt; el.style.minWidth = el.offsetWidth + 'px';
-    el.textContent = m[1] + '0' + m[3];
-    el._raf = requestAnimationFrame(step);
+    if (!om) {   // no flash sale: plain count-up
+      el.textContent = txt; el.style.minWidth = el.offsetWidth + 'px';
+      el.textContent = fmt(m, 0);
+      tween(0, num(m[2]), m, performance.now() + delay, 650, done);
+      return;
+    }
+    const pid = el.closest('.plan-card')?.dataset.planCard;
+    if (played.has(pid)) { done(); main.classList.add('pp-done'); return; }   // already played once this visit: show the final price
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { done(); main.classList.add('pp-show'); return; }
+    // flash sale: count up to the full price -> strike it -> drop to the sale price while the full price shrinks to the top-right
+    const full = num(om[2]), sale = num(m[2]);
+    el.style.minWidth = ''; el.textContent = fmt(om, 0);
+    tween(0, full, om, performance.now() + delay, 650, () => {
+      el.textContent = fmt(om, full);
+      main.classList.add('pp-strike');
+      el._timers.push(setTimeout(() => {
+        main.classList.add('pp-show');
+        if (el.animate) el.animate([{transform:'scale(1)'}, {transform:'scale(1.1)', offset:.35}, {transform:'scale(1)'}], {duration:460, easing:'ease-out'});
+        tween(full, sale, m, performance.now(), 620, () => { done(); main.classList.remove('pp-strike'); played.add(pid); });
+      }, 380));
+    });
   };
   const tickOut = r => {
     if (!r.classList.contains('tk')) return;
@@ -1575,13 +1808,15 @@ document.addEventListener('click', event => { if (event.target.closest('[data-sh
     const id = card.dataset.planCard;
     if (id === activeId) { instantId = id; activeEl = card; tickIn(card, true); return; }   // same plan re-rendered (e.g. seats changed): no replay
     if (activeEl) activeEl.querySelectorAll('.tk, .tk-out').forEach(r => r.classList.remove('tk', 'tk-now', 'tk-out'));
+    const leaving = activeEl && activeEl.querySelector('.pp-main strong');   // swiped away mid flash-sale: stop it so it replays in full next time
+    if (leaving) { cancelAnimationFrame(leaving._raf); (leaving._timers || []).forEach(clearTimeout); }
     activeId = id; activeEl = card; instantId = null;
     tickIn(card, false);
   };
   if (!io) document.documentElement.classList.add('no-tick-anim');
   const _sync = syncPlanTabs; syncPlanTabs = function(){ const r = _sync.apply(this, arguments); onView(); return r; };
   const _render = renderPlans; renderPlans = function(){ const r = _render.apply(this, arguments); observe(); onView(); return r; };
-  const _open = openPlans; openPlans = function(){ activeId = null; activeEl = null; instantId = null; return _open.apply(this, arguments); };
+  const _open = openPlans; openPlans = function(){ activeId = null; activeEl = null; instantId = null; played.clear(); return _open.apply(this, arguments); };
   let sf = 0; window.addEventListener('scroll', () => { cancelAnimationFrame(sf); sf = requestAnimationFrame(() => { if (activeEl) tickIn(activeEl, activeId === instantId); }); }, {passive:true});
   observe(); onView();
 })();
