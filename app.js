@@ -1523,3 +1523,73 @@ async function sharePlans(){
   catch { const ta = document.createElement('textarea'); ta.value = url; ta.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); notify('คัดลอกลิงก์หน้าแพลนแล้ว'); } catch { notify(url); } ta.remove(); }
 }
 document.addEventListener('click', event => { if (event.target.closest('[data-share-plans]')) sharePlans(); });
+
+/* tick marks + sparkles: pop in on the plan in view, tick in as rows scroll into sight, shrink away as they scroll out */
+(function(){
+  const ROWS = '.plan-ribbon, .plan-head h2, .plan-price, .plan-limit, .plan-features li, .plan-hero > b, .plan-features > h3';
+  const seen = new Set();
+  let activeId = null, activeEl = null, instantId = null;
+  const kind = r => r.matches('.plan-hero > b') ? 'tk-star' : r.matches('.plan-features > h3') ? 'tk-h3' : '';
+  const tickIn = (card, instant) => {
+    const rows = [...card.querySelectorAll(ROWS)].filter(r => seen.has(r) && !r.classList.contains('tk'))
+      .sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
+    rows.forEach((r, i) => {
+      r.classList.remove('tk-out');
+      r.style.setProperty('--d', (i * 85) + 'ms');
+      const k = kind(r); if (k) r.classList.add(k);
+      r.classList.add('tk'); if (instant) r.classList.add('tk-now');
+      if (!instant && r.matches('.plan-price')) countUp(r.querySelector('strong'), 110 + i * 85);
+    });
+  };
+  const countUp = (el, delay) => {
+    if (!el) return;
+    const txt = el.dataset.v || (el.dataset.v = el.textContent);
+    const m = txt.match(/^(\D*)([\d,]+)(.*)$/); if (!m) return;
+    const end = Number(m[2].replace(/,/g, '')), t0 = performance.now() + delay, dur = 650;
+    cancelAnimationFrame(el._raf);
+    const step = now => {
+      const k = Math.min(1, Math.max(0, (now - t0) / dur)), e = 1 - Math.pow(1 - k, 3);
+      el.textContent = m[1] + Math.round(end * e).toLocaleString('en-US') + m[3];
+      if (k < 1) el._raf = requestAnimationFrame(step); else { el.textContent = txt; el.style.minWidth = ''; }
+    };
+    el.textContent = txt; el.style.minWidth = el.offsetWidth + 'px';
+    el.textContent = m[1] + '0' + m[3];
+    el._raf = requestAnimationFrame(step);
+  };
+  const tickOut = r => {
+    if (!r.classList.contains('tk')) return;
+    r.classList.remove('tk', 'tk-now'); r.classList.add('tk-out');
+    setTimeout(() => { if (!r.classList.contains('tk')) r.classList.remove('tk-out'); }, 260);
+  };
+  const io = 'IntersectionObserver' in window ? new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.intersectionRatio >= .5) seen.add(e.target);
+      else { seen.delete(e.target); if (activeEl && activeEl.contains(e.target)) tickOut(e.target); }
+    });
+    if (activeEl) tickIn(activeEl, activeId === instantId);
+  }, {threshold:[0, .5]}) : null;
+  const observe = () => { seen.clear(); if (!io) return; io.disconnect(); document.querySelectorAll('#planGrid .plan-card').forEach(c => c.querySelectorAll(ROWS).forEach(r => io.observe(r))); };
+  const onView = () => {
+    const card = document.querySelector('#planGrid .plan-card.in-view');
+    if (!card || card === activeEl) return;
+    const id = card.dataset.planCard;
+    if (id === activeId) { instantId = id; activeEl = card; tickIn(card, true); return; }   // same plan re-rendered (e.g. seats changed): no replay
+    if (activeEl) activeEl.querySelectorAll('.tk, .tk-out').forEach(r => r.classList.remove('tk', 'tk-now', 'tk-out'));
+    activeId = id; activeEl = card; instantId = null;
+    tickIn(card, false);
+  };
+  if (!io) document.documentElement.classList.add('no-tick-anim');
+  const _sync = syncPlanTabs; syncPlanTabs = function(){ const r = _sync.apply(this, arguments); onView(); return r; };
+  const _render = renderPlans; renderPlans = function(){ const r = _render.apply(this, arguments); observe(); onView(); return r; };
+  const _open = openPlans; openPlans = function(){ activeId = null; activeEl = null; instantId = null; return _open.apply(this, arguments); };
+  observe(); onView();
+})();
+
+/* press feedback: squash on touch, spring back on release (kept for at least 110ms so quick taps still show) */
+(function(){
+  let held = null, since = 0;
+  const release = () => { if (!held) return; const el = held; held = null; setTimeout(() => el.classList.remove('is-pressed'), Math.max(0, 110 - (Date.now() - since))); };
+  document.addEventListener('pointerdown', e => { const b = e.target.closest('.plans-view button, .pay-view button, .qr-sheet button'); if (!b || b.disabled) return; held = b; since = Date.now(); b.classList.add('is-pressed'); }, {passive:true});
+  ['pointerup','pointercancel','pointerleave','dragstart'].forEach(ev => document.addEventListener(ev, release, {passive:true}));
+  window.addEventListener('blur', release);
+})();
