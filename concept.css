@@ -1759,3 +1759,7 @@ body[data-active-view="plans"] .app { padding-bottom: 0; }
 .qr-exp[hidden]{display:none}
 .qr-exp b{font-size:1rem;font-weight:800}
 .qr-exp button{height:42px;padding:0 18px;border:0;border-radius:12px;background:var(--ink);color:#fff;font:700 .9rem 'Noto Sans Thai',sans-serif}
+
+/* tighter title row so a wrapped badge (BEST VALUE) sits right under the name */
+.plan-head h2{row-gap:7px;line-height:1.1}
+.plan-head h2 .plan-badge{line-height:1.3}
