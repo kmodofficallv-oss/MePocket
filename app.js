@@ -1,4 +1,6 @@
 const STORAGE_KEY = 'pocket-finance-state-v2';
+const PIN_HASH_KEY = 'mepocket-pin-hash-v1';
+const BIOMETRIC_CREDENTIAL_KEY = 'mepocket-biometric-credential-v1';
 const RATES_TO_THB = { THB: 1, USD: 35.2 };
 const BANK_CATALOG = {
   scb:{code:'SCB',name:'ธนาคารไทยพาณิชย์',color:'#e3d7ff',ink:'#4b2387'},
@@ -8,8 +10,146 @@ const BANK_CATALOG = {
   bay:{code:'BAY',name:'ธนาคารกรุงศรีอยุธยา',color:'#fff1bf',ink:'#775d00'}
 };
 
+const PLAN_CATALOG = [
+  {
+    id:'starter', group:'individual', name:'STARTER', badges:[], tagline:'สำหรับผู้เริ่มต้นที่ต้องการสร้างวินัยทางการเงินขั้นพื้นฐาน (ด้วยงบ 0 บาท)',
+    hero:['1 กระเป๋าหลัก / 5 กระเป๋าเป้าหมาย',['=','จำกัดวงเงินเป้าหมายสูงสุด ฿5,000 / กระเป๋า (เพื่อฝึกออมทีละก้าวอย่างยั่งยืน)'],['~','ไม่มีระบบค้นหาประวัติ (เพื่อฝึกความจำและการทบทวนรายจ่ายด้วยตนเอง)']],
+    oldPrice:'', price:'฿0', priceNote:'จ่ายครั้งเดียว (ใช้งานฟรีตลอดชีพ)', cta:'Get Starter', saveNote:'ประหยัดเงิน แต่อาจต้องใช้เวลาและความอดทนสูง',
+    limitsIcon:'lock', limitsTitle:'ข้อจำกัดระบบ (System Limits):',
+    limits:[
+      [false,'ธีมแอปพลิเคชัน','ล็อกการแสดงผลโหมดสว่าง (Light Mode) ตลอด 24 ชั่วโมง','เพื่อกระตุ้นความตื่นตัวขณะทำธุรกรรม และป้องกันอาการง่วงซึมซึ่งอาจนำไปสู่การกดตัวเลขผิดพลาด'],
+      [false,'ระบบความปลอดภัย','ไม่มีระบบตั้งรหัสผ่าน PIN, สแกนใบหน้า หรือสแกนลายนิ้วมือ','เพื่อการเข้าถึงแอปพลิเคชันที่รวดเร็ว ไร้รอยต่อ'],
+      [false,'สกุลเงิน','รองรับเฉพาะ THB','ยังไม่อนุญาตให้ใช้ USD ในแพ็กเกจเริ่มต้น'],
+      [false,'ฟอนต์แอปพลิเคชัน','รูปแบบพื้นฐาน Comic Sans ขนาด 8px','เพื่อความกะทัดรัดและประหยัดพื้นที่หน้าจอ'],
+      [false,'ความเร็วการประมวลผล','โหมดประหยัดพลังงานเซิร์ฟเวอร์','ล็อกความเร็วสูงสุดไว้ที่ 4G (ไม่รองรับ 5G/6G) เพื่อร่วมลดภาวะโลกร้อน'],
+      [false,'การแจ้งเตือน (Notifications)','ปิดการแจ้งเตือนทุกประเภท','เข้าสู่โหมด Digital Detox เพื่อลดความรบกวนให้คุณมีสมาธิกับชีวิตขั้นสุด'],
+      [false,'โควต้าปุ่มย้อนกลับ (Back)','5 ครั้ง/วัน','เพื่อฝึกความรอบคอบก่อนเปลี่ยนหน้าจอ หากเกินโควต้ากรุณารีสตาร์ทแอป']
+    ],
+    featuresTitle:'รายการฟีเจอร์ที่คุณจะ (ต้อง) ได้รับ:',
+    features:[
+      [true,'Phone Number Login: เข้าระบบด้วยเบอร์โทรศัพท์เท่านั้น (ลดภาระการจดจำรหัสผ่าน)'],
+      [true,'Daily Financial Lesson: บังคับรับชมวิดีโอความรู้ทางการเงินจนจบ ก่อนเปิดใช้งานแอปครั้งแรกของวัน'],
+      [true,'Human Verification: ระบบ CAPTCHA "กรุณาเลือกรูปเหรียญบาท" ทุกครั้งที่เพิ่มเงิน (เพื่อป้องกันบอทและดึงสติ)'],
+      [true,'24-Hour Cooling Period: โอนเงินต้องรออนุมัติ 24 ชม. (เพื่อลดพฤติกรรมการใช้อารมณ์ตัดสินใจ)'],
+      [true,'Double-Check System: ป็อปอัป "แน่ใจหรือไม่?" 3 รอบก่อนกดยืนยัน (เพื่อความปลอดภัยสูงสุดของเงินคุณ)'],
+      [true,'Zero Decimal Policy: ปัดเศษสตางค์ทิ้งอัตโนมัติ (เพื่อความสะอาดตาของบัญชี)'],
+      [true,'Cultural Preservation Mode: แสดงยอดเงินและประวัติการทำรายการทั้งหมดเป็น "ตัวเลขไทย" เท่านั้น เช่น ฿๔,๙๙๙','เพื่อร่วมสืบสานและอนุรักษ์เอกลักษณ์ความเป็นชาติในโลกดิจิทัล']
+    ],
+    restrictionsTitle:'สิ่งที่ไม่ได้รวมอยู่ในแพ็กเกจนี้:',
+    restrictions:[
+      'ไม่อนุญาตให้เปลี่ยนเป็น Dark Mode (สงวนสิทธิ์การถนอมสายตาสำหรับแพ็กเกจพรีเมียม)',
+      'จำกัดชื่อเป้าหมายสูงสุด 3 ตัวอักษร',
+      'ล็อกยอดเป้าหมายสูงสุด ฿5,000',
+      'ไม่มีช่องค้นหาประวัติ ต้องเลื่อนไถด้วยตัวเอง'
+    ]
+  },
+  {
+    id:'plus', group:'individual', name:'PLUS', badges:[{text:'20% OFF'}], tagline:'สำหรับผู้ที่ต้องการอิสรภาพและยกระดับสุขภาวะทางการเงิน',
+    hero:['+3 กระเป๋าเป้าหมาย (ตั้งชื่ออิสระ)',['=','โอนเงินข้ามกระเป๋าได้ไม่จำกัด (อิสรภาพในการบริหารจัดการ)'],['~','เปลี่ยนระบบแสดงผลเป็นตัวเลขอารบิกสากล (เพื่อการคำนวณที่แม่นยำ)']],
+    oldPrice:'฿999', price:'฿799', priceNote:'ต่อเดือน (จ่ายรายเดือน)', cta:'Get Plus', saveNote:'ยกระดับคุณภาพชีวิตและสุขภาพจิตของคุณ',
+    limitsIcon:'unlock', limitsTitle:'ปลดล็อกข้อจำกัดระบบ (System Upgrades):',
+    limits:[
+      [true,'Visual Wellness (ระบบถนอมสายตา)','ปลดล็อกฟีเจอร์สลับโหมด Light / Dark Mode ได้อย่างอิสระ','เพื่อสุขภาวะทางสายตาที่ดีของคุณในทุกช่วงเวลา'],
+      [true,'Standard Security (ระบบความปลอดภัยมาตรฐาน)','เข้าสู่ระบบด้วย Email และตั้งรหัสผ่าน PIN 6 หลักได้','เพื่อปกป้องข้อมูลทางการเงินของคุณให้เป็นส่วนตัวมากยิ่งขึ้น และไม่ต้องพึ่งพาแค่เบอร์โทรศัพท์อีกต่อไป'],
+      [true,'Typography Upgrade (ยกระดับการอ่าน)','เปลี่ยนฟอนต์จาก Comic Sans 8px เป็นฟอนต์มาตรฐานสากล (San Francisco / Roboto)','เพื่อลดความเหนื่อยล้าของกล้ามเนื้อตาจากการเพ่งมองหน้าจอ'],
+      [true,'Network Optimization (ประมวลผลความเร็วสูง)','ย้ายสู่เซิร์ฟเวอร์ Priority รองรับความเร็วระดับ 5G','เพื่อการทำธุรกรรมที่ลื่นไหล สลิปเด้งทันที ไม่ต้องรอโหลด 15 วินาทีอีกต่อไป'],
+      [true,'Navigation Freedom (อิสระในการนำทาง)','ปลดล็อกโควต้าปุ่มย้อนกลับ (Back) สามารถกดได้ไม่จำกัดครั้ง','มอบอิสระในการท่องแอปพลิเคชันตามใจคุณ โดยไม่ต้องปิดแอปเปิดใหม่'],
+      [true,'Notification Control (ควบคุมการแจ้งเตือน)','ปลดล็อกการแจ้งเตือนแบบเรียลไทม์ (ไม่ต้องรอรับตอนตี 3)','เพื่อให้คุณเชื่อมต่อกับทุกความเคลื่อนไหวทางการเงินอย่างทันท่วงทีในเวลาทำการ'],
+      [true,'ขีดจำกัดเพิ่มเงินและเป้าหมาย (Wealth Cap)','ขยายเพดานสูงสุด ฿1,000,000 ต่อบัญชี','ระบบขยายเพดานรองรับความมั่งคั่งของคุณ แต่จำกัดไว้ที่ 1 ล้านบาท เพื่อรักษาสมดุลทางจิตใจ ป้องกันความเครียดจากการหมกมุ่นกับตัวเลข และลดความเสี่ยงกรณีสมาร์ทโฟนสูญหาย']
+    ],
+    featuresTitle:'รายการฟีเจอร์ที่คุณจะได้รับ:',
+    features:[
+      [true,'Universal Display: ยกเลิกโหมดอนุรักษ์ความเป็นไทย เปลี่ยนมาแสดงผลด้วย "ตัวเลขอารบิก" สากล พร้อมคีย์บอร์ดพิมพ์ตัวเลขปกติ (บอกลาแถบสไลเดอร์)'],
+      [true,'Ad-Free & Instant Action: ยกเลิกโฆษณาเต็มจอ 30 วินาที, งดบังคับดูคลิปสอนออมเงินตอนเช้า และถอดระบบ CAPTCHA รูปเหรียญบาทออกทั้งหมด'],
+      [true,'Zero-Cooldown Transfer: ยกเลิกระยะเวลารอคอย 24 ชั่วโมง โอนเงินและเพิ่มเงินได้ทันทีแบบ Real-time (ไม่ต้องถามย้ำ 3 รอบอีกต่อไป)'],
+      [true,'Infinite Memory: ดูประวัติรายการย้อนหลังได้ตลอดกาล พร้อมเพิ่ม "ช่องค้นหา (Search)" พื้นฐาน'],
+      [true,'Profile Customization: มีหน้าแดชบอร์ดโปรไฟล์ส่วนตัว สามารถตั้งชื่อผู้ใช้งานและชื่อกระเป๋าได้ยาวกว่า 3 ตัวอักษร'],
+      [true,'Shareable Slips: ปลดล็อกระบบแคปหน้าจอตามปกติ เพื่อการแชร์สลิปที่สะดวกสบาย'],
+      [true,'Account Management: สามารถกดยื่นลบข้อมูลบัญชีได้ (เงื่อนไข: ศึกษาและยอมรับข้อตกลง 100 หน้า เพื่อให้แน่ใจว่าคุณเข้าใจผลกระทบอย่างถ่องแท้ หากเลื่อนอ่านเร็วเกินไป ระบบจะบังคับให้ทบทวนใหม่ตั้งแต่หน้า 1)']
+    ]
+  },
+  {
+    id:'ultra', group:'individual', name:'ULTRA SMOOTH', badges:[{text:'27% OFF'},{text:'✦ BEST VALUE',best:true}], tagline:'สำหรับผู้ใช้งานระดับโปรที่ต้องการประสบการณ์ทางการเงินไร้รอยต่อ',
+    hero:['Ultimate Freedom & Customization',['=','ไม่จำกัดกระเป๋าและรองรับทุกสกุลเงินทั่วโลก'],['~','ปรับแต่ง UI สลิป และเอฟเฟกต์ได้ทุกอณู']],
+    oldPrice:'฿10,990', price:'฿7,990', priceNote:'จ่ายครั้งเดียวจบ (Lifetime License)', cta:'Get Ultra Smooth', saveNote:'เอกสิทธิ์สูงสุด ซื้อครั้งเดียวครอบคลุมทุกการอัปเดตตลอดชีพ',
+    limitsIcon:'infinity', limitsTitle:'ปลดล็อกระบบขั้นสูงสุด (Premium Access):',
+    limits:[
+      [true,'Absolute Wealth Capacity (ขีดจำกัดความมั่งคั่งสูงสุด)','ปลดล็อกเพดานเงินฝากแบบไร้ขีดจำกัด (สูงสุด ฿9,999,999,999)','เพื่อรองรับอิสรภาพทางการเงินระดับ Ultra-High-Net-Worth Individual (UHNWI) ของคุณโดยไร้ข้อกังขา'],
+      [true,'Institutional-Grade Security (ความปลอดภัยระดับสถาบัน)','ปลดล็อกระบบยืนยันตัวตนเต็มรูปแบบด้วย บัตรประชาชน (e-KYC), อีเมล, และ Biometrics','เพื่อยกระดับการปกป้องสินทรัพย์ของคุณให้เทียบเท่ามาตรฐานระบบรักษาความปลอดภัยระดับธนาคารกลาง'],
+      [true,'True Black Experience (ประสบการณ์ทรูแบล็ค)','ปลดล็อกโหมด Dark Mode แบบ True Black ขจัดแสงสะท้อน','เพื่อความหรูหราเหนือระดับ ประหยัดพลังงานแบตเตอรี่สูงสุด และสะท้อนภาพลักษณ์ที่สุขุมลุ่มลึก'],
+      [true,'Limitless Architecture (สถาปัตยกรรมไร้ขอบเขต)','ไม่จำกัดจำนวนกระเป๋าเงิน (Unlimited Pockets)','ทลายทุกข้อจำกัดเดิม เพื่อการบริหารพอร์ตโฟลิโอทางการเงินที่ไร้พรมแดน'],
+      [true,'Smart Automation (ระบบฝากอัตโนมัติอัจฉริยะ)','ใช้งานระบบฝากและโอนเงินอัตโนมัติได้ไม่จำกัดจำนวนครั้ง','ให้เงินทำงานตามระบบที่คุณวางไว้ ในขณะที่คุณเอาเวลาไปโฟกัสกับการใช้ชีวิต'],
+      [true,'Absolute Customization (การปรับแต่งอิสระทุกอณู)','ไร้ข้อจำกัดในการดีไซน์','ปลดปล่อยจินตนาการของคุณลงบนหน้าจอ UI ได้อย่างสมบูรณ์แบบ']
+    ],
+    featuresTitle:'เอกสิทธิ์เฉพาะแพ็กเกจระดับ Ultra:',
+    features:[
+      [true,'Full Biometric & Identity Login: ปลดล็อกการเข้าสู่ระบบแบบไร้รอยต่อด้วย Face ID / สแกนลายนิ้วมือ พร้อมผูกบัญชีด้วยบัตรประจำตัวประชาชนและอีเมล (หมดกังวลเรื่องการเปลี่ยนเบอร์โทรศัพท์หรือลืมรหัสผ่าน)'],
+      [true,'Theme & Slip Builder: เครื่องมือออกแบบธีมแอปและหน้าตาสลิปเงินโอนของคุณเองแบบ Custom 100% พร้อมใส่แอนิเมชันและเอฟเฟกต์เสียง (บ่งบอกสเตตัสความพรีเมียมในทุกครั้งที่แชร์สลิป)'],
+      [true,'Infinite History & Search: เก็บประวัติการทำธุรกรรมแบบถาวรตลอดชีพ พร้อมระบบค้นหา (Search) และตัวกรองข้อมูลขั้นสูง'],
+      [true,'Professional Data Export: ส่งออกข้อมูลรายงานทางการเงินรูปแบบ CSV, PDF และ JSON แบบมืออาชีพ (พร้อมส่งตรงให้ผู้ตรวจสอบบัญชีส่วนตัวของคุณ)'],
+      [true,'Zero Distractions: ประสบการณ์สมูทที่สุด ไร้โฆษณา ไร้ลายน้ำ ไร้ระยะเวลารอคอย (Cooldown) ทุกปุ่มกดลื่นไหล ตอบสนองไวในระดับเสี้ยววินาที'],
+      [true,'Fast-Track Deletion: สิทธิ์ VIP ในการลบบัญชี 1 คลิก ไม่ต้องรอคิว ไม่ต้องทนไถอ่านข้อตกลง 100 หน้าอีกต่อไป (หมายเหตุ: มีค่าธรรมเนียมดำเนินการฉีกสัญญาก่อนกำหนด ฿199)'],
+      [true,'Lifetime Updates: รับฟีเจอร์และนวัตกรรมใหม่ของแอปพลิเคชันฟรีตลอดชีพ ซื้อครั้งเดียวจบ ไม่มีค่าใช้จ่ายรายเดือนแอบแฝง']
+    ]
+  },
+  {
+    id:'team', group:'business', minSeats:2, name:'TEAM', badges:[{text:'18% OFF'}], tagline:'สำหรับคู่รัก หุ้นส่วน หรือทีมขนาดเล็ก ที่ต้องการยกระดับความโปร่งใสแบบไร้รอยต่อ',
+    hero:['Shared Workspace & Credit Pool',['=','การอนุมัติธุรกรรมแบบกลุ่ม (ส่งเสริมการทำงานร่วมกัน)'],['~','แจ้งเตือนความเคลื่อนไหวทุกรายการ (ไร้ความคลุมเครือ)']],
+    oldPrice:'', price:'฿199', priceNote:'/ seat / month (บังคับซื้อขั้นต่ำ 2 ที่นั่ง)', priceSub:'ต่อเดือน (ชำระรายปี)', cta:'Get Team', saveNote:'สร้างวัฒนธรรมความเชื่อใจ ผ่านการตรวจสอบที่เข้มงวด',
+    limitsIcon:'lock', limitsTitle:'มาตรการควบคุมระบบ (System Governance):',
+    limits:[
+      [false,'ระดับความเป็นส่วนตัว (Privacy Level)','0% (แชร์ข้อมูลพฤติกรรมการใช้จ่ายทั้งหมดสู่ส่วนกลาง)','เพื่อสร้างบรรทัดฐานความโปร่งใส และลดความคลุมเครือภายในทีมของคุณให้เหลือศูนย์'],
+      [false,'ระยะเวลาดำเนินการ (SLA for Approvals)','กรอบเวลา 5 นาที สำหรับการยืนยันธุรกรรมร่วมกัน','เพื่อความรัดกุม หากไม่ได้รับการอนุมัติจากทุกคนในเวลาที่กำหนด ระบบจะยกเลิกรายการทันทีเพื่อปกป้องสินทรัพย์'],
+      [false,'สิทธิ์การดูแลระบบ (Admin Rights)','กระจายสิทธิ์เท่าเทียมกันทุกที่นั่ง','เพื่อความยุติธรรมสูงสุด ไม่มีสมาชิกท่านใดสามารถลบประวัติหรือซ่อนข้อมูลจากสมาชิกท่านอื่นได้'],
+      [false,'การติดตามตำแหน่ง (Location Tracking)','บังคับเปิด GPS ขณะทำธุรกรรมเสมอ','เพื่อเป็นหลักฐานอ้างอิงที่โปร่งใส และตรวจสอบแหล่งที่มาของการใช้จ่ายได้อย่างแม่นยำ']
+    ],
+    featuresTitle:'รายการฟีเจอร์ที่คุณจะ (ต้อง) ได้รับ:',
+    features:[
+      [true,'Multi-Signature Consensus: ทุกการโอนเงินออกจากกระเป๋ากองกลาง สมาชิกทุกคนในทีมต้อง "สแกนใบหน้าพร้อมกัน" เพื่ออนุมัติรายการ (ส่งเสริมการมีส่วนร่วมและป้องกันการตัดสินใจพลการ)'],
+      [true,'Radical Transparency Alerts: ระบบจะบรอดแคสต์ทุกความเคลื่อนไหว แม้กระทั่งกระเป๋าส่วนตัว (เช่น การซื้อของออนไลน์ หรือเติมเกม) ลงศูนย์กลางแชทกลุ่มทันทีแบบ Real-time'],
+      [true,'Auto-Snitch Report: สรุปรายงานพฤติกรรมการใช้เงินรายสัปดาห์ ส่งตรงถึงสมาชิกทุกคน เพื่อใช้ในการทบทวนแผนการเงินร่วมกัน']
+    ]
+  },
+  {
+    id:'scale', group:'business', minSeats:5, name:'SCALE', badges:[{text:'30% OFF'},{text:'✦ BEST VALUE',best:true}], tagline:'สำหรับธุรกิจครอบครัวและ SME ที่ต้องการสิทธิขาดในการควบคุมสินทรัพย์อย่างเบ็ดเสร็จ',
+    hero:['Centralized Administration',['=','อำนาจบริหารจัดการแบบเบ็ดเสร็จ (เพื่อปกป้ององค์กร)'],['~','ระบบเบิกจ่ายอิงเอกสาร (ตามหลักมาตรฐานการบัญชี)']],
+    oldPrice:'฿499', price:'฿349', priceNote:'/ seat / month (บังคับซื้อขั้นต่ำ 5 ที่นั่ง)', priceSub:'ต่อเดือน (ชำระรายปี)', cta:'Get Scale', saveNote:'ปกป้องสภาพคล่องขององค์กร ด้วยอำนาจการบริหารส่วนกลาง',
+    limitsIcon:'lock', limitsTitle:'มาตรการควบคุมระบบ (System Governance):',
+    limits:[
+      [false,'สิทธิ์การเข้าถึงสินทรัพย์ (Asset Accessibility)','ขึ้นอยู่กับดุลยพินิจของ Admin แต่เพียงผู้เดียว','สมาชิกจะไม่สามารถทำธุรกรรมใดๆ ได้ หากบัญชีถูกตั้งค่าให้อยู่ในสถานะเฝ้าระวังความเสี่ยง'],
+      [false,'เกณฑ์การพิจารณาเบิกจ่าย (Disbursement Criteria)','บังคับพิมพ์เหตุผลขั้นต่ำ 200 ตัวอักษร พร้อมแนบรูปถ่ายสถานที่จริง','เพื่อให้ทุกการลงทุนขององค์กรมีเอกสารประกอบที่ครบถ้วนและรัดกุม ตามหลักเกณฑ์การตรวจสอบบัญชี'],
+      [false,'กระบวนการอุทธรณ์ (Appeal Process)','ใช้เวลาพิจารณา 3-5 วันทำการ','สำหรับกรณีที่สมาชิกต้องการร้องขอให้ Admin พิจารณาปลดล็อกกระเป๋าเงิน']
+    ],
+    featuresTitle:'รายการฟีเจอร์ที่คุณจะ (ต้อง) ได้รับ:',
+    features:[
+      [true,'Emergency Asset Protection: Admin มีเอกสิทธิ์ในการกดปุ่ม "ระงับการเข้าถึง (Freeze)" กระเป๋าเงินส่วนตัวของสมาชิกคนใดก็ได้ทันทีเพียงปลายนิ้ว (เพื่อป้องกันความเสี่ยงด้านสภาพคล่องขององค์กรในภาวะวิกฤต)'],
+      [true,'Priority Queue for Firing: Admin สามารถเตะสมาชิกออกจากระบบได้ทันที โดยยอดเงินคงเหลือในกระเป๋าส่วนตัวของสมาชิกท่านนั้น จะถูก "โอนเข้ากระเป๋ากองกลางอัตโนมัติ" (เพื่อชดเชยความเสียหายให้แก่องค์กร)'],
+      [true,'Anonymous Integrity Reporting (SSO): ปุ่มลับสำหรับส่งรายงานพฤติกรรมการใช้เงินที่น่าสงสัยของเพื่อนร่วมงานถึง Admin โดยตรงแบบไม่ระบุตัวตน (เพื่อส่งเสริมธรรมาภิบาล และการตรวจสอบภายในที่มีประสิทธิภาพ)']
+    ]
+  },
+  {
+    id:'enterprise', group:'business', contactOnly:true, learnMore:true, name:'ENTERPRISE', badges:[{text:'✦ EXPERTS\' CHOICE',ribbon:true}], tagline:'โซลูชันระดับสถาบัน เพื่อการจัดลำดับชั้นข้อมูลและเพิ่มประสิทธิภาพบุคลากรขั้นสุดยอด',
+    hero:['Absolute Corporate Hierarchy',['=','ข้อมูลระดับโครงสร้าง (เพื่อการวิเคราะห์ศักยภาพ)'],['~','เชื่อมต่อบัญชีเงินเดือนอัตโนมัติ (เพิ่มประสิทธิภาพ HR)']],
+    oldPrice:'', price:'Let\'s talk', priceNote:'(ปรับราคาตามขนาดและโครงสร้างองค์กรของคุณ)', cta:'Contact Sales', saveNote:'ยกระดับอำนาจการบริหาร ด้วยเทคโนโลยีที่ไร้ข้อกังขา',
+    limitsIcon:'lock', limitsTitle:'มาตรการควบคุมระบบ (System Governance):',
+    limits:[
+      [false,'การมองเห็นข้อมูล (Hierarchical Data Visibility)','ผู้บริหารเห็นข้อมูล 100% / พนักงานทั่วไปเห็นยอดกองกลางเป็น 0% เสมอ','เพื่อลดความกดดันด้านผลประกอบการให้แก่บุคลากร และปกป้องความลับทางกลยุทธ์สูงสุด'],
+      [false,'ข้อตกลงการใช้งาน (Payroll Integration SLA)','บุคลากรต้องยินยอมให้ระบบเข้าถึงบัญชีเงินเดือนโดยอัตโนมัติ','เพื่อความคล่องตัวในการประมวลผลและการบริหารจัดการสวัสดิการแบบเบ็ดเสร็จ'],
+      [false,'สิทธิ์การโต้แย้ง (Dispute Rights)','ระดับ 0 (Zero Tolerance)','ไม่อนุญาตให้อุทธรณ์คำตัดสินทางการเงินที่ประมวลผลและวิเคราะห์โดยระบบ AI ขององค์กร']
+    ],
+    featuresTitle:'รายการฟีเจอร์ที่คุณจะ (ต้อง) ได้รับ:',
+    features:[
+      [true,'Deep Data Analytics: ผู้บริหารระดับสูงสามารถเข้าถึงข้อมูลธุรกรรมเชิงลึกของบุคลากรได้ทุกคนแบบ Real-time (เพื่อการประเมินศักยภาพและบริหารทรัพยากรบุคคลอย่างแม่นยำ)'],
+      [true,'Automated Liability Reconciliation: ระบบเชื่อมต่อ API เพื่อ "หักเงินออกจากกระเป๋าพนักงานเข้าสู่บัญชีบริษัทอัตโนมัติ" ทันทีที่ระบบตรวจพบการละเมิดเงื่อนไของค์กร (เพื่อลดภาระงานของฝ่าย HR และรักษาผลประโยชน์สูงสุด)'],
+      [true,'Delegated Top-up Tax: ระบบหักค่าธรรมเนียมส่วนต่าง (Tax) เมื่อพนักงานเติมเงินเข้าบัญชีส่วนตัว ยอดส่วนหนึ่งจะถูกโอนเข้าบัญชีผู้บริหารแบบเนียนๆ (เพื่อเป็นค่าบริหารจัดการโครงสร้างพื้นฐาน)'],
+      [true,'Executive AI Mentor: บอท AI ที่ถูกฝึกฝนด้วยภาษาเชิงกลยุทธ์ระดับผู้บริหาร คอยวิพากษ์วิจารณ์และตั้งคำถามอย่างกดดันต่อทุกคำขอเบิกงบหรือโอทีของบุคลากร (เพื่อกระตุ้นให้เกิดการพัฒนาศักยภาพ และสร้างวิสัยทัศน์ที่เฉียบคมแบบผู้นำ)']
+    ]
+  }
+];
+
 const seedState = {
   profileName: 'คุณานนต์',
+  plan: 'starter',
   settings: { hideBalances: false, compactNumbers: false, notifications: true, systemNotifications: false },
   debitCard: { title:'Pocket Debit', holder:'KUNANON C.', number:'5201884273190426', color:'#18251f' },
   accounts: [
@@ -23,6 +163,7 @@ const seedState = {
     { id:'equipment', name:'อุปกรณ์ทำงาน', balance:4500, target:30000, color:'#ffb65c', icon:'◉' }
   ],
   externalBanks: [],
+  favorites: [],
   scheduledDeposits: [],
   transactions: [
     { id:'t1', type:'income', account:'thb', amount:35000, currency:'THB', note:'รายได้จากงานออกแบบ', date:'2026-09-18T09:40:00.000Z' },
@@ -45,7 +186,6 @@ let entryType = 'income';
 let transactionFilter = 'all';
 let reorderMode = false;
 let toastTimer;
-let carouselScrollTimer;
 let depositPopupTimer;
 let depositPopupActive = false;
 const depositPopupQueue = [];
@@ -59,11 +199,23 @@ let homeDeckWasDragged = false;
 let homeDeckSuppressClick = false;
 let homeDeckWheelLocked = false;
 let transferPickerType = '';
+let detailReturnView = 'home';
+let pinDigits = '';
+let pinSetupFirst = '';
+let pinMode = 'unlock';
+let biometricPromptStarted = false;
+let pendingTransfer = null;
+let completedTransfer = null;
+let transferPinDigits = '';
+let transferPinVerifying = false;
+let transferPinVerificationToken = 0;
+let protectedPinAction = 'transfer';
+let editingAccountColorId = null;
 
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    return saved?.accounts?.length ? { ...clone(seedState), ...saved, settings:{...seedState.settings,...saved.settings}, debitCard:{...seedState.debitCard,...saved.debitCard}, externalBanks:Array.isArray(saved.externalBanks)?saved.externalBanks:[], scheduledDeposits:Array.isArray(saved.scheduledDeposits)?saved.scheduledDeposits.filter(item=>item.status!=='done'):[] } : clone(seedState);
+    return saved?.accounts?.length ? { ...clone(seedState), ...saved, settings:{...seedState.settings,...saved.settings}, debitCard:{...seedState.debitCard,...saved.debitCard}, externalBanks:Array.isArray(saved.externalBanks)?saved.externalBanks:[], favorites:Array.isArray(saved.favorites)?saved.favorites:[], scheduledDeposits:Array.isArray(saved.scheduledDeposits)?saved.scheduledDeposits.filter(item=>item.status!=='done'):[] } : clone(seedState);
   } catch { return clone(seedState); }
 }
 
@@ -90,6 +242,114 @@ function formatTime(value = new Date()) {
   return new Intl.DateTimeFormat('th-TH', { day:'numeric', month:'short', year:'2-digit', hour:'2-digit', minute:'2-digit' }).format(new Date(value));
 }
 
+function bytesToBase64Url(bytes) {
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+
+function base64UrlToBytes(value) {
+  const base64=String(value||'').replace(/-/g,'+').replace(/_/g,'/').padEnd(Math.ceil(String(value||'').length/4)*4,'=');
+  return Uint8Array.from(atob(base64),character=>character.charCodeAt(0));
+}
+
+async function hashPin(value) {
+  const data=new TextEncoder().encode(`MePocket:${value}:device`);
+  const digest=await crypto.subtle.digest('SHA-256',data);
+  return bytesToBase64Url(new Uint8Array(digest));
+}
+
+function updatePinDots() {
+  $$('#pinDots i').forEach((dot,index)=>dot.classList.toggle('filled',index<pinDigits.length));
+}
+
+function resetPinInput(message='') {
+  pinDigits=''; updatePinDots(); $('#pinError').textContent=message;
+  if(message){const dots=$('#pinDots');dots.classList.remove('shake');void dots.offsetWidth;dots.classList.add('shake');}
+}
+
+function showPinScreen(mode='unlock') {
+  pinMode=mode; pinSetupFirst=''; resetPinInput();
+  $('#pinTitle').textContent=mode==='setup'?'ตั้งรหัส PIN':mode==='change-verify'?'ยืนยันรหัสเดิม':'ใส่รหัส PIN';
+  $('#pinSubtitle').textContent=mode==='setup'?'ตั้งตัวเลข 6 หลักสำหรับเข้าใช้งานครั้งถัดไป':mode==='change-verify'?'กรอกรหัส PIN ปัจจุบันก่อนตั้งรหัสใหม่':'กรอกรหัส PIN 6 หลักเพื่อเข้าใช้งาน';
+  const hasBiometric=Boolean(localStorage.getItem(BIOMETRIC_CREDENTIAL_KEY));
+  $('#pinBiometric').hidden=mode!=='unlock'||!hasBiometric;
+  $('#pinScreen').hidden=false;
+  if(mode==='unlock'&&hasBiometric&&!biometricPromptStarted){biometricPromptStarted=true;startFaceIdAnimation();setTimeout(authenticateBiometric,260);}
+}
+
+function unlockApp() {
+  stopFaceIdAnimation();
+  $('#splashScreen').hidden=true; $('#pinScreen').hidden=true; document.body.classList.remove('auth-locked'); $('#app').setAttribute('aria-hidden','false');
+}
+
+async function submitPin() {
+  if(pinDigits.length!==6) return;
+  const entered=pinDigits; resetPinInput();
+  if(pinMode==='setup'){
+    if(!pinSetupFirst){pinSetupFirst=entered;$('#pinTitle').textContent='ยืนยันรหัส PIN';$('#pinSubtitle').textContent='กรอกรหัสเดิมอีกครั้ง';return;}
+    if(entered!==pinSetupFirst){pinSetupFirst='';$('#pinTitle').textContent='ตั้งรหัส PIN';$('#pinSubtitle').textContent='รหัสไม่ตรงกัน กรุณาตั้งใหม่';resetPinInput('รหัส PIN ไม่ตรงกัน');return;}
+    localStorage.setItem(PIN_HASH_KEY,await hashPin(entered)); unlockApp(); notify('ตั้งรหัส PIN แล้ว'); updateBiometricStatus(); return;
+  }
+  const correct=(await hashPin(entered))===localStorage.getItem(PIN_HASH_KEY);
+  if(correct){if(pinMode==='change-verify'){showPinScreen('setup');return;}unlockApp();return;}
+  resetPinInput('รหัส PIN ไม่ถูกต้อง');
+}
+
+function startPinChange() {
+  document.body.classList.add('auth-locked'); $('#app').setAttribute('aria-hidden','true'); showPinScreen('change-verify');
+}
+
+async function supportsBiometric() {
+  try { return Boolean(window.PublicKeyCredential&&navigator.credentials&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); }
+  catch { return false; }
+}
+
+async function enableBiometric() {
+  if(!(await supportsBiometric())){notify('อุปกรณ์หรือเบราว์เซอร์นี้ยังไม่รองรับ Face ID / ลายนิ้วมือ');updateBiometricStatus();return;}
+  try {
+    const userId=crypto.getRandomValues(new Uint8Array(16));
+    const credential=await navigator.credentials.create({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),rp:{name:'MePocket'},user:{id:userId,name:'mepocket-device',displayName:'MePocket บนอุปกรณ์นี้'},pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],authenticatorSelection:{authenticatorAttachment:'platform',residentKey:'preferred',userVerification:'required'},timeout:60000,attestation:'none'}});
+    if(!credential) throw new Error('credential');
+    localStorage.setItem(BIOMETRIC_CREDENTIAL_KEY,bytesToBase64Url(new Uint8Array(credential.rawId)));
+    updateBiometricStatus(); notify('เปิดใช้ Face ID / ลายนิ้วมือแล้ว');
+  } catch(error) { if(error?.name!=='NotAllowedError') notify('ยังเปิดใช้การยืนยันด้วยอุปกรณ์ไม่ได้'); }
+}
+
+function startFaceIdAnimation() {
+  const animation=$('#pinFaceAnimation'); const icon=$('.pin-lock-icon');
+  if(animation) animation.hidden=false; if(icon) icon.hidden=true;
+  $('#pinStatusIcon')?.classList.add('scanning');
+  if(pinMode==='unlock') $('#pinSubtitle').textContent='กำลังตรวจสอบ Face ID…';
+}
+
+function stopFaceIdAnimation() {
+  const animation=$('#pinFaceAnimation'); const icon=$('.pin-lock-icon');
+  if(animation) animation.hidden=true; if(icon) icon.hidden=false;
+  $('#pinStatusIcon')?.classList.remove('scanning');
+  if(pinMode==='unlock'&&$('#pinSubtitle')) $('#pinSubtitle').textContent='กรอกรหัส PIN 6 หลักเพื่อเข้าใช้งาน';
+}
+
+async function authenticateBiometric() {
+  const stored=localStorage.getItem(BIOMETRIC_CREDENTIAL_KEY); if(!stored) return;
+  startFaceIdAnimation();
+  try {
+    const credential=await navigator.credentials.get({mediation:'optional',publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),allowCredentials:[{type:'public-key',id:base64UrlToBytes(stored),transports:['internal']}],userVerification:'required',timeout:60000}});
+    if(credential) unlockApp();
+  } catch(error) { if(error?.name!=='NotAllowedError') $('#pinError').textContent='ไม่สามารถยืนยันตัวตนด้วยอุปกรณ์ได้'; }
+  finally { if(document.body.classList.contains('auth-locked')) stopFaceIdAnimation(); }
+}
+
+async function updateBiometricStatus() {
+  const label=$('#biometricStatus'); if(!label) return;
+  if(localStorage.getItem(BIOMETRIC_CREDENTIAL_KEY)){label.textContent='เปิดใช้งานบนอุปกรณ์นี้แล้ว';return;}
+  label.textContent=(await supportsBiometric())?'แตะเพื่อตั้งค่าบนอุปกรณ์นี้':'อุปกรณ์นี้ยังไม่รองรับ';
+}
+
+function initializeAppLock() {
+  $('#app').setAttribute('aria-hidden','true');
+  setTimeout(()=>{ $('#splashScreen').hidden=true; showPinScreen(localStorage.getItem(PIN_HASH_KEY)?'unlock':'setup'); },1150);
+  updateBiometricStatus();
+}
+
 function icon(name, className = 'icon') { return `<svg class="${className}" aria-hidden="true"><use href="#i-${name}"/></svg>`; }
 function flagClass(account) { return account.currency === 'THB' ? 'flag-th' : 'flag-us'; }
 function flagHTML(account, mini = false) {
@@ -103,6 +363,30 @@ function bankProfile(code) { return BANK_CATALOG[code] || BANK_CATALOG.scb; }
 function bankBadgeHTML(bank, className='bank-logo') {
   const profile=bankProfile(bank?.bankCode||bank?.code);
   return `<span class="${className}" style="--bank-color:${profile.color};--bank-ink:${profile.ink}" aria-hidden="true">${esc(profile.code)}</span>`;
+}
+
+function favoriteById(id) { return (state.favorites||[]).find(item=>item.id===id); }
+
+function favoriteDestinationInfo(id) {
+  const favorite=favoriteById(id); if(!favorite) return {type:'bank',id,entity:null,currency:'THB',favorite:null};
+  if(favorite.destinationType==='account'){const entity=accountById(favorite.targetId);return {type:'account',id:favorite.targetId,entity,currency:entity?.currency||favorite.currency||'THB',favorite};}
+  if(favorite.destinationType==='goal'){const entity=goalById(favorite.targetId);return {type:'goal',id:favorite.targetId,entity,currency:'THB',favorite};}
+  const profile=bankProfile(favorite.bankCode||'scb');
+  return {type:'bank',id:`favorite:${favorite.id}`,entity:{name:favorite.name,bankName:profile.name,code:profile.code,color:profile.color,accountNo:favorite.accountNo,bankCode:favorite.bankCode},currency:'THB',favorite};
+}
+
+function favoriteIdentity(transfer) {
+  if(!transfer) return '';
+  if(transfer.destinationType==='bank') return `bank:${transfer.bankCode||'scb'}:${transfer.accountNo||transfer.destinationId}`;
+  return `${transfer.destinationType}:${transfer.destinationId}`;
+}
+
+function matchingFavorite(transfer) { const identity=favoriteIdentity(transfer); return (state.favorites||[]).find(item=>item.identity===identity); }
+
+function renderFavoriteTransfers() {
+  const container=$('#favoriteTransfers'); if(!container) return;
+  const favorites=(state.favorites||[]).filter(item=>item.destinationType==='bank'||(item.destinationType==='account'&&accountById(item.targetId))||(item.destinationType==='goal'&&goalById(item.targetId)));
+  container.innerHTML=favorites.length?`<p class="favorite-list-head">รายการโปรด</p><div class="favorite-list">${favorites.map(item=>`<button type="button" class="favorite-transfer" data-favorite-transfer="${esc(item.id)}"><span>${icon('star')}</span><span><b>${esc(item.name)}</b><small>${esc(item.meta||'ปลายทางที่บันทึกไว้')}</small></span>${icon('chevron-right')}</button>`).join('')}</div>`:`<div class="favorite-empty">${icon('star')}<b>ยังไม่มีรายการโปรด</b><small>เพิ่มได้จากหน้าสลิปหลังโอนเงินสำเร็จ</small></div>`;
 }
 
 function mixHex(hex, target, weight) {
@@ -242,7 +526,7 @@ function bindHomeAccountDeck() {
 function renderAccounts() {
   $('#accountList').innerHTML = state.accounts.map(accountRowHTML).join('');
   updateHomeAccountDeck();
-  const cards = state.accounts.map((account,index) => `<article class="account-card-shell ${reorderMode?'sorting':''}"><button class="all-account-card" data-account="${esc(account.id)}" style="background:${account.gradient}"><div class="card-top"><b>${flagHTML(account,true)} ${esc(account.name)}</b><span>${icon('chevron-right')}</span></div><strong class="balance-value">${formatAmount(account.balance,account.currency)}</strong>${account.currency === 'USD' ? `<small class="balance-value">≈ ${formatAmount(account.balance*rateOf(account.currency),'THB')}</small>` : '<small>พร้อมใช้และโอนไปยังกล่องเป้าหมาย</small>'}</button><div class="account-order-controls"><span>${icon('sort')}<b>ลำดับ ${index+1}</b></span><button data-move-account="${esc(account.id)}" data-direction="-1" ${index===0?'disabled':''} aria-label="เลื่อน ${esc(account.name)} ขึ้น">${icon('up')}</button><button data-move-account="${esc(account.id)}" data-direction="1" ${index===state.accounts.length-1?'disabled':''} aria-label="เลื่อน ${esc(account.name)} ลง">${icon('down')}</button></div></article>`).join('');
+  const cards = state.accounts.map((account,index) => `<article class="account-card-shell ${reorderMode?'sorting':''}"><button class="all-account-card" data-account="${esc(account.id)}" style="background:${account.gradient}"><div class="card-top"><b>${flagHTML(account,true)} ${esc(account.name)}</b><span>${icon('chevron-right')}</span></div><strong class="balance-value">${formatAmount(account.balance,account.currency)}</strong>${account.currency === 'USD' ? `<small class="balance-value">≈ ${formatAmount(account.balance*rateOf(account.currency),'THB')}</small>` : '<small>พร้อมใช้และโอนไปยังกล่องเป้าหมาย</small>'}</button><div class="account-order-controls"><span>${icon('sort')}<b>ลำดับ ${index+1}</b></span><button data-edit-account-color="${esc(account.id)}" aria-label="แก้ไขสี ${esc(account.name)}">${icon('settings')}</button><button data-move-account="${esc(account.id)}" data-direction="-1" ${index===0?'disabled':''} aria-label="เลื่อน ${esc(account.name)} ขึ้น">${icon('up')}</button><button data-move-account="${esc(account.id)}" data-direction="1" ${index===state.accounts.length-1?'disabled':''} aria-label="เลื่อน ${esc(account.name)} ลง">${icon('down')}</button></div></article>`).join('');
   $('#allAccountCards').innerHTML = `${cards}<button class="add-account-card" data-action="add-account"><span>${icon('plus')}</span><b>เพิ่ม Pocket ใหม่</b><small>สร้างบัญชี THB หรือ USD เพิ่มได้</small></button>`;
   $('#allAccountCards').classList.toggle('reorder-active',reorderMode); $('#reorderAccounts').classList.toggle('active',reorderMode); $('#reorderHint').hidden=!reorderMode;
 }
@@ -320,24 +604,19 @@ function renderTransactions() {
 
 function accountCardHTML(account) {
   const equivalent = account.currency === 'USD' ? `<small class="balance-value">≈ ${formatAmount(account.balance*rateOf(account.currency),'THB')}</small>` : '';
-  return `<section class="account-hero" data-carousel-account="${esc(account.id)}" style="background:${account.gradient}" aria-label="บัญชี ${esc(account.name)}"><div class="hero-head"><div class="hero-brand">${flagHTML(account)}<div><h2>${esc(account.name)}</h2><p>บัญชีดำเนินการในประเทศ${esc(account.country)}</p></div></div><span class="account-number">${esc(account.accountNo)} ${icon('copy','icon icon-inline')}</span></div><div class="hero-balance"><span>ยอดเงินที่ใช้ได้ ${icon('info','icon icon-inline')}</span><strong class="balance-value">${formatAmount(account.balance,account.currency)}</strong>${equivalent}</div><div class="hero-split"><div><span>${account.id==='fcd'?'บัญชีเงินฝากเงินตราต่างประเทศ':'ยอดเงินที่แยกเก็บได้'} ${icon('info','icon icon-inline')}</span><b class="balance-value">${account.id==='thb'?formatAmount(state.goals.reduce((sum,goal)=>sum+goal.balance,0),'THB'):formatAmount(account.balance*.15,account.currency)}</b></div><button class="book-button">${icon('book','icon icon-inline')} สมุดบัญชี ${icon('chevron-right','icon icon-inline')}</button></div></section>`;
+  return `<section class="account-hero" style="background:${account.gradient}" aria-label="บัญชี ${esc(account.name)}"><div class="hero-head"><div class="hero-brand">${flagHTML(account)}<div><h2>${esc(account.name)}</h2><p>บัญชีดำเนินการในประเทศ${esc(account.country)}</p></div></div><span class="account-number">${esc(account.accountNo)} ${icon('copy','icon icon-inline')}</span></div><div class="hero-balance"><span>ยอดเงินที่ใช้ได้ ${icon('info','icon icon-inline')}</span><strong class="balance-value">${formatAmount(account.balance,account.currency)}</strong>${equivalent}</div><div class="hero-split"><div><span>${account.id==='fcd'?'บัญชีเงินฝากเงินตราต่างประเทศ':'ยอดเงินที่แยกเก็บได้'} ${icon('info','icon icon-inline')}</span><b class="balance-value">${account.id==='thb'?formatAmount(state.goals.reduce((sum,goal)=>sum+goal.balance,0),'THB'):formatAmount(account.balance*.15,account.currency)}</b></div><button class="book-button">${icon('book','icon icon-inline')} สมุดบัญชี ${icon('chevron-right','icon icon-inline')}</button></div></section>`;
 }
 
 function renderDetail() {
   const account = accountById(selectedAccountId) || state.accounts[0];
   if (!account) return;
-  $('#currencyTabs').innerHTML = state.accounts.map(item => `<button class="currency-tab ${item.id===account.id?'active':''}" data-account-tab="${esc(item.id)}" role="tab" aria-selected="${item.id===account.id}">${flagHTML(item,true)}${esc(item.currency)}${item.id==='fcd'?' FCD':''}</button>`).join('');
-  $('#accountCarousel').innerHTML = state.accounts.map(accountCardHTML).join('');
-  $('#carouselDots').innerHTML = state.accounts.map(item => `<i class="${item.id===account.id?'active':''}"></i>`).join('');
+  $('#accountDetailCard').innerHTML = accountCardHTML(account);
   updateDetailMeta();
-  requestAnimationFrame(() => scrollToSelectedCard('auto'));
 }
 
 function updateDetailMeta() {
   const account = accountById(selectedAccountId) || state.accounts[0];
   if (!account) return;
-  $$('.currency-tab').forEach(button => { const active=button.dataset.accountTab===account.id; button.classList.toggle('active',active); button.setAttribute('aria-selected',String(active)); });
-  $$('#carouselDots i').forEach((dot,index) => dot.classList.toggle('active',state.accounts[index]?.id===account.id));
   $('#detailUpdated').textContent = formatTime();
   $('#detailInterest').textContent = formatAmount(account.balance * .00008,account.currency);
   $('#accountTransactionTitle').textContent = `รายการเดินบัญชี ${account.name}`;
@@ -349,16 +628,6 @@ function updateDetailMeta() {
   updateBalanceVisibility();
 }
 
-function scrollToSelectedCard(behavior = 'smooth') {
-  const carousel=$('#accountCarousel'); const card=carousel.querySelector(`[data-carousel-account="${selectedAccountId}"]`); if(!card) return;
-  const padding=Number.parseFloat(getComputedStyle(carousel).paddingLeft)||0;
-  carousel.scrollTo({left:card.offsetLeft-carousel.offsetLeft-padding,behavior});
-}
-
-function selectDetailAccount(id, shouldScroll = true) {
-  if(!accountById(id)) return; selectedAccountId=id; updateDetailMeta(); if(shouldScroll) scrollToSelectedCard();
-}
-
 function renderProfileAndSettings() {
   $('#profileName').textContent = state.profileName;
   $('#profileStats').innerHTML = `<div class="profile-stat"><span>มูลค่ารวมโดยประมาณ</span><strong class="balance-value">${formatAmount(totalTHB(),'THB')}</strong></div><div class="profile-stat"><span>กล่องเป้าหมาย</span><strong>${state.goals.length} กล่อง</strong></div>`;
@@ -366,6 +635,118 @@ function renderProfileAndSettings() {
   const permission = 'Notification' in window ? Notification.permission : 'unsupported';
   const status = $('#systemNotificationStatus');
   if(status) status.textContent = permission === 'granted' ? 'เปิดแล้ว — แจ้งเตือนเมื่อฝากอัตโนมัติสำเร็จ' : permission === 'denied' ? 'ถูกปิดในเบราว์เซอร์ กรุณาเปิดจากการตั้งค่าเครื่อง' : permission === 'unsupported' ? 'เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน' : 'แตะเพื่ออนุญาตการแจ้งเตือน';
+}
+
+const planText = text => { const cut = text.indexOf(': '); return cut > 0 && cut < 40 ? `<b>${esc(text.slice(0, cut))}:</b> ${esc(text.slice(cut + 2))}` : esc(text); };
+const planById = id => PLAN_CATALOG.find(plan => plan.id === id) || PLAN_CATALOG[0];
+const PLAN_GROUP_NOTES = {
+  business:'หมายเหตุจากฝ่ายบริหาร: เพื่อเสถียรภาพของระบบโครงสร้างพื้นฐานและการรักษาความปลอดภัยระดับองค์กร (SLA) แผนธุรกิจจึงสงวนสิทธิ์การให้บริการในรูปแบบสมัครสมาชิก (Subscription) เท่านั้น'
+};
+let planGroup = 'individual';
+const planSeats = {};
+const expandedPlans = new Set();
+const plansInGroup = () => PLAN_CATALOG.filter(plan => (plan.group || 'individual') === planGroup);
+
+function renderPlans() {
+  const current = planById(state.plan);
+  const label = $('#currentPlanLabel');
+  if (label) label.textContent = `${current.name} · ${current.price} ${current.priceNote}`;
+  const plans = plansInGroup();
+  $$('#planGroupToggle [data-plan-group]').forEach(button => { const active = button.dataset.planGroup === planGroup; button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active)); });
+  const note = $('#planGroupNote');
+  if (note) { note.hidden = !PLAN_GROUP_NOTES[planGroup]; note.textContent = PLAN_GROUP_NOTES[planGroup] || ''; }
+  const tabs = $('#planTabs');
+  if (tabs) tabs.innerHTML = plans.map(plan => `<button type="button" role="tab" data-plan-jump="${plan.id}">${esc(plan.name)}</button>`).join('');
+  const grid = $('#planGrid');
+  if (!grid) return;
+  const scrollLeft = grid.scrollLeft;
+  grid.innerHTML = plans.map(plan => {
+    const isCurrent = plan.id === current.id;
+    const [heroTitle, ...heroLines] = plan.hero || [];
+    const ctaLabel = isCurrent ? 'Current Plan' : esc(plan.cta);
+    const ribbon = plan.badges.find(badge => badge.ribbon);
+    const seats = planSeats[plan.id] ?? plan.minSeats;
+    return `<article class="plan-card ${plan.id} ${plan.group === 'business' ? 'biz' : 'solo'}${ribbon ? ' has-ribbon' : ''}${isCurrent ? ' current' : ''}" data-plan-card="${plan.id}">
+      ${ribbon ? `<div class="plan-ribbon">${esc(ribbon.text)}</div>` : ''}
+      <header class="plan-head"><h2>${esc(plan.name)}${plan.badges.filter(badge => !badge.ribbon).map(badge => `<span class="plan-badge${badge.best ? ' best' : ''}${badge.dark ? ' dark' : ''}">${esc(badge.text)}</span>`).join('')}${isCurrent ? '<span class="plan-current-chip">ใช้อยู่</span>' : ''}</h2><p>${esc(plan.tagline)}</p></header>
+      ${heroTitle ? `<div class="plan-hero"><b>${icon('sparkle')}<span>${esc(heroTitle)}</span></b>${heroLines.map(([mark, text]) => `<p><span>${esc(mark)}</span>${esc(text)}</p>`).join('')}</div>` : ''}
+      <div class="plan-price">${plan.oldPrice ? `<s>${esc(plan.oldPrice)}</s>` : ''}<strong>${esc(plan.price)}</strong><small>${esc(plan.priceNote)}</small>${plan.priceSub ? `<small class="plan-price-sub">${esc(plan.priceSub)}</small>` : ''}</div>
+      <div class="plan-action"><button type="button" class="plan-cta" ${plan.contactOnly ? `data-contact-plan="${plan.id}"` : `data-select-plan="${plan.id}"`} ${isCurrent ? 'disabled' : ''}>${ctaLabel}</button>${plan.saveNote ? `<p>${esc(plan.saveNote)}</p>` : ''}</div>
+      ${plan.minSeats ? `<div class="plan-seats"><button type="button" data-seat-plan="${plan.id}" data-seat-step="-1" aria-label="ลดจำนวนที่นั่ง" ${seats <= plan.minSeats ? 'disabled' : ''}>−</button><b>${seats} seats</b><button type="button" data-seat-plan="${plan.id}" data-seat-step="1" aria-label="เพิ่มจำนวนที่นั่ง" ${seats >= 99 ? 'disabled' : ''}>+</button></div>` : ''}
+      ${plan.learnMore ? `<button type="button" class="plan-secondary" data-plan-learn="${plan.id}">Learn more</button>` : ''}
+      <div class="plan-details${expandedPlans.has(plan.id) ? ' open' : ''}"><div class="plan-details-body">
+      <section class="plan-limits"><h3>${icon(plan.limitsIcon || 'lock')}<span>${esc(plan.limitsTitle || 'ข้อจำกัดระบบและฟีเจอร์')}</span>${icon('info')}</h3>${plan.limits.map(([ok, name, value, note]) => `<div class="plan-limit ${ok ? 'yes' : 'no'}">${icon(ok ? 'check' : 'x')}<span><b>${esc(name)}</b><em>${esc(value)}</em>${note ? `<small>${esc(note)}</small>` : ''}</span></div>`).join('')}</section>
+      ${plan.features ? `<section class="plan-features"><h3>${icon('sparkle')}<span>${esc(plan.featuresTitle)}</span></h3><ul>${plan.features.map(([ok, text, note]) => `<li class="${ok ? 'yes' : 'no'}">${icon(ok ? 'check' : 'x')}<span>${planText(text)}${note ? `<small>${esc(note)}</small>` : ''}</span></li>`).join('')}</ul></section>` : ''}
+      ${plan.restrictions ? `<section class="plan-features plan-restrictions"><h3>${icon('x-circle')}<span>${esc(plan.restrictionsTitle)}</span></h3><ul>${plan.restrictions.map(text => `<li class="no">${icon('x')}<span>${planText(text)}</span></li>`).join('')}</ul></section>` : ''}
+      </div><button type="button" class="plan-more" data-plan-more="${plan.id}" aria-expanded="${expandedPlans.has(plan.id)}"><span>${expandedPlans.has(plan.id) ? 'แสดงน้อยลง' : 'แสดงเพิ่มเติม'}</span>${icon('down')}</button></div>
+    </article>`;
+  }).join('');
+  grid.scrollLeft = scrollLeft;
+  syncPlanTabs();
+}
+
+function togglePlanDetails(id, forceOpen = false) {
+  const open = forceOpen || !expandedPlans.has(id);
+  if (open) expandedPlans.add(id); else expandedPlans.delete(id);
+  const details = $(`[data-plan-card="${id}"] .plan-details`);
+  if (!details) return;
+  details.classList.toggle('open', open);
+  const button = details.querySelector('.plan-more');
+  button.setAttribute('aria-expanded', String(open));
+  button.querySelector('span').textContent = open ? 'แสดงน้อยลง' : 'แสดงเพิ่มเติม';
+  if (!open) details.closest('.plan-card').scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+}
+
+function setPlanGroup(group) {
+  if (group === planGroup) return;
+  planGroup = group;
+  renderPlans();
+  const target = plansInGroup().some(plan => plan.id === state.plan) ? state.plan : plansInGroup()[0]?.id;
+  requestAnimationFrame(() => jumpToPlan(target, false));
+}
+
+function openPlans() {
+  planGroup = planById(state.plan).group || 'individual';
+  renderPlans();
+  requestAnimationFrame(() => jumpToPlan(state.plan, false));
+}
+
+function planCardOffset(card) {
+  const first = $('#planGrid')?.firstElementChild;
+  return first ? card.offsetLeft - first.offsetLeft : 0;
+}
+
+function jumpToPlan(id, smooth = true) {
+  const grid = $('#planGrid');
+  const card = grid?.querySelector(`[data-plan-card="${id}"]`);
+  if (!card) return;
+  grid.scrollTo({ left: planCardOffset(card), behavior: smooth ? 'smooth' : 'auto' });
+  syncPlanTabs(id);
+}
+
+function syncPlanTabs(forceId) {
+  const grid = $('#planGrid');
+  if (!grid) return;
+  let activeId = forceId;
+  if (!activeId) {
+    let best = Infinity;
+    [...grid.children].forEach(card => { const distance = Math.abs(planCardOffset(card) - grid.scrollLeft); if (distance < best) { best = distance; activeId = card.dataset.planCard; } });
+  }
+  $$('#planTabs [data-plan-jump]').forEach(button => { const active = button.dataset.planJump === activeId; button.classList.toggle('active', active); button.setAttribute('aria-selected', String(active)); });
+  [...grid.children].forEach(card => card.classList.toggle('in-view', card.dataset.planCard === activeId));
+}
+
+function stepPlan(direction) {
+  const ids = plansInGroup().map(plan => plan.id);
+  const activeId = $('#planTabs .active')?.dataset.planJump || ids[0];
+  const next = ids[Math.min(ids.length - 1, Math.max(0, ids.indexOf(activeId) + direction))];
+  if (next) jumpToPlan(next);
+}
+
+function selectPlan(id) {
+  if (!PLAN_CATALOG.some(plan => plan.id === id) || state.plan === id) return;
+  state.plan = id;
+  saveState(`เปลี่ยนเป็นแพลน ${planById(id).name} แล้ว`);
 }
 
 function renderSchedules() {
@@ -391,7 +772,7 @@ function updateScheduleDestination() {
 }
 
 function renderAll() {
-  renderAccounts(); renderGoals(); renderExternalBanks(); renderTransactions(); renderDetail(); renderDebitCard(); renderProfileAndSettings(); renderSchedules(); fillSelects();
+  renderAccounts(); renderGoals(); renderExternalBanks(); renderFavoriteTransfers(); renderTransactions(); renderDetail(); renderDebitCard(); renderProfileAndSettings(); renderPlans(); renderSchedules(); fillSelects();
   $('#updatedAt').textContent = formatTime();
   $('#interestTotal').textContent = `฿${new Intl.NumberFormat('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}).format(totalTHB()*.00008)}`;
   updateBalanceVisibility();
@@ -399,17 +780,65 @@ function renderAll() {
 
 function updateBalanceVisibility() { $$('.balance-value').forEach(element => element.classList.toggle('balance-hidden',state.settings.hideBalances)); }
 
+function syncViewChrome(view) {
+  const dark=['home','accountDetail','cardDetail','plans'].includes(view);
+  const color=dark?'#17181b':'#f5f6f3';
+  document.body.dataset.activeView=view;
+  document.documentElement.style.backgroundColor=color;
+  document.body.style.backgroundColor=color;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content',color);
+}
+
+/* ---------- checkout: PromptPay QR with the plan's amount ---------- */
+const PROMPTPAY_ID = '0066807237949';            // from the owner's PromptPay QR
+const tlv = (id, v) => id + String(v.length).padStart(2, '0') + v;
+function crc16(s){ let c = 0xFFFF; for (let i = 0; i < s.length; i++){ c ^= s.charCodeAt(i) << 8; for (let k = 0; k < 8; k++) c = (c & 0x8000) ? ((c << 1) ^ 0x1021) & 0xFFFF : (c << 1) & 0xFFFF; } return c.toString(16).toUpperCase().padStart(4, '0'); }
+function promptPayPayload(amount){
+  const body = tlv('00','01') + tlv('01','12') + tlv('29', tlv('00','A000000677010111') + tlv('01', PROMPTPAY_ID)) + tlv('53','764') + tlv('54', amount.toFixed(2)) + tlv('58','TH') + '6304';
+  return body + crc16(body);
+}
+const baht = n => '฿' + n.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+const priceNum = p => Number(String(p.price).replace(/[^\d.]/g, '')) || 0;
+let payOrder = null;
+function openPay(id){
+  const plan = planById(id);
+  const seats = plan.minSeats ? (planSeats[plan.id] ?? plan.minSeats) : 1;
+  const unit = priceNum(plan);
+  payOrder = {plan, seats, unit, total: unit * seats};
+  $('#payAmount').textContent = baht(payOrder.total);
+  $('#payGo').textContent = 'ชำระเงิน ' + baht(payOrder.total);
+  $('#payLines').innerHTML = `<p><span>แพลน</span><b>${esc(plan.name)}</b></p>` +
+    (plan.minSeats ? `<p><span>ราคาต่อที่นั่ง</span><b>${baht(unit)}</b></p><p><span>จำนวนที่นั่ง</span><b>${seats} ที่นั่ง</b></p>` : '') +
+    `<p><span>รอบการชำระ</span><b>${esc(plan.priceNote.replace(/^\/\s*/, ''))}</b></p><p><span>ยอดรวม</span><b>${baht(payOrder.total)}</b></p>`;
+  $('#paySum').classList.remove('open');
+  navigate('pay');
+}
+function openQR(){
+  if (!payOrder) return;
+  const qr = qrcode(0, 'M'); qr.addData(promptPayPayload(payOrder.total)); qr.make();
+  $('#qrSvg').innerHTML = qr.createSvgTag({cellSize:4, margin:0, scalable:true});
+  $('#qrAmt').textContent = baht(payOrder.total);
+  $('#qrPlan').textContent = payOrder.plan.name + (payOrder.plan.minSeats ? ` · ${payOrder.seats} SEATS` : '');
+  $('#qrSheet').classList.add('open'); $('#qrSheet').setAttribute('aria-hidden', 'false');
+}
+function closeQR(){ $('#qrSheet').classList.remove('open'); $('#qrSheet').setAttribute('aria-hidden', 'true'); }
+
 function navigate(view) {
   activeView = view;
+  syncViewChrome(view);
   $$('.view').forEach(element => element.classList.toggle('active',element.id === `${view}View`));
-  $('#bottomNav').classList.remove('hidden');
-  $$('#bottomNav [data-nav]').forEach(button => button.classList.toggle('active',button.dataset.nav === view));
+  $('#bottomNav').classList.toggle('hidden', view === 'plans' || view === 'pay');
+  const navKey = view === 'plans' ? 'settings' : view;
+  $$('#bottomNav [data-nav]').forEach(button => button.classList.toggle('active',button.dataset.nav === navKey));
+  if (view === 'plans') openPlans();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
 function openDetail(id) {
   if (!accountById(id)) return;
+  detailReturnView = activeView==='accounts'?'accounts':'home';
   selectedAccountId = id; activeView = 'accountDetail';
+  syncViewChrome(activeView);
   $$('.view').forEach(element => element.classList.toggle('active',element.id === 'accountDetailView'));
   $('#bottomNav').classList.remove('hidden');
   $$('#bottomNav [data-nav]').forEach(button => button.classList.toggle('active',button.dataset.nav === 'accounts'));
@@ -417,11 +846,11 @@ function openDetail(id) {
 }
 
 function openDebitCard() {
-  activeView='cardDetail'; $$('.view').forEach(element=>element.classList.toggle('active',element.id==='cardDetailView')); $('#bottomNav').classList.remove('hidden'); $$('#bottomNav [data-nav]').forEach(button=>button.classList.toggle('active',button.dataset.nav==='accounts')); renderDebitCard(); window.scrollTo({top:0,behavior:'smooth'});
+  activeView='cardDetail'; syncViewChrome(activeView); $$('.view').forEach(element=>element.classList.toggle('active',element.id==='cardDetailView')); $('#bottomNav').classList.remove('hidden'); $$('#bottomNav [data-nav]').forEach(button=>button.classList.toggle('active',button.dataset.nav==='accounts')); renderDebitCard(); window.scrollTo({top:0,behavior:'smooth'});
 }
 
 function showSheet(id) { const sheet=$(id); sheet.classList.add('open'); sheet.setAttribute('aria-hidden','false'); document.body.style.overflow='hidden'; }
-function closeSheets() { $$('.sheet.open').forEach(sheet => {sheet.classList.remove('open');sheet.setAttribute('aria-hidden','true');}); document.body.style.overflow=''; $$('.form-error').forEach(error=>error.textContent=''); }
+function closeSheets() { $$('.sheet.open').forEach(sheet => {sheet.classList.remove('open');sheet.setAttribute('aria-hidden','true');}); document.body.style.overflow=''; $$('.form-error').forEach(error=>error.textContent=''); resetTransferPin(); }
 
 function fillSelects() {
   const accountOptions = state.accounts.map(account => `<option value="${esc(account.id)}">${account.flag} ${esc(account.name)} · ${formatAmount(account.balance,account.currency,true)}</option>`).join('');
@@ -479,10 +908,8 @@ function confirmTransfer() {
   else if(amount>from.balance) error='ยอดเงินต้นทางไม่เพียงพอ';
   $('#transferError').textContent=error; if(error) return;
   const received=Number((amount*rateOf(from.currency)/rateOf(destination.currency)).toFixed(2));
-  from.balance=Number((from.balance-amount).toFixed(2));
-  destination.entity.balance=Number((destination.entity.balance+received).toFixed(2));
-  state.transactions.push({id:crypto.randomUUID(),type:'transfer',from:from.id,toType:destination.type,to:destination.id,amount,currency:from.currency,received,receivedCurrency:destination.currency,note:$('#transferNote').value.trim()||'โอนเงิน',date:new Date().toISOString()});
-  closeSheets(); saveState(`โอนไปยัง ${destination.entity.name} แล้ว`);
+  pendingTransfer={kind:'internal',originSheet:'#internalTransferSheet',sourceId:from.id,sourceName:from.name,sourceMeta:`${from.accountNo} · ยอดเงิน ${formatAmount(from.balance,from.currency,true)}`,destinationType:destination.type,destinationId:destination.id,destinationName:destination.entity.name,destinationMeta:destination.type==='goal'?'กล่องเป้าหมาย':`${destination.entity.accountNo||destination.currency} · Pocket หลัก`,amount,currency:from.currency,received,receivedCurrency:destination.currency,note:$('#transferNote').value.trim()||'โอนเงิน'};
+  openTransferReview();
 }
 
 function updateBankTransferSource() {
@@ -500,7 +927,8 @@ function updateBankTransferDestinations() {
   const previous=select.value; const sourceId=$('#bankTransferFrom')?.value;
   const accounts=state.accounts.filter(account=>account.id!==sourceId);
   const bankOptions=state.externalBanks.map(bank=>{const profile=bankProfile(bank.bankCode);return `<option value="bank:${esc(bank.id)}">${esc(bank.nickname||profile.name)} · ${esc(profile.code)}</option>`;}).join('');
-  select.innerHTML=`<optgroup label="ธนาคารภายนอก">${bankOptions}<option value="bank:new">โอนไปบัญชีธนาคารใหม่ · SCB</option></optgroup>${accounts.length?`<optgroup label="บัญชี Pocket หลัก">${accounts.map(account=>`<option value="account:${esc(account.id)}">${account.flag} ${esc(account.name)} · ${esc(account.currency)}</option>`).join('')}</optgroup>`:''}${state.goals.length?`<optgroup label="กล่องเป้าหมาย">${state.goals.map(goal=>`<option value="goal:${esc(goal.id)}">${esc(goal.icon||'◎')} ${esc(goal.name)} · THB</option>`).join('')}</optgroup>`:''}`;
+  const favoriteOptions=(state.favorites||[]).map(item=>`<option value="favorite:${esc(item.id)}">★ ${esc(item.name)}</option>`).join('');
+  select.innerHTML=`${favoriteOptions?`<optgroup label="รายการโปรด">${favoriteOptions}</optgroup>`:''}<optgroup label="ธนาคารภายนอก">${bankOptions}<option value="bank:new">โอนไปบัญชีธนาคารใหม่ · SCB</option></optgroup>${accounts.length?`<optgroup label="บัญชี Pocket หลัก">${accounts.map(account=>`<option value="account:${esc(account.id)}">${account.flag} ${esc(account.name)} · ${esc(account.currency)}</option>`).join('')}</optgroup>`:''}${state.goals.length?`<optgroup label="กล่องเป้าหมาย">${state.goals.map(goal=>`<option value="goal:${esc(goal.id)}">${esc(goal.icon||'◎')} ${esc(goal.name)} · THB</option>`).join('')}</optgroup>`:''}`;
   if([...select.options].some(option=>option.value===previous)) select.value=previous;
   else select.value=state.externalBanks[0]?`bank:${state.externalBanks[0].id}`:'bank:new';
   updateBankTransferDestination();
@@ -508,6 +936,7 @@ function updateBankTransferDestinations() {
 
 function bankTransferDestinationInfo() {
   const value=$('#bankTransferDestination')?.value||'bank:new'; const [type,id]=value.split(':');
+  if(type==='favorite') return favoriteDestinationInfo(id);
   if(type==='account'){const entity=accountById(id);return {type,id,entity,currency:entity?.currency||'THB'};}
   if(type==='goal'){const entity=goalById(id);return {type,id,entity,currency:'THB'};}
   const saved=externalBankById(id); const profile=bankProfile(saved?.bankCode||'scb');
@@ -519,7 +948,7 @@ function updateBankTransferDestination() {
   const external=destination.type==='bank'; const externalFields=$('#bankExternalFields');
   if(externalFields) externalFields.hidden=!external;
   $('#bankTransferLimit').hidden=!external;
-  $('#confirmBankTransfer').textContent=external?'ถัดไป':'ยืนยันการโอน';
+  $('#confirmBankTransfer').textContent='ตรวจสอบข้อมูล';
   $('#bankDestinationMeta').textContent=external?(destination.entity?.bankName||'ธนาคารภายนอก'):destination.type==='goal'?'กล่องเป้าหมาย':'บัญชี Pocket หลัก';
   $('#bankDestinationName').textContent=destination.entity?.name||'เลือกปลายทาง';
   const iconElement=$('#bankDestinationIcon');
@@ -556,6 +985,7 @@ function openTransferPicker(type) {
   if(type==='source'){
     groups.push(`<section class="transfer-picker-group"><p>บัญชี Pocket ของฉัน</p>${state.accounts.map(account=>transferPickerOption(account.id,flagHTML(account,true),account.name,`ยอดเงิน ${formatAmount(account.balance,account.currency,true)}`,'#fff',selectedValue===account.id,true)).join('')}</section>`);
   }else{
+    if((state.favorites||[]).length) groups.push(`<section class="transfer-picker-group"><p>รายการโปรด</p>${state.favorites.map(item=>transferPickerOption(`favorite:${item.id}`,icon('star'),item.name,item.meta||'ปลายทางที่บันทึกไว้','#dff9e8',selectedValue===`favorite:${item.id}`)).join('')}</section>`);
     const savedBanks=state.externalBanks.map(bank=>{const profile=bankProfile(bank.bankCode);return transferPickerOption(`bank:${bank.id}`,bankBadgeHTML(bank,'bank-picker-logo'),bank.nickname||profile.name,`${profile.name} · •••• ${String(bank.accountNo||'').slice(-4)}`,profile.color,selectedValue===`bank:${bank.id}`);}).join('');
     groups.push(`<section class="transfer-picker-group"><p>ธนาคารภายนอก</p>${savedBanks}${transferPickerOption('bank:new','SCB','บัญชีธนาคารใหม่','กรอกเลขบัญชีเพื่อโอน','#e3d7ff',selectedValue==='bank:new')}</section>`);
     const accounts=state.accounts.filter(account=>account.id!==sourceId);
@@ -607,15 +1037,109 @@ function validateBankTransfer(showError=false) {
 function handleBankTransfer(event) {
   event.preventDefault(); if(!validateBankTransfer(true)) return;
   const account=accountById($('#bankTransferFrom').value); const destination=bankTransferDestinationInfo(); const amount=Number($('#bankTransferAmount').value); const number=$('#bankAccountNumber').value.replace(/\D/g,'');
-  account.balance=Number((account.balance-amount).toFixed(2));
-  if(destination.type==='bank'){
-    state.transactions.push({id:crypto.randomUUID(),type:'expense',account:account.id,amount,currency:'THB',note:`โอนไป ${destination.entity?.name||destination.entity?.bankName||'ธนาคารภายนอก'} ••••${number.slice(-4)}`,date:new Date().toISOString()});
-    closeSheets(); saveState(`บันทึกโอนไป ${destination.entity?.name||destination.entity?.code||'ธนาคาร'} ${formatAmount(amount,'THB',true)} แล้ว`); return;
-  }
   const received=Number((amount*rateOf(account.currency)/rateOf(destination.currency)).toFixed(2));
-  destination.entity.balance=Number((destination.entity.balance+received).toFixed(2));
-  state.transactions.push({id:crypto.randomUUID(),type:'transfer',from:account.id,toType:destination.type,to:destination.id,amount,currency:account.currency,received,receivedCurrency:destination.currency,note:`โอนไป ${destination.entity.name}`,date:new Date().toISOString()});
-  closeSheets(); saveState(`โอนไปยัง ${destination.entity.name} แล้ว`);
+  const external=destination.type==='bank'; const accountNo=external?(destination.entity?.accountNo||number):destination.entity?.accountNo||'';
+  pendingTransfer={kind:'bank',originSheet:'#transferSheet',sourceId:account.id,sourceName:account.name,sourceMeta:`${account.accountNo} · ยอดเงิน ${formatAmount(account.balance,account.currency,true)}`,destinationType:destination.type,destinationId:destination.id,destinationName:destination.entity?.name||destination.entity?.bankName||'ธนาคารภายนอก',destinationMeta:external?`${destination.entity?.bankName||'ธนาคารภายนอก'} · •••• ${accountNo.slice(-4)}`:destination.type==='goal'?'กล่องเป้าหมาย':`${destination.entity?.accountNo||destination.currency} · Pocket หลัก`,amount,currency:account.currency,received,receivedCurrency:destination.currency,note:`โอนไป ${destination.entity?.name||'ปลายทาง'}`,accountNo,bankCode:destination.entity?.bankCode||destination.favorite?.bankCode||'scb'};
+  openTransferReview();
+}
+
+function switchOpenSheet(fromSelector,toSelector) {
+  const from=$(fromSelector); const to=$(toSelector); if(from){from.classList.remove('open');from.setAttribute('aria-hidden','true');}
+  if(to){to.classList.add('open');to.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';}
+}
+
+function openTransferReview() {
+  if(!pendingTransfer) return;
+  const transfer=pendingTransfer;
+  $('#reviewAmount').textContent=formatAmount(transfer.amount,transfer.currency,true);
+  $('#reviewFrom').textContent=transfer.sourceName; $('#reviewFromMeta').textContent=transfer.sourceMeta;
+  $('#reviewTo').textContent=transfer.destinationName; $('#reviewToMeta').textContent=transfer.destinationMeta;
+  $('#reviewDate').textContent=formatTime();
+  const note=$('#reviewNote'); note.textContent=transfer.receivedCurrency!==transfer.currency?`ปลายทางจะได้รับประมาณ ${formatAmount(transfer.received,transfer.receivedCurrency,true)}`:transfer.note; note.hidden=!note.textContent;
+  switchOpenSheet(transfer.originSheet,'#transferReviewSheet');
+}
+
+function returnToTransferEdit() {
+  if(!pendingTransfer) return; switchOpenSheet('#transferReviewSheet',pendingTransfer.originSheet);
+}
+
+function updateTransferPinDots() {
+  $$('#transferPinDots i').forEach((dot,index)=>dot.classList.toggle('filled',index<transferPinDigits.length));
+}
+
+function resetTransferPin(message='') {
+  transferPinVerificationToken+=1;
+  transferPinVerifying=false;
+  transferPinDigits='';
+  updateTransferPinDots();
+  const error=$('#transferPinError');
+  if(error) error.textContent=message;
+}
+
+function openTransferPinVerification() {
+  const transfer=pendingTransfer; if(!transfer) return;
+  protectedPinAction='transfer';
+  resetTransferPin();
+  $('#transferPinTitle').textContent='ยืนยันด้วย PIN';
+  $('#transferPinHeading').textContent='ใส่รหัส PIN';
+  $('#transferPinMessage').textContent='กรอกรหัส PIN 6 หลักเพื่อยืนยันการโอน';
+  $('#transferPinAmount').textContent=formatAmount(transfer.amount,transfer.currency,true);
+  $('#transferPinDestination').textContent=`ไปยัง ${transfer.destinationName}`;
+  switchOpenSheet('#transferReviewSheet','#transferPinSheet');
+}
+
+function returnToTransferReview() {
+  if(protectedPinAction==='clear-balances'){protectedPinAction='transfer';closeSheets();return;}
+  resetTransferPin();
+  switchOpenSheet('#transferPinSheet','#transferReviewSheet');
+}
+
+async function verifyTransferPin() {
+  if(transferPinDigits.length!==6||transferPinVerifying) return;
+  transferPinVerifying=true;
+  const verificationToken=++transferPinVerificationToken;
+  const entered=transferPinDigits;
+  transferPinDigits=''; updateTransferPinDots(); $('#transferPinError').textContent='กำลังตรวจสอบรหัส…';
+  const storedHash=localStorage.getItem(PIN_HASH_KEY);
+  const correct=storedHash&&(await hashPin(entered))===storedHash;
+  if(verificationToken!==transferPinVerificationToken||!$('#transferPinSheet').classList.contains('open')) return;
+  if(correct){if(protectedPinAction==='clear-balances'){performClearAllBalances();return;}executePendingTransfer();return;}
+  resetTransferPin(storedHash?'รหัส PIN ไม่ถูกต้อง กรุณาลองอีกครั้ง':'ยังไม่ได้ตั้งรหัส PIN สำหรับยืนยันรายการ');
+  const dots=$('#transferPinDots'); dots.classList.remove('shake'); void dots.offsetWidth; dots.classList.add('shake');
+}
+
+function executePendingTransfer() {
+  const transfer=pendingTransfer; if(!transfer) return;
+  const source=accountById(transfer.sourceId); if(!source||transfer.amount>source.balance){resetTransferPin('ยอดเงินต้นทางเปลี่ยนแปลง กรุณากลับไปตรวจสอบอีกครั้ง');return;}
+  const completedAt=new Date(); const transactionId=crypto.randomUUID();
+  source.balance=Number((source.balance-transfer.amount).toFixed(2));
+  if(transfer.destinationType==='bank'){
+    state.transactions.push({id:transactionId,type:'expense',account:source.id,amount:transfer.amount,currency:source.currency,note:`โอนไป ${transfer.destinationName} ••••${String(transfer.accountNo||'').slice(-4)}`,date:completedAt.toISOString()});
+  }else{
+    const destination=transfer.destinationType==='goal'?goalById(transfer.destinationId):accountById(transfer.destinationId);
+    if(!destination){source.balance=Number((source.balance+transfer.amount).toFixed(2));resetTransferPin('ไม่พบปลายทาง กรุณากลับไปเลือกใหม่');return;}
+    destination.balance=Number((destination.balance+transfer.received).toFixed(2));
+    state.transactions.push({id:transactionId,type:'transfer',from:source.id,toType:transfer.destinationType,to:transfer.destinationId,amount:transfer.amount,currency:transfer.currency,received:transfer.received,receivedCurrency:transfer.receivedCurrency,note:transfer.note,date:completedAt.toISOString()});
+  }
+  completedTransfer={...transfer,completedAt:completedAt.toISOString(),reference:`MP${completedAt.getFullYear()}${String(completedAt.getMonth()+1).padStart(2,'0')}${String(completedAt.getDate()).padStart(2,'0')}${String(Date.now()).slice(-8)}`};
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(state)); renderAll(); renderTransferSlip(); resetTransferPin(); switchOpenSheet('#transferPinSheet','#transferSuccessSheet');
+}
+
+function renderTransferSlip() {
+  if(!completedTransfer) return; const transfer=completedTransfer;
+  $('#slipAmount').textContent=formatAmount(transfer.amount,transfer.currency,true); $('#slipFrom').textContent=transfer.sourceName; $('#slipTo').textContent=transfer.destinationName; $('#slipDate').textContent=formatTime(transfer.completedAt); $('#slipReference').textContent=transfer.reference;
+  const favorite=matchingFavorite(transfer); const button=$('#saveTransferFavorite'); button.classList.toggle('active',Boolean(favorite)); button.querySelector('span').textContent=favorite?'บันทึกในรายการโปรดแล้ว':'เพิ่มเป็นรายการโปรด';
+}
+
+function toggleCompletedFavorite() {
+  const transfer=completedTransfer; if(!transfer) return; const current=matchingFavorite(transfer);
+  if(current){state.favorites=state.favorites.filter(item=>item.id!==current.id);}
+  else state.favorites.push({id:`favorite-${Date.now()}`,identity:favoriteIdentity(transfer),destinationType:transfer.destinationType,targetId:transfer.destinationId,name:transfer.destinationName,meta:transfer.destinationMeta,accountNo:transfer.accountNo||'',bankCode:transfer.bankCode||'',currency:transfer.receivedCurrency||transfer.currency,createdAt:new Date().toISOString()});
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(state)); renderFavoriteTransfers(); fillSelects(); renderTransferSlip(); notify(current?'นำออกจากรายการโปรดแล้ว':'เพิ่มเป็นรายการโปรดแล้ว');
+}
+
+function finishTransferToHome() {
+  closeSheets(); pendingTransfer=null; completedTransfer=null; navigate('home');
 }
 
 function closeBankPicker() {
@@ -754,6 +1278,33 @@ function moveAccount(id,direction) {
   [state.accounts[index],state.accounts[next]]=[state.accounts[next],state.accounts[index]]; selectedAccountId=state.accounts.find(account=>account.id===selectedAccountId)?.id||state.accounts[0]?.id; saveState('จัดลำดับ Pocket แล้ว');
 }
 
+function updateAccountColorPreview() {
+  const color=$('#accountEditColor').value;
+  $('#accountEditColorValue').textContent=color.toUpperCase();
+  $('#accountColorPreview').style.background=accountGradient(color);
+}
+
+function openAccountColorEditor(id) {
+  const account=accountById(id); if(!account) return;
+  editingAccountColorId=id;
+  const color=/^#[0-9a-f]{6}$/i.test(account.badgeColor||'')?account.badgeColor:'#58f38e';
+  $('#accountEditColor').value=color;
+  $('#accountColorPreviewFlag').innerHTML=flagHTML(account,true);
+  $('#accountColorPreviewName').textContent=account.name;
+  updateAccountColorPreview();
+  showSheet('#accountColorSheet');
+}
+
+function handleAccountColorEdit(event) {
+  event.preventDefault();
+  const account=accountById(editingAccountColorId); if(!account) return;
+  const color=$('#accountEditColor').value;
+  account.badgeColor=color;
+  account.gradient=accountGradient(color);
+  account.tag=mixHex(color,'#ffffff',.78);
+  closeSheets(); saveState(`เปลี่ยนสี “${account.name}” แล้ว`);
+}
+
 function openCardEditor() {
   $('#debitTitleInput').value=state.debitCard.title; $('#debitHolderInput').value=state.debitCard.holder; $('#debitNumberInput').value=String(state.debitCard.number).replace(/(\d{4})(?=\d)/g,'$1 '); $('#debitColor').value=state.debitCard.color; updateColorValue('debit'); $('#cardEditError').textContent=''; showSheet('#cardEditSheet');
 }
@@ -781,15 +1332,39 @@ function updateAccountCurrencyLabel(){ $('#accountCurrencyLabel').textContent=$(
 
 function handleSetting(key) { state.settings[key]=!state.settings[key]; saveState(); }
 
+function requestClearAllBalances() {
+  const hasBalance=state.accounts.some(account=>Number(account.balance)>0)||state.goals.some(goal=>Number(goal.balance)>0);
+  if(!hasBalance){notify('ยอดเงินทุกบัญชีเป็น 0 อยู่แล้ว');return;}
+  if(!confirm('ล้างยอดเงินของทุก Pocket และทุกกล่องเป้าหมายเป็น 0 หรือไม่?\n\nประวัติรายการจะยังคงอยู่ และการดำเนินการนี้ย้อนกลับไม่ได้')) return;
+  protectedPinAction='clear-balances';
+  resetTransferPin();
+  $('#transferPinTitle').textContent='ยืนยันการล้างยอด';
+  $('#transferPinHeading').textContent='ใส่รหัส PIN เพื่อดำเนินการ';
+  $('#transferPinMessage').textContent='ขั้นตอนนี้ป้องกันการเผลอล้างยอดเงินทั้งหมด';
+  $('#transferPinAmount').textContent='ล้างยอดทุก Pocket';
+  $('#transferPinDestination').textContent='ประวัติรายการเดิมจะยังคงอยู่';
+  showSheet('#transferPinSheet');
+}
+
+function performClearAllBalances() {
+  state.accounts.forEach(account=>{account.balance=0;});
+  state.goals.forEach(goal=>{goal.balance=0;});
+  protectedPinAction='transfer';
+  closeSheets();
+  saveState('ล้างยอดเงินทั้งหมดแล้ว');
+}
+
 function notify(message) { const toast=$('#toast'); toast.textContent=message; toast.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>toast.classList.remove('show'),2400); }
 
 document.addEventListener('click', event => {
+  const favoriteTransferButton=event.target.closest('[data-favorite-transfer]'); if(favoriteTransferButton){const favorite=favoriteById(favoriteTransferButton.dataset.favoriteTransfer);if(favorite){switchBankTab('account');$('#bankTransferDestination').value=`favorite:${favorite.id}`;const info=bankTransferDestinationInfo();if(info.type==='bank')$('#bankAccountNumber').value=info.entity?.accountNo||'';updateBankTransferDestination();}return;}
   if(event.target.closest('[data-close-deposit-popup]')){hideDepositPopup();return;}
   const transferPickerOptionButton=event.target.closest('[data-transfer-picker-option]'); if(transferPickerOptionButton){chooseTransferPicker(transferPickerOptionButton.dataset.transferPickerOption);return;}
   const transferPickerButton=event.target.closest('[data-transfer-picker]'); if(transferPickerButton){openTransferPicker(transferPickerButton.dataset.transferPicker);return;}
   if(event.target.closest('[data-close-transfer-picker]')){closeTransferPicker();return;}
   const goalColorButton=event.target.closest('[data-goal-color]'); if(goalColorButton){$('#goalColor').value=goalColorButton.dataset.goalColor;updateColorValue('goal');return;}
   const accountColorButton=event.target.closest('[data-account-color]'); if(accountColorButton){$('#accountColor').value=accountColorButton.dataset.accountColor;updateColorValue('account');return;}
+  const accountEditColorButton=event.target.closest('[data-account-edit-color]'); if(accountEditColorButton){$('#accountEditColor').value=accountEditColorButton.dataset.accountEditColor;updateAccountColorPreview();return;}
   const debitColorButton=event.target.closest('[data-debit-color]'); if(debitColorButton){$('#debitColor').value=debitColorButton.dataset.debitColor;updateColorValue('debit');return;}
   const deleteGoalButton=event.target.closest('[data-delete-goal]'); if(deleteGoalButton){deleteGoal(deleteGoalButton.dataset.deleteGoal);return;}
   const deleteExternalBankButton=event.target.closest('[data-delete-external-bank]'); if(deleteExternalBankButton){deleteExternalBank(deleteExternalBankButton.dataset.deleteExternalBank);return;}
@@ -798,9 +1373,20 @@ document.addEventListener('click', event => {
   const bankOption=event.target.closest('[data-select-bank]'); if(bankOption){closeBankPicker();notify('เลือกธนาคารไทยพาณิชย์แล้ว');return;}
   if(event.target.closest('[data-close-bank]')){closeBankPicker();return;}
   const moveButton=event.target.closest('[data-move-account]'); if(moveButton){moveAccount(moveButton.dataset.moveAccount,moveButton.dataset.direction);return;}
+  const editAccountColorButton=event.target.closest('[data-edit-account-color]'); if(editAccountColorButton){openAccountColorEditor(editAccountColorButton.dataset.editAccountColor);return;}
   const account=event.target.closest('[data-account]')?.dataset.account; if(account) openDetail(account);
-  const accountTab=event.target.closest('[data-account-tab]')?.dataset.accountTab; if(accountTab) selectDetailAccount(accountTab,true);
   const goal=event.target.closest('[data-goal-open]')?.dataset.goalOpen; if(goal) openTransfer('thb',`goal:${goal}`);
+  const planButton=event.target.closest('[data-select-plan]'); if(planButton){openPay(planButton.dataset.selectPlan);return;}
+  if(event.target.closest('[data-pay-detail]')){$('#paySum').classList.toggle('open');return;}
+  if(event.target.closest('[data-pay-back]')){navigate('plans');return;}
+  if(event.target.closest('#payGo')){openQR();return;}
+  if(event.target.closest('[data-qr-close]')||event.target===$('#qrSheet')){closeQR();return;}
+  const planGroupButton=event.target.closest('[data-plan-group]'); if(planGroupButton){setPlanGroup(planGroupButton.dataset.planGroup);return;}
+  const seatButton=event.target.closest('[data-seat-plan]'); if(seatButton){const plan=planById(seatButton.dataset.seatPlan);const current=planSeats[plan.id]??plan.minSeats;planSeats[plan.id]=Math.min(99,Math.max(plan.minSeats,current+Number(seatButton.dataset.seatStep)));renderPlans();return;}
+  const moreButton=event.target.closest('[data-plan-more]'); if(moreButton){togglePlanDetails(moreButton.dataset.planMore);return;}
+  const learnButton=event.target.closest('[data-plan-learn]'); if(learnButton){togglePlanDetails(learnButton.dataset.planLearn,true);$(`[data-plan-card="${learnButton.dataset.planLearn}"] .plan-limits`)?.scrollIntoView({behavior:'smooth',block:'start',inline:'nearest'});return;}
+  const contactPlan=event.target.closest('[data-contact-plan]'); if(contactPlan){notify('ทัก DM มาคุยรายละเอียดได้เลย');return;}
+  const planJump=event.target.closest('[data-plan-jump]'); if(planJump){jumpToPlan(planJump.dataset.planJump);return;}
   const nav=event.target.closest('[data-nav]')?.dataset.nav; if(nav) navigate(nav);
   const filter=event.target.closest('[data-filter]')?.dataset.filter; if(filter){transactionFilter=filter;$$('[data-filter]').forEach(button=>button.classList.toggle('active',button.dataset.filter===filter));renderTransactions();updateBalanceVisibility();}
   const entry=event.target.closest('[data-entry-type]')?.dataset.entryType; if(entry){entryType=entry;updateEntryType();}
@@ -824,17 +1410,8 @@ document.addEventListener('click', event => {
   if(action==='scan') notify('โหมดสแกนเป็นตัวอย่าง ยังไม่เชื่อมธนาคาร');
 });
 
-$('#detailBack').addEventListener('click',()=>navigate('home'));
+$('#detailBack').addEventListener('click',()=>navigate(detailReturnView));
 $('#cardBack').addEventListener('click',()=>navigate('home'));
-$('#accountCarousel').addEventListener('scroll',()=>{
-  clearTimeout(carouselScrollTimer);
-  carouselScrollTimer=setTimeout(()=>{
-    const carousel=$('#accountCarousel'); const center=carousel.scrollLeft+carousel.clientWidth/2;
-    const cards=$$('[data-carousel-account]',carousel); if(!cards.length) return;
-    const nearest=cards.reduce((best,card)=>Math.abs(card.offsetLeft+card.offsetWidth/2-center)<Math.abs(best.offsetLeft+best.offsetWidth/2-center)?card:best,cards[0]);
-    const id=nearest.dataset.carouselAccount; if(id&&id!==selectedAccountId) selectDetailAccount(id,false);
-  },80);
-});
 $('#transferFrom').addEventListener('change',()=>{ensureDifferentDestination();updateTransferPreview();});
 $('#transferTo').addEventListener('change',()=>{ensureDifferentDestination();updateTransferPreview();});
 $('#transferAmount').addEventListener('input',updateTransferPreview);
@@ -849,10 +1426,12 @@ $('#entryAccount').addEventListener('change',updateEntryCurrency);
 $('#entryForm').addEventListener('submit',handleEntrySubmit);
 $('#goalForm').addEventListener('submit',handleGoalSubmit);
 $('#accountForm').addEventListener('submit',handleAccountSubmit);
+$('#accountColorEditForm').addEventListener('submit',handleAccountColorEdit);
 $('#externalBankForm').addEventListener('submit',handleExternalBankSubmit);
 $('#externalBankAccountNumber').addEventListener('input',event=>{event.target.value=event.target.value.replace(/\D/g,'').slice(0,13);});
 $('#goalColor').addEventListener('input',()=>updateColorValue('goal'));
 $('#accountColor').addEventListener('input',()=>updateColorValue('account'));
+$('#accountEditColor').addEventListener('input',updateAccountColorPreview);
 $('#accountCurrency').addEventListener('change',updateAccountCurrencyLabel);
 $('#debitColor').addEventListener('input',()=>updateColorValue('debit'));
 $('#debitNumberInput').addEventListener('input',event=>{const digits=event.target.value.replace(/\D/g,'').slice(0,16);event.target.value=digits.replace(/(\d{4})(?=\d)/g,'$1 ');});
@@ -860,15 +1439,43 @@ $('#cardEditForm').addEventListener('submit',handleCardEdit);
 $('#scheduleDestination').addEventListener('change',updateScheduleDestination);
 $('#scheduleForm').addEventListener('submit',handleScheduleSubmit);
 $('#editName').addEventListener('click',()=>{const name=prompt('ชื่อที่ต้องการแสดง',state.profileName);if(name?.trim()){state.profileName=name.trim().slice(0,30);saveState('แก้ชื่อแล้ว');}});
+$('#clearAllBalances').addEventListener('click',requestClearAllBalances);
+$('#changePin').addEventListener('click',startPinChange);
+$('#enableBiometric').addEventListener('click',enableBiometric);
+$('#pinKeypad').addEventListener('click',event=>{const key=event.target.closest('[data-pin-key]')?.dataset.pinKey;if(key&&pinDigits.length<6){pinDigits+=key;$('#pinError').textContent='';updatePinDots();if(pinDigits.length===6)submitPin();}if(event.target.closest('[data-pin-delete]')){pinDigits=pinDigits.slice(0,-1);$('#pinError').textContent='';updatePinDots();}});
+$('#pinBiometric').addEventListener('click',authenticateBiometric);
+$('#reviewBack').addEventListener('click',returnToTransferEdit);
+$('#reviewConfirm').addEventListener('click',openTransferPinVerification);
+$('#transferPinBack').addEventListener('click',returnToTransferReview);
+$('#transferPinKeypad').addEventListener('click',event=>{if(transferPinVerifying)return;const key=event.target.closest('[data-transfer-pin-key]')?.dataset.transferPinKey;if(key&&transferPinDigits.length<6){transferPinDigits+=key;$('#transferPinError').textContent='';updateTransferPinDots();if(transferPinDigits.length===6)verifyTransferPin();}if(event.target.closest('[data-transfer-pin-delete]')){transferPinDigits=transferPinDigits.slice(0,-1);$('#transferPinError').textContent='';updateTransferPinDots();}});
+$('#saveTransferFavorite').addEventListener('click',toggleCompletedFavorite);
+$('#successHome').addEventListener('click',finishTransferToHome);
 $('#resetData').addEventListener('click',()=>{if(confirm('เริ่มข้อมูลตัวอย่างใหม่ทั้งหมดหรือไม่?')){state=clone(seedState);localStorage.removeItem(STORAGE_KEY);renderAll();notify('เริ่มข้อมูลใหม่แล้ว');}});
-document.addEventListener('keydown',event=>{if(event.key==='Escape'){if($('#transferPickerSheet')?.classList.contains('open'))closeTransferPicker();else closeSheets();}});
+document.addEventListener('keydown',event=>{if(!$('#pinScreen').hidden){if(/^\d$/.test(event.key)&&pinDigits.length<6){pinDigits+=event.key;updatePinDots();if(pinDigits.length===6)submitPin();event.preventDefault();}else if(event.key==='Backspace'){pinDigits=pinDigits.slice(0,-1);updatePinDots();event.preventDefault();}return;}if($('#transferPinSheet')?.classList.contains('open')){if(transferPinVerifying){event.preventDefault();return;}if(/^\d$/.test(event.key)&&transferPinDigits.length<6){transferPinDigits+=event.key;$('#transferPinError').textContent='';updateTransferPinDots();if(transferPinDigits.length===6)verifyTransferPin();event.preventDefault();}else if(event.key==='Backspace'){transferPinDigits=transferPinDigits.slice(0,-1);$('#transferPinError').textContent='';updateTransferPinDots();event.preventDefault();}else if(event.key==='Escape'){returnToTransferReview();event.preventDefault();}return;}if(event.key==='Escape'){if($('#transferPickerSheet')?.classList.contains('open'))closeTransferPicker();else closeSheets();}});
 function stopViewportZoom(event) {
   if (event.touches?.length > 1 || (typeof event.scale === 'number' && event.scale !== 1)) event.preventDefault();
 }
 
+let viewportTouchStartX=0;
+let viewportTouchStartY=0;
+function rememberViewportTouch(event) {
+  if(event.touches?.length!==1) return;
+  viewportTouchStartX=event.touches[0].clientX;
+  viewportTouchStartY=event.touches[0].clientY;
+}
+function stopTopRubberBand(event) {
+  if(event.touches?.length!==1||event.target.closest('#accountList,.sheet-panel,.transfer-screen,.transfer-flow-screen')) return;
+  const deltaX=event.touches[0].clientX-viewportTouchStartX;
+  const deltaY=event.touches[0].clientY-viewportTouchStartY;
+  const scrollTop=document.scrollingElement?.scrollTop||window.scrollY||0;
+  if(scrollTop<=0&&deltaY>7&&Math.abs(deltaY)>Math.abs(deltaX)) event.preventDefault();
+}
+
 ['gesturestart','gesturechange','gestureend'].forEach(type=>document.addEventListener(type,event=>event.preventDefault(),{passive:false}));
 document.addEventListener('touchstart',stopViewportZoom,{passive:false});
+document.addEventListener('touchstart',rememberViewportTouch,{passive:true});
 document.addEventListener('touchmove',stopViewportZoom,{passive:false});
+document.addEventListener('touchmove',stopTopRubberBand,{passive:false});
 document.addEventListener('dblclick',event=>event.preventDefault(),{passive:false});
 let lastTouchEnd=0;
 let lastTouchTarget=null;
@@ -876,8 +1483,24 @@ document.addEventListener('touchend',event=>{const now=Date.now();const target=e
 
 if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 bindHomeAccountDeck();
+let planScrollFrame=0;
+$('#planGrid').addEventListener('scroll',()=>{cancelAnimationFrame(planScrollFrame);planScrollFrame=requestAnimationFrame(()=>syncPlanTabs());},{passive:true});
+document.addEventListener('keydown',event=>{if(activeView!=='plans'||!$('#pinScreen').hidden||$('.sheet.open'))return;if(event.key==='ArrowRight'){stepPlan(1);event.preventDefault();}else if(event.key==='ArrowLeft'){stepPlan(-1);event.preventDefault();}});
 renderAll();
+syncViewChrome(activeView);
+initializeAppLock();
 processScheduledDeposits();
 setInterval(processScheduledDeposits,30000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)processScheduledDeposits();});
 window.addEventListener('focus',processScheduledDeposits);
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('#qrSheet')?.classList.contains('open'))closeQR();});
+
+/* ---------- share the public plans page ---------- */
+async function sharePlans(){
+  const url = /plans\.html$/.test(location.pathname) ? location.href.split('#')[0] : new URL('plans.html', location.href).href;
+  const data = {title:'MePocket Plans', text:'เลือกแพลน MePocket', url};
+  if (navigator.share){ try { await navigator.share(data); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+  try { await navigator.clipboard.writeText(url); notify('คัดลอกลิงก์หน้าแพลนแล้ว'); }
+  catch { const ta = document.createElement('textarea'); ta.value = url; ta.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); notify('คัดลอกลิงก์หน้าแพลนแล้ว'); } catch { notify(url); } ta.remove(); }
+}
+document.addEventListener('click', event => { if (event.target.closest('[data-share-plans]')) sharePlans(); });

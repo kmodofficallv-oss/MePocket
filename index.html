@@ -15,8 +15,9 @@
   <link rel="stylesheet" href="./concept.css" />
   <link rel="manifest" href="./manifest.webmanifest" />
 </head>
-<body>
+<body class="auth-locked" data-active-view="home">
   <svg class="icon-sprite" aria-hidden="true">
+    <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 8 5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></symbol>
     <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></symbol>
     <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
     <symbol id="i-transfer" viewBox="0 0 24 24"><path d="M7 7h11l-3-3"/><path d="m18 7-3 3"/><path d="M17 17H6l3 3"/><path d="m6 17 3-3"/></symbol>
@@ -45,7 +46,34 @@
     <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></symbol>
     <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/></symbol>
+    <symbol id="i-sparkle" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M12 2.5c.7 5.3 3.2 7.8 8.5 8.5-5.3.7-7.8 3.2-8.5 8.5-.7-5.3-3.2-7.8-8.5-8.5 5.3-.7 7.8-3.2 8.5-8.5Z"/></symbol>
+    <symbol id="i-infinity" viewBox="0 0 24 24"><path d="M12 12c-2-2.6-3.6-3.8-5.6-3.8a3.8 3.8 0 0 0 0 7.6c2 0 3.6-1.2 5.6-3.8Zm0 0c2 2.6 3.6 3.8 5.6 3.8a3.8 3.8 0 0 0 0-7.6c-2 0-3.6 1.2-5.6 3.8Z"/></symbol>
+    <symbol id="i-x-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/></symbol>
+    <symbol id="i-unlock" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 7.6-1.7"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
   </svg>
+
+  <section class="entry-screen splash-screen" id="splashScreen" aria-label="กำลังเปิด MePocket">
+    <img class="splash-logo" src="./assets/mepocket.svg" alt="MePocket" />
+  </section>
+
+  <section class="entry-screen pin-screen" id="pinScreen" aria-labelledby="pinTitle" hidden>
+    <div class="pin-brand"><img src="./assets/mepocket.svg" alt="" /><span>MePocket</span></div>
+    <div class="pin-copy"><span class="pin-lock" id="pinStatusIcon"><svg class="icon pin-lock-icon"><use href="#i-lock"/></svg><span class="face-scan-glyph" id="pinFaceAnimation" hidden aria-hidden="true"><i></i><i></i><i></i><i></i><b></b></span></span><h1 id="pinTitle">ใส่รหัส PIN</h1><p id="pinSubtitle">กรอกรหัส PIN 6 หลักเพื่อเข้าใช้งาน</p></div>
+    <div class="pin-dots" id="pinDots" aria-label="กรอกรหัส PIN 6 หลัก"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <p class="pin-error" id="pinError" role="alert"></p>
+    <div class="pin-keypad" id="pinKeypad">
+      <button type="button" data-pin-key="1">1</button><button type="button" data-pin-key="2">2</button><button type="button" data-pin-key="3">3</button>
+      <button type="button" data-pin-key="4">4</button><button type="button" data-pin-key="5">5</button><button type="button" data-pin-key="6">6</button>
+      <button type="button" data-pin-key="7">7</button><button type="button" data-pin-key="8">8</button><button type="button" data-pin-key="9">9</button>
+      <button type="button" class="pin-bio" id="pinBiometric" aria-label="เข้าใช้ด้วย Face ID" hidden><span class="face-id-mark" aria-hidden="true">⌁</span><small>Face ID</small></button>
+      <button type="button" data-pin-key="0">0</button>
+      <button type="button" class="pin-delete" data-pin-delete aria-label="ลบตัวเลข">⌫</button>
+    </div>
+    <small class="pin-device-note">รหัสและข้อมูลยืนยันตัวตนจัดเก็บไว้บนอุปกรณ์นี้</small>
+  </section>
+
   <div class="app" id="app">
     <main>
       <section class="view active" id="homeView" aria-labelledby="homeTitle">
@@ -102,10 +130,8 @@
       <section class="view" id="accountDetailView" aria-labelledby="detailPageTitle">
         <div class="dark-zone detail-dark">
           <div class="decor-grid"></div>
-          <header class="detail-top"><button class="round-back" id="detailBack" aria-label="กลับหน้าหลัก"><svg class="icon"><use href="#i-arrow-left"/></svg></button><h1 id="detailPageTitle">เงินสด</h1><span></span></header>
-          <div class="currency-tabs" id="currencyTabs" role="tablist" aria-label="เลือกบัญชี"></div>
-          <div class="account-carousel" id="accountCarousel" aria-label="ปัดเพื่อเปลี่ยนบัญชี"></div>
-          <div class="carousel-dots" id="carouselDots" aria-hidden="true"></div>
+          <header class="detail-top"><button class="round-back" id="detailBack" aria-label="กลับหน้าก่อนหน้า"><svg class="icon"><use href="#i-arrow-left"/></svg></button><h1 id="detailPageTitle">เงินสด</h1><span></span></header>
+          <div class="account-detail-card" id="accountDetailCard"></div>
           <p class="detail-updated"><svg class="icon icon-inline"><use href="#i-refresh"/></svg> ข้อมูลล่าสุด <span id="detailUpdated">วันนี้</span></p>
           <div class="account-actions" id="accountActions"></div>
         </div>
@@ -136,7 +162,7 @@
 
       <section class="view inner-view" id="accountsView" aria-labelledby="accountsTitle">
         <header class="inner-header"><div><p class="overline">บัญชีและกล่อง</p><h1 id="accountsTitle">เงินของฉัน</h1></div><div class="header-actions"><button class="small-circle-action" id="reorderAccounts" data-action="toggle-reorder" aria-label="จัดลำดับ Pocket"><svg class="icon"><use href="#i-sort"/></svg></button><button class="circle-action" data-action="add-account" aria-label="เพิ่ม Pocket Account"><svg class="icon"><use href="#i-plus"/></svg></button></div></header>
-        <p class="reorder-hint" id="reorderHint" hidden>ใช้ปุ่มขึ้น–ลงเพื่อย้ายตำแหน่ง Pocket การเรียงนี้จะใช้ในทุกหน้า</p>
+        <p class="reorder-hint" id="reorderHint" hidden>จัดลำดับด้วยปุ่มขึ้น–ลง หรือกดปุ่มสีเพื่อปรับสีการ์ด การตั้งค่านี้จะใช้ในทุกหน้า</p>
         <div class="all-account-cards" id="allAccountCards"></div>
         <div class="section-heading compact"><h2>กล่องเป้าหมาย</h2><button class="outline-small" data-action="add-goal"><svg class="icon icon-inline"><use href="#i-plus"/></svg> เพิ่มกล่อง</button></div>
         <div class="goal-list" id="goalList"></div>
@@ -165,6 +191,9 @@
 
       <section class="view inner-view" id="settingsView" aria-labelledby="settingsTitle">
         <header class="inner-header"><div><p class="overline">ปรับให้เป็นแบบของฉัน</p><h1 id="settingsTitle">การตั้งค่า</h1></div></header>
+        <section class="settings-group"><h2>แพลน</h2>
+          <button class="setting-row" data-nav="plans"><span><b>แพลนของฉัน</b><small id="currentPlanLabel">STARTER · ฿0</small></span><i><svg class="icon"><use href="#i-chevron-right"/></svg></i></button>
+        </section>
         <section class="settings-group"><h2>การแสดงผล</h2>
           <button class="setting-row" data-setting="hideBalances"><span>ซ่อนยอดเงิน</span><i class="switch" id="hideBalancesSwitch"></i></button>
           <button class="setting-row" data-setting="compactNumbers"><span>ย่อจำนวนเงินขนาดใหญ่</span><i class="switch" id="compactNumbersSwitch"></i></button>
@@ -173,6 +202,10 @@
           <button class="setting-row" data-setting="notifications"><span><b>แจ้งเตือนรายการ</b><small>แจ้งเตือนเมื่อบันทึกหรือโอนเงิน</small></span><i class="switch" id="notificationsSwitch"></i></button>
           <button class="setting-row" data-action="enable-system-notifications"><span><b>การแจ้งเตือนของโทรศัพท์</b><small id="systemNotificationStatus">แตะเพื่ออนุญาตการแจ้งเตือน</small></span><i><svg class="icon"><use href="#i-bell"/></svg></i></button>
         </section>
+        <section class="settings-group"><h2>ความปลอดภัย</h2>
+          <button class="setting-row" id="changePin"><span><b>เปลี่ยนรหัส PIN</b><small>ใช้ตัวเลข 6 หลักสำหรับเข้า MePocket</small></span><i><svg class="icon"><use href="#i-lock"/></svg></i></button>
+          <button class="setting-row" id="enableBiometric"><span><b>Face ID / ลายนิ้วมือ</b><small id="biometricStatus">ตรวจสอบความพร้อมของอุปกรณ์</small></span><i><svg class="icon"><use href="#i-user"/></svg></i></button>
+        </section>
         <section class="settings-group schedule-settings">
           <div class="settings-section-head"><div><h2>ฝากเงินอัตโนมัติ</h2><small>ตั้งวัน เวลา จำนวนเงิน และกล่องปลายทาง</small></div><button class="schedule-add" data-action="add-schedule" aria-label="เพิ่มรายการฝากอัตโนมัติ"><svg class="icon"><use href="#i-plus"/></svg></button></div>
           <div id="scheduleList" class="schedule-list"></div>
@@ -180,9 +213,36 @@
         </section>
         <section class="settings-group"><h2>ข้อมูล</h2>
           <div class="setting-row static"><span><b>สกุลเงินหลัก</b><small>ใช้คำนวณยอดรวม</small></span><strong>THB</strong></div>
+          <button class="setting-row danger" id="clearAllBalances"><span><b>ล้างยอดเงินทั้งหมด</b><small>ตั้งยอดทุก Pocket และกล่องเป้าหมายเป็น 0</small></span><i><svg class="icon"><use href="#i-trash"/></svg></i></button>
           <button class="setting-row danger" id="resetData"><span>เริ่มข้อมูลตัวอย่างใหม่</span><i><svg class="icon"><use href="#i-refresh"/></svg></i></button>
         </section>
         <p class="demo-note">เว็บนี้เป็นสมุดบันทึกการเงินส่วนตัว ไม่ได้เชื่อมต่อหรือโอนเงินจริงผ่านธนาคาร</p>
+      </section>
+
+      <section class="view plans-view" id="plansView" aria-labelledby="plansTitle">
+        <header class="plans-top"><button class="round-back" data-nav="settings" aria-label="กลับไปการตั้งค่า"><svg class="icon"><use href="#i-arrow-left"/></svg></button><div><p class="overline">MePocket</p><h1 id="plansTitle">เลือกแพลน</h1></div><button type="button" class="plan-share" data-share-plans aria-label="แชร์หน้าแพลน"><svg class="icon"><use href="#i-share"/></svg></button></header>
+        <div class="plan-group-toggle" id="planGroupToggle" aria-label="หมวดแพลน"><button type="button" data-plan-group="individual">Individual plans</button><button type="button" data-plan-group="business">Business plans</button></div>
+        <p class="plan-group-note" id="planGroupNote" hidden></p>
+        <div class="plan-tabs" id="planTabs" role="tablist" aria-label="เลือกดูแพลน"></div>
+        <div class="plan-grid" id="planGrid"></div>
+      </section>
+      <section class="view pay-view" id="payView" aria-labelledby="payTitle">
+        <header class="pay-top">
+          <div class="pay-brand"><svg viewBox="0 0 96 96" aria-hidden="true"><rect width="96" height="96" rx="26" fill="#17181b"/><path d="M22 32h52a8 8 0 0 1 8 8v30a10 10 0 0 1-10 10H24A10 10 0 0 1 14 70V42a10 10 0 0 1 8-10Z" fill="#58f38e"/><path d="M27 20h38a8 8 0 0 1 8 8v4H22v-7a5 5 0 0 1 5-5Z" fill="#fff"/><circle cx="66" cy="56" r="8" fill="#17181b"/></svg><div><p class="overline">MePocket</p><h1 id="payTitle">ชำระเงิน</h1></div></div>
+          <button type="button" class="pay-back" data-pay-back aria-label="กลับไปเลือกแพลน"><svg class="icon"><use href="#i-x"/></svg></button>
+        </header>
+        <div class="pay-sum" id="paySum">
+          <small>ชำระเงินให้ MePocket</small>
+          <div class="row"><strong id="payAmount">฿0.00</strong><button type="button" data-pay-detail>รายละเอียด <svg class="icon"><use href="#i-chevron-right"/></svg></button></div>
+          <div class="pay-lines" id="payLines"></div>
+        </div>
+        <h2 class="pay-h">เลือกวิธีการชำระเงิน</h2>
+        <div class="pay-methods">
+          <button type="button" class="pay-method on" aria-pressed="true"><i class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="#58f38e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="4" height="4" rx=".5"/><rect x="13" y="7" width="4" height="4" rx=".5"/><rect x="7" y="13" width="4" height="4" rx=".5"/><path d="M13 13h4v4"/></svg></i><span>QR พร้อมเพย์<small>สแกนจ่ายได้ทุกแอปธนาคาร</small></span><i class="tick"><svg class="icon"><use href="#i-check"/></svg></i></button>
+        </div>
+        <p class="pay-legal">กดชำระเงินเพื่อรับ QR พร้อมเพย์ที่ใส่ยอดไว้ให้แล้ว<br>แคปหน้าจอแล้วสแกนผ่านแอปธนาคารได้เลย</p>
+        <button type="button" class="pay-cta" id="payGo">ชำระเงิน ฿0.00</button>
+        <button type="button" class="pay-ghost" data-pay-back>กลับไปเลือกแพลน</button>
       </section>
     </main>
 
@@ -206,7 +266,7 @@
       <div class="conversion-note" id="conversionNote">ยอดปลายทางโดยประมาณ</div>
       <label class="field">บันทึกช่วยจำ<input id="transferNote" maxlength="60" placeholder="เช่น เก็บเงินไปเที่ยว" /></label>
       <p class="form-error" id="transferError"></p>
-      <button class="primary-button" id="confirmTransfer">ยืนยันการโอน</button>
+      <button class="primary-button" id="confirmTransfer">ตรวจสอบข้อมูล</button>
     </section>
   </div>
 
@@ -224,7 +284,7 @@
       </div>
       <div class="transfer-body">
         <div class="bank-tabs" role="tablist"><button data-bank-tab="friend">เพื่อน</button><button class="active" data-bank-tab="account">บัญชี</button><button data-bank-tab="promptpay">พร้อมเพย์</button></div>
-        <div class="bank-pane" data-bank-pane="friend"><div class="transfer-empty"><span>👥</span><b>รายชื่อเพื่อน</b><small>เลือกแท็บบัญชีเพื่อโอนไปธนาคาร</small></div></div>
+        <div class="bank-pane" data-bank-pane="friend"><div id="favoriteTransfers"></div></div>
         <form class="bank-pane active" data-bank-pane="account" id="bankTransferForm">
           <button type="button" class="transfer-destination-card" data-transfer-picker="destination" aria-haspopup="dialog">
             <span class="transfer-destination-icon" id="bankDestinationIcon">◎</span>
@@ -252,6 +312,58 @@
       <div class="grabber"></div>
       <div class="sheet-head"><div><p class="overline dark-text">MePocket</p><h2 id="transferPickerTitle">เลือกบัญชี</h2></div><button class="close-button" data-close-transfer-picker aria-label="ปิด"><svg class="icon"><use href="#i-x"/></svg></button></div>
       <div class="transfer-picker-options" id="transferPickerOptions"></div>
+    </section>
+  </div>
+
+  <div class="sheet transfer-flow-sheet" id="transferReviewSheet" aria-hidden="true">
+    <section class="transfer-flow-screen" role="dialog" aria-modal="true" aria-labelledby="transferReviewTitle">
+      <header class="flow-head"><button class="flow-back" id="reviewBack" aria-label="กลับไปแก้ไข"><svg class="icon"><use href="#i-arrow-left"/></svg></button><h2 id="transferReviewTitle">ยืนยันการโอนเงิน</h2><span></span></header>
+      <div class="flow-content">
+        <div class="transfer-safety"><span>!</span><p>โปรดตรวจสอบชื่อบัญชีและข้อมูลปลายทางให้ถูกต้องก่อนยืนยันรายการ</p></div>
+        <section class="review-card">
+          <div class="review-visual"><img src="./assets/mepocket.svg" alt="" /><span><i></i><i></i><i></i></span><svg class="icon"><use href="#i-transfer"/></svg></div>
+          <div class="review-summary"><span>โอนเงิน</span><strong class="review-amount" id="reviewAmount">0.00 THB</strong><small>ค่าธรรมเนียม 0.00 THB</small></div>
+          <div class="review-route"><span>จาก</span><b id="reviewFrom">Pocket Save</b><small id="reviewFromMeta"></small></div>
+          <div class="review-route"><span>ไปยัง</span><b id="reviewTo">ปลายทาง</b><small id="reviewToMeta"></small></div>
+          <div class="review-route review-date"><span>วันที่</span><b id="reviewDate">ตอนนี้</b></div>
+        </section>
+        <p class="review-note" id="reviewNote" hidden></p>
+      </div>
+      <footer class="flow-actions"><button class="primary-flow-button" id="reviewConfirm">ยืนยัน</button></footer>
+    </section>
+  </div>
+
+  <div class="sheet transfer-flow-sheet transfer-pin-sheet" id="transferPinSheet" aria-hidden="true">
+    <section class="transfer-pin-screen" role="dialog" aria-modal="true" aria-labelledby="transferPinTitle">
+      <header class="flow-head transfer-pin-head"><button class="flow-back" id="transferPinBack" aria-label="กลับไปหน้าก่อนหน้า"><svg class="icon"><use href="#i-arrow-left"/></svg></button><h2 id="transferPinTitle">ยืนยันด้วย PIN</h2><span></span></header>
+      <div class="transfer-pin-copy">
+        <span class="transfer-pin-lock"><svg class="icon"><use href="#i-lock"/></svg></span>
+        <h3 id="transferPinHeading">ใส่รหัส PIN</h3>
+        <p id="transferPinMessage">กรอกรหัส PIN 6 หลักเพื่อยืนยันการโอน</p>
+        <strong id="transferPinAmount">0.00 THB</strong>
+        <small id="transferPinDestination">ไปยังปลายทาง</small>
+      </div>
+      <div class="transfer-pin-dots" id="transferPinDots" aria-label="กรอกรหัส PIN 6 หลัก"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <p class="transfer-pin-error" id="transferPinError" role="alert"></p>
+      <div class="transfer-pin-keypad" id="transferPinKeypad">
+        <button type="button" data-transfer-pin-key="1">1</button><button type="button" data-transfer-pin-key="2">2</button><button type="button" data-transfer-pin-key="3">3</button>
+        <button type="button" data-transfer-pin-key="4">4</button><button type="button" data-transfer-pin-key="5">5</button><button type="button" data-transfer-pin-key="6">6</button>
+        <button type="button" data-transfer-pin-key="7">7</button><button type="button" data-transfer-pin-key="8">8</button><button type="button" data-transfer-pin-key="9">9</button>
+        <span aria-hidden="true"></span><button type="button" data-transfer-pin-key="0">0</button><button type="button" class="transfer-pin-delete" data-transfer-pin-delete aria-label="ลบตัวเลข">⌫</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="sheet transfer-flow-sheet" id="transferSuccessSheet" aria-hidden="true">
+    <section class="transfer-flow-screen success-screen" role="dialog" aria-modal="true" aria-labelledby="transferSuccessTitle">
+      <div class="success-top"><span class="success-check"><svg class="icon"><use href="#i-check"/></svg></span><h2 id="transferSuccessTitle">ทำรายการสำเร็จ</h2><p>เงินถูกบันทึกไปยังปลายทางเรียบร้อยแล้ว</p></div>
+      <div class="slip-card">
+        <div class="slip-visual"><img src="./assets/mepocket.svg" alt="MePocket" /><span><i></i><i></i><i></i><i></i></span><b>MePocket</b></div>
+        <div class="slip-summary"><p>โอนเงิน</p><strong id="slipAmount">0.00 THB</strong><small>ค่าธรรมเนียม 0.00 THB</small></div>
+        <div class="slip-route"><span><small>จาก</small><b id="slipFrom">Pocket</b></span><i></i><span><small>ไปยัง</small><b id="slipTo">ปลายทาง</b></span></div>
+        <dl><div><dt>วันที่และเวลา</dt><dd id="slipDate"></dd></div><div><dt>เลขที่สลิป</dt><dd id="slipReference"></dd></div></dl>
+      </div>
+      <footer class="success-actions"><button class="favorite-flow-button" id="saveTransferFavorite"><svg class="icon"><use href="#i-star"/></svg><span>เพิ่มเป็นรายการโปรด</span></button><button class="primary-flow-button" id="successHome">ไปหน้าหลัก</button></footer>
     </section>
   </div>
 
@@ -291,6 +403,19 @@
         <label class="field">สีการ์ด<div class="color-picker"><input id="accountColor" type="color" value="#58f38e" aria-label="เลือกสีการ์ด Pocket" /><span id="accountColorValue">#58F38E</span></div></label>
         <div class="color-presets" aria-label="สีการ์ดแนะนำ"><button type="button" data-account-color="#58f38e" style="--swatch:#58f38e" aria-label="เขียวมิ้นต์"></button><button type="button" data-account-color="#9c62ff" style="--swatch:#9c62ff" aria-label="ม่วง"></button><button type="button" data-account-color="#b7f542" style="--swatch:#b7f542" aria-label="เขียวมะนาว"></button><button type="button" data-account-color="#5db8ff" style="--swatch:#5db8ff" aria-label="ฟ้า"></button><button type="button" data-account-color="#ff9f5c" style="--swatch:#ff9f5c" aria-label="ส้ม"></button><button type="button" data-account-color="#ff7e9d" style="--swatch:#ff7e9d" aria-label="ชมพู"></button></div>
         <button class="primary-button" type="submit">สร้าง Pocket</button>
+      </form>
+    </section>
+  </div>
+
+  <div class="sheet" id="accountColorSheet" aria-hidden="true">
+    <div class="sheet-backdrop" data-close></div>
+    <section class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="accountColorEditTitle">
+      <div class="grabber"></div><div class="sheet-head"><div><p class="overline dark-text">ปรับหน้าตา Pocket</p><h2 id="accountColorEditTitle">แก้ไขสีการ์ด</h2></div><button class="close-button" data-close aria-label="ปิด"><svg class="icon"><use href="#i-x"/></svg></button></div>
+      <form id="accountColorEditForm">
+        <div class="account-color-preview" id="accountColorPreview"><span id="accountColorPreviewFlag"></span><b id="accountColorPreviewName">Pocket</b></div>
+        <label class="field">สีการ์ด<div class="color-picker"><input id="accountEditColor" type="color" value="#58f38e" aria-label="เลือกสีการ์ด Pocket" /><span id="accountEditColorValue">#58F38E</span></div></label>
+        <div class="color-presets" aria-label="สีการ์ดแนะนำ"><button type="button" data-account-edit-color="#58f38e" style="--swatch:#58f38e" aria-label="เขียวมิ้นต์"></button><button type="button" data-account-edit-color="#9c62ff" style="--swatch:#9c62ff" aria-label="ม่วง"></button><button type="button" data-account-edit-color="#b7f542" style="--swatch:#b7f542" aria-label="เขียวมะนาว"></button><button type="button" data-account-edit-color="#5db8ff" style="--swatch:#5db8ff" aria-label="ฟ้า"></button><button type="button" data-account-edit-color="#ff9f5c" style="--swatch:#ff9f5c" aria-label="ส้ม"></button><button type="button" data-account-edit-color="#ff7e9d" style="--swatch:#ff7e9d" aria-label="ชมพู"></button></div>
+        <button class="primary-button" type="submit">บันทึกสีการ์ด</button>
       </form>
     </section>
   </div>
@@ -344,7 +469,23 @@
     <span class="deposit-popup-copy"><small id="depositPopupApp">ตอนนี้</small><b id="depositPopupTitle">รายการเงินเข้า</b><strong id="depositPopupAmount">0.00 บาท</strong><em id="depositPopupDetail">เข้าบัญชี</em></span>
     <button type="button" data-close-deposit-popup aria-label="ปิดการแจ้งเตือน"><svg class="icon"><use href="#i-x"/></svg></button>
   </aside>
+  <div class="qr-sheet" id="qrSheet" aria-hidden="true" role="dialog" aria-label="QR พร้อมเพย์">
+    <div class="qr-card">
+      <div class="qr-tip"><svg class="icon"><use href="#i-scan"/></svg><span>แคปหน้าจอแล้วสแกน QR ในแอปธนาคารเพื่อชำระเงิน</span></div>
+      <div class="qr-body">
+        <div class="qr-pp" aria-label="PromptPay"><i>Prompt</i><b>Pay</b></div>
+        <div class="qr-box"><div id="qrSvg"></div><div class="mid"><svg viewBox="0 0 96 96" aria-hidden="true"><rect width="96" height="96" rx="26" fill="#17181b"/><path d="M22 32h52a8 8 0 0 1 8 8v30a10 10 0 0 1-10 10H24A10 10 0 0 1 14 70V42a10 10 0 0 1 8-10Z" fill="#58f38e"/><path d="M27 20h38a8 8 0 0 1 8 8v4H22v-7a5 5 0 0 1 5-5Z" fill="#fff"/><circle cx="66" cy="56" r="8" fill="#17181b"/></svg></div></div>
+        <p class="qr-to">ชำระเงินให้ MePocket</p>
+        <p class="qr-amt" id="qrAmt">฿0.00</p>
+        <span class="qr-plan" id="qrPlan">PLAN</span>
+        
+        <p class="qr-note">MePocket เป็นโปรเจกต์ส่วนตัว ยอดที่โอนถือเป็นการสนับสนุนผู้พัฒนา</p>
+        <button type="button" class="qr-change" data-qr-close>เปลี่ยนวิธีการชำระเงิน</button>
+      </div>
+    </div>
+  </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>
