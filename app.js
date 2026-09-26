@@ -813,15 +813,33 @@ function openPay(id){
   $('#paySum').classList.remove('open');
   navigate('pay');
 }
+
+/* 30-minute payment window: when it runs out the QR is hidden and can be made again */
+let qrTimer = 0, qrEnd = 0;
+const pad2 = n => String(n).padStart(2, '0');
+function tickQR(){
+  const left = Math.max(0, qrEnd - Date.now()), sec = Math.ceil(left / 1000);
+  $('#qrLeft').textContent = pad2(Math.floor(sec / 60)) + ':' + pad2(sec % 60);
+  if (!left){ clearInterval(qrTimer); $('#qrExp').hidden = false; $('.qr-box').classList.add('expired'); }
+}
+function startQRTimer(){
+  clearInterval(qrTimer);
+  qrEnd = Date.now() + 30 * 60 * 1000;
+  const d = new Date(qrEnd);
+  $('#qrDeadline').textContent = `${pad2(d.getHours())}:${pad2(d.getMinutes())}, ${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear() + 543}`;
+  $('#qrExp').hidden = true; $('.qr-box').classList.remove('expired');
+  tickQR(); qrTimer = setInterval(tickQR, 1000);
+}
 function openQR(){
   if (!payOrder) return;
   const qr = qrcode(0, 'M'); qr.addData(promptPayPayload(payOrder.total)); qr.make();
   $('#qrSvg').innerHTML = qr.createSvgTag({cellSize:4, margin:0, scalable:true});
   $('#qrAmt').textContent = baht(payOrder.total);
   $('#qrPlan').textContent = payOrder.plan.name + (payOrder.plan.minSeats ? ` · ${payOrder.seats} SEATS` : '');
+  startQRTimer();
   $('#qrSheet').classList.add('open'); $('#qrSheet').setAttribute('aria-hidden', 'false');
 }
-function closeQR(){ $('#qrSheet').classList.remove('open'); $('#qrSheet').setAttribute('aria-hidden', 'true'); }
+function closeQR(){ clearInterval(qrTimer); $('#qrSheet').classList.remove('open'); $('#qrSheet').setAttribute('aria-hidden', 'true'); }
 
 function navigate(view) {
   activeView = view;
@@ -1380,6 +1398,7 @@ document.addEventListener('click', event => {
   if(event.target.closest('[data-pay-detail]')){$('#paySum').classList.toggle('open');return;}
   if(event.target.closest('[data-pay-back]')){navigate('plans');return;}
   if(event.target.closest('#payGo')){openQR();return;}
+  if(event.target.closest('[data-qr-renew]')){openQR();return;}
   if(event.target.closest('[data-qr-close]')||event.target===$('#qrSheet')){closeQR();return;}
   const planGroupButton=event.target.closest('[data-plan-group]'); if(planGroupButton){setPlanGroup(planGroupButton.dataset.planGroup);return;}
   const seatButton=event.target.closest('[data-seat-plan]'); if(seatButton){const plan=planById(seatButton.dataset.seatPlan);const current=planSeats[plan.id]??plan.minSeats;planSeats[plan.id]=Math.min(99,Math.max(plan.minSeats,current+Number(seatButton.dataset.seatStep)));renderPlans();return;}
@@ -1497,7 +1516,7 @@ document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('#qrSheet
 
 /* ---------- share the public plans page ---------- */
 async function sharePlans(){
-  const url = /plans\.html$/.test(location.pathname) ? location.href.split('#')[0] : new URL('plans.html', location.href).href;
+  const url = new URL('/plans', location.origin).href;
   const data = {title:'MePocket Plans', text:'เลือกแพลน MePocket', url};
   if (navigator.share){ try { await navigator.share(data); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
   try { await navigator.clipboard.writeText(url); notify('คัดลอกลิงก์หน้าแพลนแล้ว'); }

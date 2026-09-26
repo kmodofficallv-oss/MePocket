@@ -474,10 +474,11 @@
       <div class="qr-tip"><svg class="icon"><use href="#i-scan"/></svg><span>แคปหน้าจอแล้วสแกน QR ในแอปธนาคารเพื่อชำระเงิน</span></div>
       <div class="qr-body">
         <div class="qr-pp" aria-label="PromptPay"><i>Prompt</i><b>Pay</b></div>
-        <div class="qr-box"><div id="qrSvg"></div><div class="mid"><svg viewBox="0 0 96 96" aria-hidden="true"><rect width="96" height="96" rx="26" fill="#17181b"/><path d="M22 32h52a8 8 0 0 1 8 8v30a10 10 0 0 1-10 10H24A10 10 0 0 1 14 70V42a10 10 0 0 1 8-10Z" fill="#58f38e"/><path d="M27 20h38a8 8 0 0 1 8 8v4H22v-7a5 5 0 0 1 5-5Z" fill="#fff"/><circle cx="66" cy="56" r="8" fill="#17181b"/></svg></div></div>
+        <div class="qr-box"><div id="qrSvg"></div><div class="qr-exp" id="qrExp" hidden><b>QR หมดอายุแล้ว</b><button type="button" data-qr-renew>สร้าง QR ใหม่</button></div><div class="mid"><svg viewBox="0 0 96 96" aria-hidden="true"><rect width="96" height="96" rx="26" fill="#17181b"/><path d="M22 32h52a8 8 0 0 1 8 8v30a10 10 0 0 1-10 10H24A10 10 0 0 1 14 70V42a10 10 0 0 1 8-10Z" fill="#58f38e"/><path d="M27 20h38a8 8 0 0 1 8 8v4H22v-7a5 5 0 0 1 5-5Z" fill="#fff"/><circle cx="66" cy="56" r="8" fill="#17181b"/></svg></div></div>
         <p class="qr-to">ชำระเงินให้ MePocket</p>
         <p class="qr-amt" id="qrAmt">฿0.00</p>
         <span class="qr-plan" id="qrPlan">PLAN</span>
+        <div class="qr-time"><p>ชำระเงินภายใน <b id="qrDeadline">--:--</b></p><small>เหลือเวลา <b id="qrLeft">30:00</b> นาที</small></div>
         
         <p class="qr-note">MePocket เป็นโปรเจกต์ส่วนตัว ยอดที่โอนถือเป็นการสนับสนุนผู้พัฒนา</p>
         <button type="button" class="qr-change" data-qr-close>เปลี่ยนวิธีการชำระเงิน</button>
