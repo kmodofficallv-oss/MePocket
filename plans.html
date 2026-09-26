@@ -2332,7 +2332,7 @@ if (location.hash === '#pay') history.replaceState(null, '', location.pathname +
 openPlans();
 /* ---------- share the public plans page ---------- */
 async function sharePlans(){
-  const url = /plans\.html$/.test(location.pathname) ? location.href.split('#')[0] : new URL('plans.html', location.href).href;
+  const url = new URL('/plans', location.origin).href;
   const data = {title:'MePocket Plans', text:'เลือกแพลน MePocket', url};
   if (navigator.share){ try { await navigator.share(data); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
   try { await navigator.clipboard.writeText(url); notify('คัดลอกลิงก์หน้าแพลนแล้ว'); }

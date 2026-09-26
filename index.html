@@ -486,6 +486,41 @@
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
-  <script src="./app.js"></script>
+  <!-- site lock: only people with the code can open the app (the /plans page stays public) -->
+  <section class="entry-screen pin-screen" id="siteGate" aria-labelledby="siteGateTitle" hidden>
+    <div class="pin-brand"><img src="./assets/mepocket.svg" alt="" /><span>MePocket</span></div>
+    <div class="pin-copy"><span class="pin-lock"><svg class="icon pin-lock-icon"><use href="#i-lock"/></svg></span><h1 id="siteGateTitle">ใส่รหัสเข้าใช้งาน</h1><p>แอปนี้เป็นแอปส่วนตัว</p></div>
+    <div class="pin-dots" id="gateDots" aria-label="กรอกรหัส 6 หลัก"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <p class="pin-error" id="gateError" role="alert"></p>
+    <div class="pin-keypad" id="gateKeypad">
+      <button type="button" data-gate-key="1">1</button><button type="button" data-gate-key="2">2</button><button type="button" data-gate-key="3">3</button><button type="button" data-gate-key="4">4</button><button type="button" data-gate-key="5">5</button><button type="button" data-gate-key="6">6</button><button type="button" data-gate-key="7">7</button><button type="button" data-gate-key="8">8</button><button type="button" data-gate-key="9">9</button>
+      <span aria-hidden="true"></span><button type="button" data-gate-key="0">0</button><button type="button" class="pin-delete" data-gate-delete aria-label="ลบตัวเลข">⌫</button>
+    </div>
+  </section>
+  <script>
+  (function(){
+    var KEY = 'mepocket-site-pass';
+    var HASH = '8ad2d53bc5182df6398bec5c9da37f5221873d21a2ca3eae15bdcbc2a1403e15';
+    function boot(){ var s = document.createElement('script'); s.src = './app.js'; document.body.appendChild(s); }
+    var saved = null; try { saved = localStorage.getItem(KEY); } catch (e) {}
+    if (saved === HASH) { boot(); return; }
+    var gate = document.getElementById('siteGate'), dots = document.getElementById('gateDots'), err = document.getElementById('gateError');
+    var code = '', busy = false;
+    gate.hidden = false;
+    function paint(){ Array.prototype.forEach.call(dots.children, function(d, i){ d.classList.toggle('filled', i < code.length); }); }
+    async function sha(t){ var b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)); return Array.from(new Uint8Array(b)).map(function(x){ return x.toString(16).padStart(2, '0'); }).join(''); }
+    async function check(){
+      busy = true;
+      var ok = (await sha(code)) === HASH;
+      if (ok) { try { localStorage.setItem(KEY, HASH); } catch (e) {} gate.hidden = true; document.removeEventListener('keydown', onKey); boot(); return; }
+      err.textContent = 'รหัสไม่ถูกต้อง'; dots.classList.remove('shake'); void dots.offsetWidth; dots.classList.add('shake');
+      setTimeout(function(){ code = ''; paint(); busy = false; }, 380);
+    }
+    function press(k){ if (busy) return; err.textContent = ''; if (k === 'del') code = code.slice(0, -1); else if (code.length < 6) code += k; paint(); if (code.length === 6) check(); }
+    gate.addEventListener('click', function(e){ var b = e.target.closest('[data-gate-key],[data-gate-delete]'); if (!b) return; press(b.hasAttribute('data-gate-delete') ? 'del' : b.getAttribute('data-gate-key')); });
+    function onKey(e){ if (/^\d$/.test(e.key)) press(e.key); else if (e.key === 'Backspace') press('del'); }
+    document.addEventListener('keydown', onKey);
+  })();
+  </script>
 </body>
 </html>
