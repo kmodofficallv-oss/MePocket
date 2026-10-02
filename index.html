@@ -212,12 +212,14 @@
           <button class="setting-row" id="enableBiometric"><span><b>Face ID / ลายนิ้วมือ</b><small id="biometricStatus">ตรวจสอบความพร้อมของอุปกรณ์</small></span><i><svg class="icon"><use href="#i-user"/></svg></i></button>
         </section>
         <section class="settings-group schedule-settings">
-          <div class="settings-section-head"><div><h2>ฝากเงินอัตโนมัติ</h2><small>ตั้งวัน เวลา จำนวนเงิน และกล่องปลายทาง</small></div><button class="schedule-add" data-action="add-schedule" aria-label="เพิ่มรายการฝากอัตโนมัติ"><svg class="icon"><use href="#i-plus"/></svg></button></div>
+          <div class="settings-section-head"><div><h2>ฝาก/ถอนเงินอัตโนมัติ</h2><small>ตั้งวัน เวลา จำนวนเงิน และ Pocket หรือกล่องที่ใช้</small></div><button class="schedule-add" data-action="add-schedule" aria-label="เพิ่มรายการฝากหรือถอนอัตโนมัติ"><svg class="icon"><use href="#i-plus"/></svg></button></div>
           <div id="scheduleList" class="schedule-list"></div>
           <p class="schedule-footnote">หากเว็บปิดอยู่ ระบบจะดำเนินรายการที่ค้างทันทีเมื่อเปิดเว็บครั้งถัดไป</p>
         </section>
         <section class="settings-group"><h2>ข้อมูล</h2>
           <div class="setting-row static"><span><b>สกุลเงินหลัก</b><small>ใช้คำนวณยอดรวม</small></span><strong>THB</strong></div>
+          <button class="setting-row" id="importOldApp"><span><b>นำเข้าประวัติจากแอปเดิม</b><small>เลือกไฟล์ .json ที่เตรียมไว้ (ไฟล์อยู่ในเครื่องเท่านั้น)</small></span><i><svg class="icon"><use href="#i-deposit"/></svg></i></button>
+          <input type="file" id="importOldAppFile" accept=".json,application/json" hidden />
           <button class="setting-row danger" id="clearAllBalances"><span><b>ล้างยอดเงินทั้งหมด</b><small>ตั้งยอดทุก Pocket และกล่องเป้าหมายเป็น 0</small></span><i><svg class="icon"><use href="#i-trash"/></svg></i></button>
           <button class="setting-row danger" id="resetData"><span>เริ่มข้อมูลตัวอย่างใหม่</span><i><svg class="icon"><use href="#i-refresh"/></svg></i></button>
         </section>
@@ -462,19 +464,20 @@
   <div class="sheet" id="scheduleSheet" aria-hidden="true">
     <div class="sheet-backdrop" data-close></div>
     <section class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="scheduleTitle">
-      <div class="grabber"></div><div class="sheet-head"><div><p class="overline dark-text">ออมตามเวลาที่กำหนด</p><h2 id="scheduleTitle">ฝากเงินอัตโนมัติ</h2></div><button class="close-button" data-close aria-label="ปิด"><svg class="icon"><use href="#i-x"/></svg></button></div>
+      <div class="grabber"></div><div class="sheet-head"><div><p class="overline dark-text">ทำรายการตามเวลาที่กำหนด</p><h2 id="scheduleTitle">ฝากเงินอัตโนมัติ</h2></div><button class="close-button" data-close aria-label="ปิด"><svg class="icon"><use href="#i-x"/></svg></button></div>
       <form id="scheduleForm">
+        <div class="segment"><button type="button" class="active" data-schedule-kind="deposit">ฝากเงิน</button><button type="button" data-schedule-kind="withdraw">ถอนเงิน</button></div>
         <div class="schedule-date-grid"><label class="field">วันที่<input id="scheduleDate" type="date" required /></label><label class="field">เวลา<input id="scheduleTime" type="time" required /></label></div>
-        <label class="field">บันทึกเงินเข้า<select id="scheduleDestination" required></select></label>
+        <label class="field"><span id="scheduleDestinationLabel">บันทึกเงินเข้า</span><select id="scheduleDestination" required></select></label>
         <label class="field">จำนวนเงิน<div class="money-input"><span id="scheduleCurrency">THB</span><input id="scheduleAmount" inputmode="decimal" type="number" min="1" step="0.01" placeholder="0.00" required /></div></label>
         <div class="conversion-note" id="scheduleDestinationNote">เลือกได้ทั้ง Pocket ในเงินของฉันและกล่องเป้าหมาย</div>
-        <p class="form-error" id="scheduleError"></p><button class="primary-button" type="submit">ตั้งเวลาฝากเงิน</button>
+        <p class="form-error" id="scheduleError"></p><button class="primary-button" type="submit" id="scheduleSubmit">ตั้งเวลาฝากเงิน</button>
       </form>
     </section>
   </div>
 
   <aside class="deposit-popup" id="depositPopup" role="status" aria-live="assertive" aria-atomic="true">
-    <span class="deposit-popup-icon"><svg class="icon"><use href="#i-deposit"/></svg></span>
+    <span class="deposit-popup-icon"><svg class="icon"><use id="depositPopupIcon" href="#i-deposit"/></svg></span>
     <span class="deposit-popup-copy"><small id="depositPopupApp">ตอนนี้</small><b id="depositPopupTitle">รายการเงินเข้า</b><strong id="depositPopupAmount">0.00 บาท</strong><em id="depositPopupDetail">เข้าบัญชี</em></span>
     <button type="button" data-close-deposit-popup aria-label="ปิดการแจ้งเตือน"><svg class="icon"><use href="#i-x"/></svg></button>
   </aside>
@@ -495,7 +498,7 @@
     </div>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+  <script src="./assets/qrcode.min.js"></script>
   <!-- site lock: only people with the code can open the app (the /plans page stays public) -->
   <section class="entry-screen pin-screen" id="siteGate" aria-labelledby="siteGateTitle" hidden>
     <div class="pin-brand"><img src="./assets/mepocket.svg" alt="" /><span>MePocket</span></div>

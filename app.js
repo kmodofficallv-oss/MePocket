@@ -194,6 +194,8 @@ let selectedAccountId = 'thb';
 let activeView = 'home';
 let entryType = 'income';
 let transactionFilter = 'all';
+const HISTORY_STEP = 50;                         // long history: draw 50 rows, then “แสดงเพิ่มเติม”
+let historyLimit = HISTORY_STEP, accountHistoryLimit = HISTORY_STEP;
 let reorderMode = false;
 let toastTimer;
 let depositPopupTimer;
@@ -695,8 +697,8 @@ function renderDebitCard() {
   $('#cardSubtitle').textContent=`${state.debitCard.title} Mastercard`;
   $('#cardUpdated').textContent=formatTime();
   $('#cardAccountStrip').innerHTML=state.accounts.slice(0,3).map(account=>`<article class="card-account-mini"><div>${flagHTML(account,true)}<b>${esc(account.name)}</b></div><strong class="balance-value">${formatAmount(account.balance,account.currency)}</strong>${account.currency!=='THB'?`<small class="balance-value">≈ ${formatAmount(account.balance*rateOf(account.currency),'THB')}</small>`:''}</article>`).join('');
-  const expenses=[...state.transactions].filter(tx=>tx.type==='expense').sort((a,b)=>new Date(b.date)-new Date(a.date));
-  $('#cardTransactions').innerHTML=expenses.length?expenses.map(tx=>transactionHTML(tx)).join(''):'<p class="empty">ยังไม่มีรายการใช้งานบัตร</p>';
+  const expenses=[...state.transactions].filter(tx=>tx.type==='expense'&&!tx.auto).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  $('#cardTransactions').innerHTML=expenses.length?expenses.slice(0,HISTORY_STEP).map(tx=>transactionHTML(tx)).join(''):'<p class="empty">ยังไม่มีรายการใช้งานบัตร</p>';
 }
 
 function renderGoals() {
@@ -728,11 +730,19 @@ function transactionHTML(tx, scopeAccountId = null) {
     subtitle ||= 'โอนเงิน';
     if (scopeAccountId && tx.toType === 'account' && tx.to === scopeAccountId) { amount = `+${formatAmount(tx.received,tx.receivedCurrency)}`; className='positive'; }
     else { amount = `−${formatAmount(tx.amount,tx.currency)}`; className='negative'; }
+  } else if (tx.type === 'adjust') {
+    iconName = 'refresh'; title = tx.note || 'ปรับยอด';
+    const goalId=String(tx.account||'').startsWith('goal:')?String(tx.account).slice(5):'';
+    subtitle = `ปรับยอด · ${accountById(tx.account)?.name || goalById(goalId)?.name || 'บัญชี'}`;
+    amount = `${tx.direction === 'in' ? '+' : '−'}${formatAmount(tx.amount,tx.currency)}`;
+    className = tx.direction === 'in' ? 'positive' : 'negative';
   } else {
     iconName = tx.type === 'income' ? 'deposit' : 'withdraw';
     title = tx.note || (tx.type === 'income' ? 'เงินเข้า' : 'รายจ่าย');
     const goalId=String(tx.account||'').startsWith('goal:')?String(tx.account).slice(5):'';
-    subtitle = accountById(tx.account)?.name || goalById(goalId)?.name || 'บัญชี';
+    const placeName = accountById(tx.account)?.name || goalById(goalId)?.name || 'บัญชี';
+    const autoLabel = tx.auto==='withdraw' ? 'ถอนเงินอัตโนมัติ' : tx.auto==='deposit' ? 'ฝากเงินอัตโนมัติ' : '';
+    subtitle = autoLabel && tx.note!==autoLabel ? `${autoLabel} · ${placeName}` : placeName;
     amount = `${tx.type === 'income' ? '+' : '−'}${formatAmount(tx.amount,tx.currency)}`;
     className = tx.type === 'income' ? 'positive' : 'negative';
   }
@@ -745,9 +755,10 @@ function renderTransactions() {
   const sorted = [...state.transactions].sort((a,b) => new Date(b.date) - new Date(a.date));
   $('#recentList').innerHTML = sorted.length ? sorted.slice(0,3).map(tx => transactionHTML(tx)).join('') : '<p class="empty">ยังไม่มีรายการ</p>';
   const filtered = transactionFilter === 'all' ? sorted : sorted.filter(tx => tx.type === transactionFilter);
-  $('#allTransactions').innerHTML = filtered.length ? filtered.map(tx => transactionHTML(tx)).join('') : '<p class="empty">ไม่พบรายการประเภทนี้</p>';
+  const moreButton = (list, limit, target) => list.length > limit ? `<button type="button" class="history-more" data-history-more="${target}">แสดงเพิ่มเติม (${(list.length-limit).toLocaleString('th-TH')})</button>` : '';
+  $('#allTransactions').innerHTML = filtered.length ? filtered.slice(0,historyLimit).map(tx => transactionHTML(tx)).join('') + moreButton(filtered,historyLimit,'all') : '<p class="empty">ไม่พบรายการประเภทนี้</p>';
   const accountItems = sorted.filter(tx => relatedToAccount(tx, selectedAccountId));
-  $('#accountTransactions').innerHTML = accountItems.length ? accountItems.map(tx => transactionHTML(tx,selectedAccountId)).join('') : '<p class="empty">ยังไม่มีรายการในบัญชีนี้</p>';
+  $('#accountTransactions').innerHTML = accountItems.length ? accountItems.slice(0,accountHistoryLimit).map(tx => transactionHTML(tx,selectedAccountId)).join('') + moreButton(accountItems,accountHistoryLimit,'account') : '<p class="empty">ยังไม่มีรายการในบัญชีนี้</p>';
 }
 
 function accountCardHTML(account) {
@@ -903,7 +914,7 @@ function selectPlan(id) {
 function renderSchedules() {
   const list=$('#scheduleList'); if(!list) return;
   const schedules=[...(state.scheduledDeposits||[])].filter(item=>item.status!=='done').sort((a,b)=>new Date(a.runAt)-new Date(b.runAt));
-  list.innerHTML=schedules.length?schedules.map(item=>{const destination=getScheduleDestination(item);const label=item.status==='done'?'ดำเนินการแล้ว':item.status==='failed'?'ไม่สำเร็จ':'รอดำเนินการ';return `<article class="schedule-item ${esc(item.status)}"><span class="schedule-icon">${icon('calendar')}</span><span><b>${esc(destination.entity?.name||'กล่องที่ถูกลบ')}</b><small>${formatTime(item.runAt)} · ${formatAmount(item.amount,item.currency||destination.currency,true)}</small><em>${label}</em></span><button data-delete-schedule="${esc(item.id)}" aria-label="ลบรายการตั้งเวลา">${icon('trash')}</button></article>`;}).join(''):'<p class="schedule-empty">ยังไม่มีรายการฝากอัตโนมัติ</p>';
+  list.innerHTML=schedules.length?schedules.map(item=>{const destination=getScheduleDestination(item);const label=item.status==='done'?'ดำเนินการแล้ว':item.status==='failed'?'ไม่สำเร็จ':'รอดำเนินการ';return `<article class="schedule-item ${esc(item.status)}"><span class="schedule-icon">${icon('calendar')}</span><span><b>${item.kind==='withdraw'?'ถอนจาก':'ฝากเข้า'} ${esc(destination.entity?.name||'กล่องที่ถูกลบ')}</b><small>${formatTime(item.runAt)} · ${item.kind==='withdraw'?'−':'+'}${formatAmount(item.amount,item.currency||destination.currency,true)}</small><em>${label}</em></span><button data-delete-schedule="${esc(item.id)}" aria-label="ลบรายการตั้งเวลา">${icon('trash')}</button></article>`;}).join(''):'<p class="schedule-empty">ยังไม่มีรายการฝากหรือถอนอัตโนมัติ</p>';
   const select=$('#scheduleDestination');
   if(select){const previous=select.value;select.innerHTML=`<optgroup label="เงินของฉัน">${state.accounts.map(account=>`<option value="account:${esc(account.id)}">${account.flag} ${esc(account.name)} · ${esc(account.currency)}</option>`).join('')}</optgroup>${state.goals.length?`<optgroup label="กล่องเป้าหมาย">${state.goals.map(goal=>`<option value="goal:${esc(goal.id)}">◎ ${esc(goal.name)} · THB</option>`).join('')}</optgroup>`:''}`;if([...select.options].some(option=>option.value===previous))select.value=previous;updateScheduleDestination();}
 }
@@ -919,7 +930,26 @@ function getScheduleDestination(value) {
 function updateScheduleDestination() {
   const destination=getScheduleDestination($('#scheduleDestination')?.value||'');
   $('#scheduleCurrency').textContent=destination.currency;
-  $('#scheduleDestinationNote').textContent=destination.type==='goal'?`บันทึกเงินเข้า “${destination.entity?.name||'กล่องเป้าหมาย'}” โดยตรง`:`บันทึกเป็นเงินเข้าใน “${destination.entity?.name||'Pocket'}”`;
+  const name=destination.entity?.name||(destination.type==='goal'?'กล่องเป้าหมาย':'Pocket');
+  $('#scheduleDestinationNote').textContent=scheduleKind==='withdraw'?`หักเงินออกจาก “${name}” เมื่อถึงเวลา`:destination.type==='goal'?`บันทึกเงินเข้า “${name}” โดยตรง`:`บันทึกเป็นเงินเข้าใน “${name}”`;
+}
+
+/* ---------- auto deposit / auto withdraw ---------- */
+let scheduleKind='deposit';
+function updateScheduleKind() {
+  const withdraw=scheduleKind==='withdraw';
+  $$('[data-schedule-kind]').forEach(button=>button.classList.toggle('active',button.dataset.scheduleKind===scheduleKind));
+  $('#scheduleTitle').textContent=withdraw?'ถอนเงินอัตโนมัติ':'ฝากเงินอัตโนมัติ';
+  $('#scheduleDestinationLabel').textContent=withdraw?'ถอนเงินจาก':'บันทึกเงินเข้า';
+  $('#scheduleSubmit').textContent=withdraw?'ตั้งเวลาถอนเงิน':'ตั้งเวลาฝากเงิน';
+  updateScheduleDestination();
+}
+
+/* bank-app style: show only part of the account number, e.g. xxx-x-x4523-x */
+function maskRef(ref) {
+  const digits=String(ref||'').replace(/\D/g,'');
+  if(digits.length===10) return `xxx-x-x${digits.slice(5,9)}-x`;
+  return digits.length>4?`x${digits.slice(-4)}`:digits;
 }
 
 function renderAll() {
@@ -1021,7 +1051,7 @@ function navigate(view) {
 function openDetail(id) {
   if (!accountById(id)) return;
   detailReturnView = activeView==='accounts'?'accounts':'home';
-  selectedAccountId = id; activeView = 'accountDetail';
+  selectedAccountId = id; accountHistoryLimit = HISTORY_STEP; activeView = 'accountDetail';
   syncViewChrome(activeView);
   $$('.view').forEach(element => element.classList.toggle('active',element.id === 'accountDetailView'));
   $('#bottomNav').classList.remove('hidden');
@@ -1333,20 +1363,70 @@ function closeBankPicker() {
 function openScheduleEditor() {
   if(!state.accounts.length&&!state.goals.length){notify('กรุณาสร้าง Pocket หรือกล่องเป้าหมายก่อน');navigate('accounts');return;}
   renderSchedules(); const next=new Date(Date.now()+5*60*1000); const local=new Date(next.getTime()-next.getTimezoneOffset()*60000);
-  $('#scheduleDate').value=local.toISOString().slice(0,10); $('#scheduleTime').value=local.toISOString().slice(11,16); $('#scheduleAmount').value=''; $('#scheduleError').textContent=''; updateScheduleDestination(); showSheet('#scheduleSheet');
+  $('#scheduleDate').value=local.toISOString().slice(0,10); $('#scheduleTime').value=local.toISOString().slice(11,16); $('#scheduleAmount').value=''; $('#scheduleError').textContent=''; scheduleKind='deposit'; updateScheduleKind(); showSheet('#scheduleSheet');
 }
 
 function handleScheduleSubmit(event) {
   event.preventDefault(); const destination=getScheduleDestination($('#scheduleDestination').value); const amount=Number($('#scheduleAmount').value); const runAt=new Date(`${$('#scheduleDate').value}T${$('#scheduleTime').value}`); let error='';
   if(!destination.entity) error='กรุณาเลือกกล่องปลายทาง'; else if(!amount||amount<=0) error='กรุณาใส่จำนวนเงิน'; else if(Number.isNaN(runAt.getTime())||runAt<=new Date()) error='กรุณาเลือกเวลาในอนาคต';
   $('#scheduleError').textContent=error; if(error) return;
-  state.scheduledDeposits.push({id:crypto.randomUUID(),destinationType:destination.type,destinationId:destination.id,currency:destination.currency,amount:Number(amount.toFixed(2)),runAt:runAt.toISOString(),status:'pending',createdAt:new Date().toISOString()});
-  closeSheets(); saveState(`ตั้งฝากเข้า “${destination.entity.name}” แล้ว`); requestSystemNotifications(false);
+  state.scheduledDeposits.push({id:crypto.randomUUID(),kind:scheduleKind,destinationType:destination.type,destinationId:destination.id,currency:destination.currency,amount:Number(amount.toFixed(2)),runAt:runAt.toISOString(),status:'pending',createdAt:new Date().toISOString()});
+  closeSheets(); saveState(scheduleKind==='withdraw'?`ตั้งถอนจาก “${destination.entity.name}” แล้ว`:`ตั้งฝากเข้า “${destination.entity.name}” แล้ว`); requestSystemNotifications(false);
+}
+
+/* ---------- import of the old app's history ----------
+   rows keep their real date/time and send no notifications; rows already imported (same ref) are skipped,
+   so a newer file can be imported on top. If the file carries real balances, each Pocket is set to it
+   with a “ยอดยกมา” adjustment row (not income, not expense) so the history shows why the balance changed */
+async function importOldApp(file) {
+  let data; try{ data=JSON.parse(await file.text()); }catch{ notify('อ่านไฟล์ไม่ได้'); return; }
+  if(data?.format!=='mepocket-import'||!Array.isArray(data.transactions)||!data.id){ notify('ไฟล์นี้ไม่ใช่ไฟล์นำเข้าของ MePocket'); return; }
+  state.imports=Array.isArray(state.imports)?state.imports:[];
+  const save=accountById('thb')||state.accounts.find(account=>account.name===data.pockets?.save)||state.accounts.find(account=>account.currency==='THB');
+  if(!save){ notify('ไม่พบ Pocket Save'); return; }
+  const dailyName=data.pockets?.daily||'รายวัน';
+  let daily=state.accounts.find(account=>account.name===dailyName);
+  const done=new Set(state.transactions.filter(tx=>tx.source==='import'&&tx.ref).map(tx=>tx.ref));
+  const rows=data.transactions.filter(row=>!row.ref||!done.has(row.ref));
+  const balanceKey=data.balances?`${data.id}:balances:${JSON.stringify(data.balances)}`:'';
+  const needBalances=Boolean(balanceKey)&&!state.imports.some(item=>item.balanceKey===balanceKey);
+  if(!rows.length&&!needBalances){ notify('ไฟล์นี้นำเข้าไปแล้ว'); return; }
+  if(!daily&&state.accounts.length>=MAX_POCKETS){ notify(`ต้องมีที่ว่างสำหรับ Pocket “${dailyName}” (สูงสุด ${MAX_POCKETS} ใบ)`); return; }
+  const counts={deposit:0,withdraw:0,transfer:0}; rows.forEach(row=>{if(row.kind in counts)counts[row.kind]++;});
+  const lines=[];
+  if(rows.length) lines.push(`นำเข้าประวัติ ${rows.length.toLocaleString('th-TH')} รายการ (ฝาก ${counts.deposit} · ถอน ${counts.withdraw} · โอน ${counts.transfer})`);
+  if(needBalances) lines.push(`ตั้งยอดจริง: ${Object.entries(data.balances).map(([key,value])=>`${key==='daily'?dailyName:save.name} ${formatDepositAmount(value,'THB')}`).join(' · ')}`);
+  if(!confirm(`${lines.join('\n')}\n\nนำเข้าแล้วลบไม่ได้ ดำเนินการต่อหรือไม่?`)) return;
+  if(!daily){
+    const color='#4f8cff'; const suffix=String(Date.now()).slice(-7);
+    daily={id:`account-${Date.now()}`,currency:'THB',flagCode:'th',showFlag:true,badge:CURRENCIES.THB.badge,badgeColor:color,name:dailyName,accountNo:`206-${suffix}`,balance:0,gradient:accountGradient(color),tag:mixHex(color,'#ffffff',.78),country:FLAGS.th,rateText:`บัญชีสกุลเงิน${CURRENCIES.THB.name}`};
+    state.accounts.push(daily);
+  }
+  const pockets={save,daily}; const ids={save:save.id,daily:daily.id}; let added=0;
+  rows.forEach(row=>{
+    const amount=Number(row.amount); const date=new Date(row.date); if(!(amount>0)||Number.isNaN(date.getTime())) return;
+    const base={id:crypto.randomUUID(),amount,currency:row.currency||'THB',note:row.note||row.category||'',category:row.category||'',date:date.toISOString(),source:'import',ref:row.ref||''};
+    if(row.kind==='transfer'){ if(!ids[row.from]||!ids[row.to]) return; state.transactions.push({...base,type:'transfer',from:ids[row.from],toType:'account',to:ids[row.to],received:amount,receivedCurrency:base.currency}); }
+    else if(row.kind==='deposit'||row.kind==='withdraw'){ if(!ids[row.pocket]) return; state.transactions.push({...base,type:row.kind==='deposit'?'income':'expense',auto:row.kind,account:ids[row.pocket]}); }
+    else return;
+    added++;
+  });
+  if(needBalances){
+    const now=new Date().toISOString();
+    Object.entries(data.balances).forEach(([key,value])=>{
+      const pocket=pockets[key]; const target=Number(value); if(!pocket||Number.isNaN(target)) return;
+      const diff=Number((target-pocket.balance).toFixed(2)); if(!diff) return;
+      pocket.balance=Number(target.toFixed(2));
+      state.transactions.push({id:crypto.randomUUID(),type:'adjust',direction:diff>0?'in':'out',account:pocket.id,amount:Math.abs(diff),currency:'THB',note:'ยอดยกมาจากแอปเดิม',date:now,source:'import'});
+    });
+  }
+  state.imports.push({id:data.id,count:added,balanceKey:needBalances?balanceKey:undefined,at:new Date().toISOString()});
+  saveState(needBalances?`นำเข้าแล้ว ยอด ${save.name} ${formatDepositAmount(save.balance,'THB')}`:`นำเข้าประวัติ ${added.toLocaleString('th-TH')} รายการแล้ว`);
 }
 
 function deleteSchedule(id) {
   const item=state.scheduledDeposits.find(schedule=>schedule.id===id); if(!item) return;
-  if(!confirm('ลบรายการฝากอัตโนมัตินี้หรือไม่?')) return;
+  if(!confirm(item.kind==='withdraw'?'ลบรายการถอนอัตโนมัตินี้หรือไม่?':'ลบรายการฝากอัตโนมัตินี้หรือไม่?')) return;
   state.scheduledDeposits=state.scheduledDeposits.filter(schedule=>schedule.id!==id); saveState('ลบรายการตั้งเวลาแล้ว');
 }
 
@@ -1393,7 +1473,7 @@ function showDepositPopup(payload) {
 function showNextDepositPopup() {
   const payload=depositPopupQueue.shift(); if(!payload){depositPopupActive=false;return;}
   depositPopupActive=true; const popup=$('#depositPopup');
-  popup.classList.toggle('failed',!payload.success); $('#depositPopupTitle').textContent=payload.success?'รายการเงินเข้าอัตโนมัติสำเร็จ':'ฝากเงินอัตโนมัติไม่สำเร็จ';
+  popup.classList.toggle('failed',!payload.success); $('#depositPopupTitle').textContent=payload.title||(payload.success?'รายการเงินเข้าอัตโนมัติสำเร็จ':'ฝากเงินอัตโนมัติไม่สำเร็จ'); $('#depositPopupIcon')?.setAttribute('href',payload.kind==='withdraw'?'#i-withdraw':'#i-deposit');
   $('#depositPopupAmount').textContent=payload.amountText||'ไม่สามารถทำรายการได้'; $('#depositPopupDetail').textContent=payload.detail;
   popup.classList.add('show'); clearTimeout(depositPopupTimer); depositPopupTimer=setTimeout(hideDepositPopup,5200);
 }
@@ -1405,7 +1485,27 @@ function hideDepositPopup() {
 
 function processScheduledDeposits() {
   const due=(state.scheduledDeposits||[]).filter(item=>item.status==='pending'&&new Date(item.runAt)<=new Date()); if(!due.length) return;
-  due.forEach(item=>{const destination=getScheduleDestination(item);const completedAt=new Date();const when=depositTimestamp(completedAt);if(!destination.entity){item.status='failed';item.completedAt=completedAt.toISOString();showDepositPopup({success:false,detail:'ไม่พบ Pocket หรือกล่องปลายทางที่เลือกไว้'});sendSystemNotification('รายการเงินเข้าไม่สำเร็จ',`ไม่พบปลายทาง เมื่อ ${when.day} เวลา ${when.time} น.`);return;}const currency=item.currency||destination.currency;const amountText=formatDepositAmount(item.amount,currency);const reference=destinationReference(destination);const targetWord=destination.type==='goal'?'กล่อง':'บัญชี';destination.entity.balance=Number((destination.entity.balance+item.amount).toFixed(2));item.status='done';item.completedAt=completedAt.toISOString();const accountId=destination.type==='goal'?`goal:${destination.id}`:destination.id;state.transactions.push({id:crypto.randomUUID(),type:'income',account:accountId,amount:item.amount,currency,note:'ฝากเงินอัตโนมัติ',date:completedAt.toISOString()});const detail=`เข้า ${destination.entity.name} · ${targetWord} ${reference} · ${when.time} น.`;showDepositPopup({success:true,amountText,detail});sendSystemNotification('รายการเงินเข้า',`${amountText} เข้า${targetWord} ${reference} เมื่อ ${when.day} เวลา ${when.time} น.`);});
+  due.forEach(item=>{
+    const withdraw=item.kind==='withdraw';
+    const destination=getScheduleDestination(item); const completedAt=new Date(); const when=depositTimestamp(completedAt);
+    const fail=(detail,notice)=>{item.status='failed';item.completedAt=completedAt.toISOString();showDepositPopup({success:false,kind:item.kind,title:withdraw?'ถอนเงินอัตโนมัติไม่สำเร็จ':'ฝากเงินอัตโนมัติไม่สำเร็จ',detail});sendSystemNotification(withdraw?'รายการเงินออกไม่สำเร็จ':'รายการเงินเข้าไม่สำเร็จ',`${notice} เมื่อ ${when.day} เวลา ${when.time} น.`);};
+    if(!destination.entity){fail('ไม่พบ Pocket หรือกล่องที่เลือกไว้','ไม่พบบัญชีที่เลือกไว้');return;}
+    const currency=item.currency||destination.currency; const amountText=formatDepositAmount(item.amount,currency);
+    const reference=maskRef(destinationReference(destination)); const targetWord=destination.type==='goal'?'กล่อง':'บัญชี';
+    if(withdraw&&destination.entity.balance<item.amount){fail(`ยอดเงินใน ${destination.entity.name} ไม่เพียงพอ`,`ยอดเงินในบัญชี ${reference} ไม่เพียงพอ`);return;}
+    destination.entity.balance=Number((destination.entity.balance+(withdraw?-item.amount:item.amount)).toFixed(2));
+    item.status='done'; item.completedAt=completedAt.toISOString();
+    const accountId=destination.type==='goal'?`goal:${destination.id}`:destination.id;
+    state.transactions.push({id:crypto.randomUUID(),type:withdraw?'expense':'income',auto:withdraw?'withdraw':'deposit',account:accountId,amount:item.amount,currency,note:withdraw?'ถอนเงินอัตโนมัติ':'ฝากเงินอัตโนมัติ',date:completedAt.toISOString()});
+    const balanceText=formatDepositAmount(destination.entity.balance,currency);
+    if(withdraw){
+      showDepositPopup({success:true,kind:'withdraw',title:'รายการเงินออกอัตโนมัติสำเร็จ',amountText,detail:`ออกจาก${targetWord} ${reference} · ${when.time} น.`});
+      sendSystemNotification('รายการเงินออก',`${amountText} ออกจาก${targetWord} ${reference} เมื่อ ${when.day} ${when.time} น. คงเหลือ ${balanceText}`);
+    } else {
+      showDepositPopup({success:true,kind:'deposit',amountText,detail:`เข้า${targetWord} ${reference} · ${when.time} น.`});
+      sendSystemNotification('รายการเงินเข้า',`${amountText} เข้า${targetWord} ${reference} เมื่อ ${when.day} ${when.time} น. คงเหลือ ${balanceText}`);
+    }
+  });
   state.scheduledDeposits=(state.scheduledDeposits||[]).filter(item=>item.status!=='done');
   localStorage.setItem(STORAGE_KEY,JSON.stringify(state)); renderAll();
 }
@@ -1582,6 +1682,8 @@ document.addEventListener('click', event => {
   const debitColorButton=event.target.closest('[data-debit-color]'); if(debitColorButton){$('#debitColor').value=debitColorButton.dataset.debitColor;updateColorValue('debit');return;}
   const deleteGoalButton=event.target.closest('[data-delete-goal]'); if(deleteGoalButton){deleteGoal(deleteGoalButton.dataset.deleteGoal);return;}
   const deleteExternalBankButton=event.target.closest('[data-delete-external-bank]'); if(deleteExternalBankButton){deleteExternalBank(deleteExternalBankButton.dataset.deleteExternalBank);return;}
+  const historyMore=event.target.closest('[data-history-more]')?.dataset.historyMore; if(historyMore){if(historyMore==='all')historyLimit+=HISTORY_STEP*2;else accountHistoryLimit+=HISTORY_STEP*2;renderTransactions();updateBalanceVisibility();return;}
+  const scheduleKindButton=event.target.closest('[data-schedule-kind]'); if(scheduleKindButton){scheduleKind=scheduleKindButton.dataset.scheduleKind;updateScheduleKind();return;}
   const deleteScheduleButton=event.target.closest('[data-delete-schedule]'); if(deleteScheduleButton){deleteSchedule(deleteScheduleButton.dataset.deleteSchedule);return;}
   const bankTab=event.target.closest('[data-bank-tab]')?.dataset.bankTab; if(bankTab){switchBankTab(bankTab);return;}
   const bankOption=event.target.closest('[data-select-bank]'); if(bankOption){closeBankPicker();notify('เลือกธนาคารไทยพาณิชย์แล้ว');return;}
@@ -1603,7 +1705,7 @@ document.addEventListener('click', event => {
   const contactPlan=event.target.closest('[data-contact-plan]'); if(contactPlan){notify('ทัก DM มาคุยรายละเอียดได้เลย');return;}
   const planJump=event.target.closest('[data-plan-jump]'); if(planJump){jumpToPlan(planJump.dataset.planJump);return;}
   const nav=event.target.closest('[data-nav]')?.dataset.nav; if(nav) navigate(nav);
-  const filter=event.target.closest('[data-filter]')?.dataset.filter; if(filter){transactionFilter=filter;$$('[data-filter]').forEach(button=>button.classList.toggle('active',button.dataset.filter===filter));renderTransactions();updateBalanceVisibility();}
+  const filter=event.target.closest('[data-filter]')?.dataset.filter; if(filter){transactionFilter=filter;historyLimit=HISTORY_STEP;$$('[data-filter]').forEach(button=>button.classList.toggle('active',button.dataset.filter===filter));renderTransactions();updateBalanceVisibility();}
   const entry=event.target.closest('[data-entry-type]')?.dataset.entryType; if(entry){entryType=entry;updateEntryType();}
   const setting=event.target.closest('[data-setting]')?.dataset.setting; if(setting) handleSetting(setting);
   if(event.target.closest('[data-close]')) closeSheets();
@@ -1665,6 +1767,8 @@ $('#debitNumberInput').addEventListener('input',event=>{const digits=event.targe
 $('#cardEditForm').addEventListener('submit',handleCardEdit);
 $('#scheduleDestination').addEventListener('change',updateScheduleDestination);
 $('#scheduleForm').addEventListener('submit',handleScheduleSubmit);
+$('#importOldApp').addEventListener('click',()=>$('#importOldAppFile').click());
+$('#importOldAppFile').addEventListener('change',event=>{const file=event.target.files?.[0];event.target.value='';if(file)importOldApp(file);});
 $('#editName').addEventListener('click',()=>{const name=prompt('ชื่อที่ต้องการแสดง',state.profileName);if(name?.trim()){state.profileName=name.trim().slice(0,30);saveState('แก้ชื่อแล้ว');}});
 $('#clearAllBalances').addEventListener('click',requestClearAllBalances);
 $('#changePin').addEventListener('click',startPinChange);
