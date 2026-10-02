@@ -12,6 +12,7 @@
   <link rel="icon" type="image/svg+xml" href="./assets/mepocket.svg" />
   <link rel="apple-touch-icon" sizes="180x180" href="./assets/apple-touch-icon.png?v=2" />
   <script>/* theme before first paint: auto follows the phone, or the saved light/dark choice */(function(){var p='auto';try{p=localStorage.getItem('mepocket-theme')||'auto'}catch(e){}var d=p==='auto'?(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):p;var r=document.documentElement;r.setAttribute('data-theme',d);r.setAttribute('data-theme-pref',p);})();</script>
+  <script>/* portrait lock: a phone turned sideways gets the app turned back (see the end of styles.css); runs before first paint */(function(){var h=document.documentElement,mq=window.matchMedia&&matchMedia('(orientation:landscape) and (max-height:500px) and (pointer:coarse)');function angle(){var a=typeof window.orientation==='number'?window.orientation:(screen.orientation&&screen.orientation.angle)||0;return a===270?-90:a}function apply(){var on=!!(mq&&mq.matches),was=h.classList.contains('is-rotated'),app=document.getElementById('app');if(on===was&&(!on||h.classList.contains(angle()===-90?'rot-cw':'rot-ccw')))return;var y=was?(app?app.scrollTop:0):(window.scrollY||0);h.classList.toggle('is-rotated',on);h.classList.toggle('rot-cw',on&&angle()===-90);h.classList.toggle('rot-ccw',on&&angle()!==-90);if(app){if(on)app.scrollTop=y;else window.scrollTo(0,y)}}apply();if(mq)(mq.addEventListener?mq.addEventListener('change',apply):mq.addListener(apply));window.addEventListener('orientationchange',function(){setTimeout(apply,60)});window.addEventListener('resize',apply);document.addEventListener('DOMContentLoaded',apply)})();</script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&display=swap" />
   <link rel="stylesheet" href="./styles.css" />
@@ -20,12 +21,6 @@
   <link rel="manifest" href="./manifest.webmanifest" />
 </head>
 <body class="auth-locked" data-active-view="home">
-  <!-- phone turned sideways: MePocket is portrait-only, so cover the app and ask to turn back (iPhone web apps cannot lock rotation themselves) -->
-  <div class="rotate-lock" role="alert" aria-live="assertive">
-    <svg class="rotate-phone" viewBox="0 0 64 64" aria-hidden="true"><rect x="20" y="6" width="24" height="44" rx="5"/><path d="M29 44h6"/><path class="rotate-arrow" d="M50 30a20 20 0 0 1-12 22m0 0 5 1m-5-1 1-5"/></svg>
-    <b>หมุนโทรศัพท์เป็นแนวตั้ง</b>
-    <small>MePocket ใช้งานในแนวตั้งเท่านั้น</small>
-  </div>
   <svg class="icon-sprite" aria-hidden="true">
     <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 8 5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></symbol>
     <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></symbol>

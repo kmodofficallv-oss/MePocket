@@ -184,6 +184,12 @@ const seedState = {
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+/* portrait lock (see the end of styles.css): when the phone is sideways the whole app is turned back, so finger
+   positions and scrolling have to be read in the app's own up/down instead of the screen's */
+const appRotation = () => document.documentElement.classList.contains('rot-ccw') ? 'ccw' : document.documentElement.classList.contains('rot-cw') ? 'cw' : '';
+const appPoint = p => { const r = appRotation(); return r === 'ccw' ? { x: -p.clientY, y: p.clientX } : r === 'cw' ? { x: p.clientY, y: -p.clientX } : { x: p.clientX, y: p.clientY }; };
+const appScroller = () => appRotation() ? $('#app') : window;
+const appScrollTop = () => appRotation() ? $('#app').scrollTop : (document.scrollingElement?.scrollTop || window.scrollY || 0);
 const clone = value => JSON.parse(JSON.stringify(value));
 const esc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
 
@@ -632,11 +638,11 @@ function bindHomeAccountDeck() {
     idx = card ? Number(card.dataset.walletCard) : null;
     onPouch = !!event.target.closest('[data-wallet-pouch]');
     if (card) { card.classList.remove('is-poke'); void card.offsetWidth; card.classList.add('is-poke'); }
-    startY = event.clientY; lastDy = 0; moved = false; pid = event.pointerId;
+    startY = appPoint(event).y; lastDy = 0; moved = false; pid = event.pointerId;
   });
   box.addEventListener('pointermove', event => {
     if (event.pointerId !== pid) return;
-    const dy = event.clientY - startY; lastDy = dy;
+    const dy = appPoint(event).y - startY; lastDy = dy;
     if (!moved && Math.abs(dy) > 6) { moved = true; try { box.setPointerCapture(pid); } catch (e) {} }
     if (!moved || idx == null) return;
     event.preventDefault();
@@ -1072,7 +1078,7 @@ function navigate(view) {
   const navKey = view === 'plans' ? 'settings' : view;
   $$('#bottomNav [data-nav]').forEach(button => button.classList.toggle('active',button.dataset.nav === navKey));
   if (view === 'plans') openPlans();
-  window.scrollTo({top:0,behavior:'smooth'});
+  appScroller().scrollTo({top:0,behavior:'smooth'});
 }
 
 function openDetail(id) {
@@ -1083,11 +1089,11 @@ function openDetail(id) {
   $$('.view').forEach(element => element.classList.toggle('active',element.id === 'accountDetailView'));
   $('#bottomNav').classList.remove('hidden');
   $$('#bottomNav [data-nav]').forEach(button => button.classList.toggle('active',button.dataset.nav === 'accounts'));
-  renderDetail(); window.scrollTo({top:0,behavior:'smooth'});
+  renderDetail(); appScroller().scrollTo({top:0,behavior:'smooth'});
 }
 
 function openDebitCard() {
-  activeView='cardDetail'; syncViewChrome(activeView); $$('.view').forEach(element=>element.classList.toggle('active',element.id==='cardDetailView')); $('#bottomNav').classList.remove('hidden'); $$('#bottomNav [data-nav]').forEach(button=>button.classList.toggle('active',button.dataset.nav==='accounts')); renderDebitCard(); window.scrollTo({top:0,behavior:'smooth'});
+  activeView='cardDetail'; syncViewChrome(activeView); $$('.view').forEach(element=>element.classList.toggle('active',element.id==='cardDetailView')); $('#bottomNav').classList.remove('hidden'); $$('#bottomNav [data-nav]').forEach(button=>button.classList.toggle('active',button.dataset.nav==='accounts')); renderDebitCard(); appScroller().scrollTo({top:0,behavior:'smooth'});
 }
 
 function showSheet(id) { const sheet=$(id); sheet.classList.add('open'); sheet.setAttribute('aria-hidden','false'); document.body.style.overflow='hidden'; }
@@ -1818,14 +1824,14 @@ let viewportTouchStartX=0;
 let viewportTouchStartY=0;
 function rememberViewportTouch(event) {
   if(event.touches?.length!==1) return;
-  viewportTouchStartX=event.touches[0].clientX;
-  viewportTouchStartY=event.touches[0].clientY;
+  const point=appPoint(event.touches[0]); viewportTouchStartX=point.x; viewportTouchStartY=point.y;
 }
 function stopTopRubberBand(event) {
   if(event.touches?.length!==1||event.target.closest('#accountList,.sheet-panel,.transfer-screen,.transfer-flow-screen')) return;
-  const deltaX=event.touches[0].clientX-viewportTouchStartX;
-  const deltaY=event.touches[0].clientY-viewportTouchStartY;
-  const scrollTop=document.scrollingElement?.scrollTop||window.scrollY||0;
+  const point=appPoint(event.touches[0]);
+  const deltaX=point.x-viewportTouchStartX;
+  const deltaY=point.y-viewportTouchStartY;
+  const scrollTop=appScrollTop();
   if(scrollTop<=0&&deltaY>7&&Math.abs(deltaY)>Math.abs(deltaX)) event.preventDefault();
 }
 
@@ -1872,7 +1878,7 @@ document.addEventListener('click', event => { if (event.target.closest('[data-sh
   const kind = r => r.matches('.plan-hero > b') ? 'tk-star' : r.matches('.plan-features > h3') ? 'tk-h3' : '';
   const tickIn = (card, instant) => {
     const rows = [...card.querySelectorAll(ROWS)].filter(r => seen.has(r) && !r.classList.contains('tk'))
-      .sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
+      .sort((a, b) => { const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect(); return appPoint({ clientX: ra.left, clientY: ra.top }).y - appPoint({ clientX: rb.left, clientY: rb.top }).y; });
     rows.forEach((r, i) => {
       r.classList.remove('tk-out');
       r.style.setProperty('--d', (i * 85) + 'ms');
@@ -1948,7 +1954,7 @@ document.addEventListener('click', event => { if (event.target.closest('[data-sh
   const _sync = syncPlanTabs; syncPlanTabs = function(){ const r = _sync.apply(this, arguments); onView(); return r; };
   const _render = renderPlans; renderPlans = function(){ const r = _render.apply(this, arguments); observe(); onView(); return r; };
   const _open = openPlans; openPlans = function(){ activeId = null; activeEl = null; instantId = null; played.clear(); return _open.apply(this, arguments); };
-  let sf = 0; window.addEventListener('scroll', () => { cancelAnimationFrame(sf); sf = requestAnimationFrame(() => { if (activeEl) tickIn(activeEl, activeId === instantId); }); }, {passive:true});
+  let sf = 0; document.addEventListener('scroll', () => { cancelAnimationFrame(sf); sf = requestAnimationFrame(() => { if (activeEl) tickIn(activeEl, activeId === instantId); }); }, {passive:true, capture:true});   // capture: also hears #app scrolling when the phone is sideways
   observe(); onView();
 })();
 

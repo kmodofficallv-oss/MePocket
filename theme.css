@@ -12,7 +12,7 @@ html[data-theme="dark"] { color-scheme: dark; --page-d: #121315; --surface-d: #1
 html[data-theme="dark"] .theme-seg { background: #26282c; }
 html[data-theme="dark"] .theme-seg button { color: #a3a7ab; }
 html[data-theme="dark"] .theme-seg button.active { background: #eff0f1; color: #17181b; }
-@media (max-width:380px) { .theme-row { flex-wrap: wrap; } .theme-seg { width: 100%; } .theme-seg button { flex: 1; } }
+@media (max-width:380px), (orientation:landscape) and (max-height:500px) and (pointer:coarse) and (max-height:380px) { .theme-row { flex-wrap: wrap; } .theme-seg { width: 100%; } .theme-seg button { flex: 1; } }
 
 /* ================= LIGHT: the black hero areas turn light ================= */
 html[data-theme="light"] .home-dark,
@@ -392,7 +392,7 @@ html[data-theme="dark"] .qr-sheet { background: rgba(0,0,0,.65); }
 /* ================= glow backgrounds ================= */
 /* plans: a soft backlight behind the card in view, in that plan's colour (app.js sets --glow and --glow-y) */
 .plans-view { position: relative; isolation: isolate; --glow: #7ee0cb; transition: --glow .6s ease; }
-.plans-view::before { content: ""; position: absolute; left: 50%; top: calc(var(--glow-y, 200px) - 70px); z-index: -1; width: min(460px, 118vw); height: 780px; transform: translateX(-50%); pointer-events: none;
+.plans-view::before { content: ""; position: absolute; left: 50%; top: calc(var(--glow-y, 200px) - 70px); z-index: -1; width: min(460px, calc(118 * var(--app-vw, 1vw))); height: 780px; transform: translateX(-50%); pointer-events: none;
   background: radial-gradient(closest-side, color-mix(in srgb, var(--glow) 28%, transparent), color-mix(in srgb, var(--glow) 11%, transparent) 60%, transparent); filter: blur(24px); }
 html[data-theme="light"] .plans-view::before { background: radial-gradient(closest-side, color-mix(in srgb, var(--glow) 22%, transparent), color-mix(in srgb, var(--glow) 8%, transparent) 60%, transparent); }
 /* dark mode: a faint mint light at the top of every plain page so the black isn't flat */
