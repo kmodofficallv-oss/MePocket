@@ -489,7 +489,8 @@ function walletHTML() {
     ${cards}${pleats}
     <div class="wallet-pouch" data-wallet-pouch>${WALLET_LEATHER}<button type="button" class="wallet-hit" data-wallet-toggle aria-label="เปิดกระเป๋า"></button></div>`;
 }
-const walletTf = (a, d, r, s, x = 0) => `perspective(${WALLET.persp}px) rotateX(${a}deg) translateY(${d}px) translateX(${x}px) rotate(${r}deg) scale(${s})`;
+// y = where the piece sits (used to be `top`); moving it in transform keeps every frame on the GPU
+const walletTf = (a, d, r, s, x = 0, y = 0) => `translate3d(0,${y}px,0) perspective(${WALLET.persp}px) rotateX(${a}deg) translateY(${d}px) translateX(${x}px) rotate(${r}deg) scale(${s})`;
 // cards behind the front one sit a little askew, alternating left / right, like real cards in a wallet
 const walletSkew = depth => depth === 0 ? [0, 0] : depth % 2 ? [-9, -1.4] : [8, 1.2];
 function walletGeom(n) {
@@ -510,7 +511,7 @@ function layoutWallet() {
   const w = walletState, g = walletGeom(n), active = homeDeckIndex, open = w.open;
   if (w.shown != null && w.shown >= n) w.shown = null;
   box.classList.toggle('is-open', open); box.classList.toggle('is-peek', w.peek); box.classList.toggle('is-dragging', w.dragIdx != null); box.classList.toggle('has-shown', open && w.shown != null); box.classList.toggle('is-lifting', (w.dragIdx != null && w.drag < -8) || w.leaving > 0);
-  box.style.height = (open ? (w.shown != null ? g.frontTop() + WALLET.cardH + 18 : WALLET.openArea) : WALLET.closedArea) + 'px';
+  setWalletHeight(box, open ? (w.shown != null ? g.frontTop() + WALLET.cardH + 18 : WALLET.openArea) : WALLET.closedArea);
   $$('.wallet-card', box).forEach(card => {
     const i = Number(card.dataset.walletCard), dragging = w.dragIdx === i;
     let top, ang = 0, d = 0, r = 0, s = 1, z, op = 1, shade = 1, glow = false, x = 0;
@@ -535,8 +536,8 @@ function layoutWallet() {
       const k = g.slotOf(i, active);
       top = g.baseY(k) - WALLET.cardH; ang = g.ang(k); z = 2 + 2 * k; d = dragging ? w.drag : 0; shade = .8 + .2 * (k / Math.max(1, n - 1));
     }
-    card.style.top = top + 'px'; card.style.zIndex = z; card.style.opacity = op;
-    card.style.transform = walletTf(ang, d, r, s, x); card.style.filter = `brightness(${shade})`;
+    card.style.zIndex = z; card.style.opacity = op;
+    card.style.transform = walletTf(ang, d, r, s, x, top); card.style.setProperty('--wc-shade', (1 - shade).toFixed(3));   // darkening layer instead of filter: brightness()
     card.classList.toggle('is-shown', glow); card.classList.toggle('is-dragged', dragging);
     const account = state.accounts[i], hit = $('.wallet-hit', card);
     const front = !open && (i - active + n) % n === 0;
@@ -546,13 +547,12 @@ function layoutWallet() {
   });
   $$('.wallet-pleat', box).forEach(pleat => {
     const k = Number(pleat.dataset.walletSlot);
-    if (open) { pleat.style.top = (g.baseY(k) + 8 - WALLET.pleatH) + 'px'; pleat.style.zIndex = 3 + 2 * k; pleat.style.opacity = 1; pleat.style.transform = walletTf(g.ang(k), 0, 0, 1); }
-    else { pleat.style.top = (WALLET.caseTop + 6) + 'px'; pleat.style.zIndex = 11; pleat.style.opacity = 0; pleat.style.transform = walletTf(0, 0, 0, 1); }
+    if (open) { pleat.style.zIndex = 3 + 2 * k; pleat.style.opacity = 1; pleat.style.transform = walletTf(g.ang(k), 0, 0, 1, 0, g.baseY(k) + 8 - WALLET.pleatH); }
+    else { pleat.style.zIndex = 11; pleat.style.opacity = 0; pleat.style.transform = walletTf(0, 0, 0, 1, 0, WALLET.caseTop + 6); }
   });
   const pouch = $('.wallet-pouch', box), last = g.baseY(n - 1);
-  pouch.style.top = (open ? last + 10 - 132 : WALLET.caseTop) + 'px';
-  pouch.style.height = (open ? 142 : WALLET.caseH) + 'px';   // a little deeper than the front card so nothing shows under it
-  pouch.style.transform = walletTf(open ? g.ang(n - 1) : 0, 0, 0, 1);
+    pouch.style.height = (open ? 142 : WALLET.caseH) + 'px';   // a little deeper than the front card so nothing shows under it
+  pouch.style.transform = walletTf(open ? g.ang(n - 1) : 0, 0, 0, 1, 0, open ? last + 10 - 132 : WALLET.caseTop);
   $('.wallet-hit', pouch).setAttribute('aria-label', open ? 'ปิดกระเป๋า' : 'เปิดกระเป๋า');
   const eye = $('.wallet-eye', box);
   eye.setAttribute('aria-pressed', String(w.peek));
@@ -561,6 +561,32 @@ function layoutWallet() {
   hint.textContent = !open ? 'ปัดขึ้น–ลงเพื่อสลับการ์ด · แตะกระเป๋าเพื่อเปิด' : w.shown != null ? 'แตะการ์ดเพื่อเข้าบัญชี · ดันขึ้นเพื่อเก็บเข้าช่อง' : 'ลากการ์ดใบไหนก็ได้ขึ้นมาเพื่อดู';
   hint.classList.toggle('is-on', w.hintOn && w.dragIdx == null);
   updateBalanceVisibility();
+}
+/* the wallet grows/shrinks when it opens. Animating its height re-lays-out and repaints the whole page every frame
+   (the main cause of the lag on phones), so the height changes in one step and the content below slides on the GPU
+   (CSS translate) from where it was to where it ends up. When shrinking, the height waits until the slide is done so the
+   sections below are never clipped. */
+const walletSlide = { h: null, timer: 0, els: [] };
+function walletFollowers(box) {
+  const list = [], stop = box.closest('.view');
+  for (let el = box; el && el !== stop; el = el.parentElement) for (let next = el.nextElementSibling; next; next = next.nextElementSibling) list.push(next);
+  return list;
+}
+function setWalletHeight(box, h) {
+  const st = walletSlide;
+  if (st.h === h) return;
+  clearTimeout(st.timer);
+  const release = els => { els.forEach(el => { el.style.transition = 'none'; el.style.translate = ''; }); requestAnimationFrame(() => els.forEach(el => { el.style.transition = ''; })); };
+  release(st.els); st.els = [];
+  const from = st.h; st.h = h;
+  if (from == null || !box.offsetParent || matchMedia('(prefers-reduced-motion: reduce)').matches) { box.style.height = h + 'px'; return; }
+  const els = walletFollowers(box), delta = h - from;
+  box.style.height = (delta > 0 ? h : from) + 'px';
+  if (delta > 0) els.forEach(el => { el.style.transition = 'none'; el.style.translate = `0 ${-delta}px`; });
+  void box.offsetHeight;
+  els.forEach(el => { el.style.transition = 'translate .55s cubic-bezier(.2,.9,.25,1)'; el.style.translate = delta > 0 ? '0 0' : `0 ${delta}px`; });
+  st.els = els;
+  st.timer = setTimeout(() => { box.style.height = h + 'px'; release(els); st.els = []; }, 560);
 }
 function setWalletOpen(open) {
   const w = walletState;
@@ -597,7 +623,7 @@ function bindHomeAccountDeck() {
   if (!box || box.dataset.deckBound === 'true') return;
   box.dataset.deckBound = 'true';
   const w = walletState;
-  let startY = 0, lastDy = 0, moved = false, pid = null, idx = null, onPouch = false;
+  let startY = 0, lastDy = 0, moved = false, pid = null, idx = null, onPouch = false, dragFrame = 0;
   const tick = () => { w.hintOn = !w.hintOn; $('.wallet-hint', box)?.classList.toggle('is-on', w.hintOn && w.dragIdx == null); setTimeout(tick, w.hintOn ? 5000 : 4000); };
   setTimeout(tick, 5000);                               // hint: 5 s on, 4 s off, forever
   box.addEventListener('pointerdown', event => {
@@ -618,11 +644,12 @@ function bindHomeAccountDeck() {
     if (!w.open) { if (idx !== homeDeckIndex) return; w.drag = dy < 0 ? Math.max(-120, dy) : Math.min(WALLET.sink, dy * .45); }
     else if (w.shown === idx) w.drag = Math.max(g.clearTop(g.slotOf(idx, homeDeckIndex)) - 30 - g.frontTop(), Math.min(90, dy));   // lift it back over its pocket, or flick it down
     else w.drag = Math.max(-280, Math.min(4, dy * .25));   // a card in its pocket can't be pushed through the bottom of the pouch
-    w.dragIdx = idx; layoutWallet();
+    w.dragIdx = idx;
+    if (!dragFrame) dragFrame = requestAnimationFrame(() => { dragFrame = 0; layoutWallet(); });   // one update per screen frame
   });
   const finish = event => {
     if (event.pointerId !== pid) return;
-    pid = null;
+    pid = null; cancelAnimationFrame(dragFrame); dragFrame = 0;
     try { box.releasePointerCapture(event.pointerId); } catch (e) {}
     if (!moved) return;
     homeDeckSuppressClick = true; setTimeout(() => { homeDeckSuppressClick = false; }, 0);

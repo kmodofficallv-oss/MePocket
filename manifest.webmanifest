@@ -3,6 +3,7 @@
   "short_name": "MePocket",
   "start_url": "./",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#17181b",
   "theme_color": "#17181b",
   "lang": "th",

@@ -20,6 +20,12 @@
   <link rel="manifest" href="./manifest.webmanifest" />
 </head>
 <body class="auth-locked" data-active-view="home">
+  <!-- phone turned sideways: MePocket is portrait-only, so cover the app and ask to turn back (iPhone web apps cannot lock rotation themselves) -->
+  <div class="rotate-lock" role="alert" aria-live="assertive">
+    <svg class="rotate-phone" viewBox="0 0 64 64" aria-hidden="true"><rect x="20" y="6" width="24" height="44" rx="5"/><path d="M29 44h6"/><path class="rotate-arrow" d="M50 30a20 20 0 0 1-12 22m0 0 5 1m-5-1 1-5"/></svg>
+    <b>หมุนโทรศัพท์เป็นแนวตั้ง</b>
+    <small>MePocket ใช้งานในแนวตั้งเท่านั้น</small>
+  </div>
   <svg class="icon-sprite" aria-hidden="true">
     <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 8 5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></symbol>
     <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></symbol>
