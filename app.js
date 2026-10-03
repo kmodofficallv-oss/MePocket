@@ -243,6 +243,61 @@ function saveState(message) {
   if (message && state.settings.notifications) notify(message);
 }
 
+/* ---------- Pocket Cashflow: one card, the money sits in two places ----------
+   cashBalance = cash on hand, bankBalance = money in the real bank account.
+   The card total is never edited by itself: every change goes through cfApply(), which updates the two parts and
+   re-derives balance = cash + bank (and loading the app re-derives it again), so the total can never drift.
+   All maths is done in satang (whole numbers) so decimals never round wrong. */
+function isCashflow(account) { return Boolean(account) && account.kind === 'cashflow'; }
+function toSatang(n) { return Math.round((Number(n) || 0) * 100); }
+function fromSatang(s) { return s / 100; }
+function roundMoney(n) { return fromSatang(toSatang(n)); }
+function addMoney(a, b) { return fromSatang(toSatang(a) + toSatang(b)); }
+function cfTotal(account) { return addMoney(account.cashBalance, account.bankBalance); }
+function cfPlaceName(place) { return place === 'cash' ? 'เงินสดในมือ' : 'บัญชีธนาคาร'; }
+function cfPart(account, place) { return place === 'cash' ? account.cashBalance : account.bankBalance; }
+// what can leave this Pocket from the chosen place (the whole balance for ordinary Pockets)
+function availableIn(account, place) { return isCashflow(account) ? cfPart(account, place) : account.balance; }
+function cfApply(account, cashDelta, bankDelta) {
+  const before = { cash: account.cashBalance, bank: account.bankBalance, total: account.balance };
+  account.cashBalance = addMoney(account.cashBalance, cashDelta);
+  account.bankBalance = addMoney(account.bankBalance, bankDelta);
+  account.balance = cfTotal(account);
+  return { cashDelta: roundMoney(cashDelta), bankDelta: roundMoney(bankDelta), totalDelta: addMoney(cashDelta, bankDelta),
+    previousCashBalance: before.cash, newCashBalance: account.cashBalance, previousBankBalance: before.bank, newBankBalance: account.bankBalance };
+}
+// add (or take, with a negative amount) money to any Pocket; for Pocket Cashflow the place says cash or bank
+function pocketAdd(account, amount, place = 'bank') {
+  if (isCashflow(account)) return place === 'cash' ? cfApply(account, amount, 0) : cfApply(account, 0, amount);
+  account.balance = addMoney(account.balance, amount);
+  return {};
+}
+// one-time move of the old “รายวัน” card into Pocket Cashflow (history is kept; the gap becomes a cash count record)
+const CASHFLOW_START = { cash: 5000, bank: 9271.19 };
+function migrateCashflow() {
+  state.migrations = Array.isArray(state.migrations) ? state.migrations : [];
+  state.accounts.forEach(account => { if (isCashflow(account)) { account.cashBalance = roundMoney(account.cashBalance); account.bankBalance = roundMoney(account.bankBalance); account.balance = cfTotal(account); } });
+  if (state.migrations.includes('cashflow-v1')) return;
+  let card = state.accounts.find(isCashflow) || state.accounts.find(account => account.name === 'รายวัน') || state.accounts.find(account => account.name === 'Pocket Cashflow');
+  const now = new Date().toISOString();
+  if (!card) {
+    if (state.accounts.length >= MAX_POCKETS) return;          // no room for the card: try again once a slot is free
+    const color = '#4f8cff', suffix = String(Date.now()).slice(-7);
+    card = { id: `account-${Date.now()}`, kind: 'cashflow', name: 'Pocket Cashflow', currency: 'THB', flagCode: 'th', showFlag: true, badge: CURRENCIES.THB.badge, badgeColor: color, accountNo: `206-${suffix}`, cashBalance: 0, bankBalance: 0, balance: 0, gradient: accountGradient(color), tag: mixHex(color, '#ffffff', .78), country: FLAGS.th, rateText: `บัญชีสกุลเงิน${CURRENCIES.THB.name}` };
+    state.accounts.push(card);
+    state.transactions.push({ id: crypto.randomUUID(), type: 'bank_reconciliation', account: card.id, amount: CASHFLOW_START.bank, currency: 'THB', source: 'bank', note: 'ยกยอดเข้า Pocket Cashflow (ตรวจยอดธนาคาร)', date: now, ...cfApply(card, 0, CASHFLOW_START.bank) });
+  }
+  if (!isCashflow(card)) {
+    const oldTotal = roundMoney(card.balance);
+    Object.assign(card, { kind: 'cashflow', name: 'Pocket Cashflow', bankBalance: CASHFLOW_START.bank, cashBalance: addMoney(oldTotal, -CASHFLOW_START.bank) });
+    card.balance = cfTotal(card);
+  }
+  const diff = addMoney(CASHFLOW_START.cash, -card.cashBalance);
+  if (diff) state.transactions.push({ id: crypto.randomUUID(), type: 'cash_reconciliation', account: card.id, amount: Math.abs(diff), currency: 'THB', source: 'cash', note: 'ยกยอดเข้า Pocket Cashflow (ตรวจนับเงินสด)', date: now, ...cfApply(card, diff, 0) });
+  state.migrations.push('cashflow-v1');
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
 const accountById = id => state.accounts.find(account => account.id === id);
 const goalById = id => state.goals.find(goal => goal.id === id);
 const externalBankById = id => state.externalBanks.find(bank => bank.id === id);
@@ -372,6 +427,7 @@ function icon(name, className = 'icon') { return `<svg class="${className}" aria
 function flagClass(account) { return `flag-${account.flagCode || CURRENCIES[account.currency]?.flag || 'us'}`; }
 const showsFlag = account => account.showFlag !== false;
 function accountDescription(account) {
+  if (isCashflow(account)) return 'เงินหมุนเวียนหลัก';
   if (account.currency === 'THB') return 'บัญชีออมทรัพย์ประเทศไทย';
   if (account.id === 'fcd') return 'บัญชีออมเงินสกุลดอลลาร์สหรัฐ';
   return `บัญชีเงินฝากสกุล${CURRENCIES[account.currency]?.name || account.currency}`;
@@ -761,8 +817,21 @@ function transactionHTML(tx, scopeAccountId = null) {
     const from = accountById(tx.from);
     title = `${from?.name || 'บัญชี'} → ${entityName(tx.toType, tx.to)}`;
     subtitle ||= 'โอนเงิน';
+    if (tx.sourcePlace) subtitle += ` · จาก${cfPlaceName(tx.sourcePlace)}`;
+    if (tx.destinationPlace) subtitle += ` · เข้า${cfPlaceName(tx.destinationPlace)}`;
     if (scopeAccountId && tx.toType === 'account' && tx.to === scopeAccountId) { amount = `+${formatAmount(tx.received,tx.receivedCurrency)}`; className='positive'; }
     else { amount = `−${formatAmount(tx.amount,tx.currency)}`; className='negative'; }
+  } else if (tx.type === 'internal_transfer') {
+    // cash ↔ bank inside Pocket Cashflow: the money only changes place, so no + or −
+    iconName = 'exchange'; title = tx.source === 'cash' ? 'ฝากเงินสดเข้าธนาคาร' : 'ถอนเงินเป็นเงินสด';
+    subtitle = `${tx.note ? tx.note + ' · ' : ''}ยอดรวมไม่เปลี่ยน`;
+    amount = formatAmount(tx.amount, tx.currency); className = '';
+  } else if (tx.type === 'cash_reconciliation' || tx.type === 'bank_reconciliation' || tx.type === 'correction') {
+    iconName = 'check';
+    title = tx.type === 'cash_reconciliation' ? 'ปรับยอดจากการตรวจนับเงินสด' : tx.type === 'bank_reconciliation' ? 'ปรับยอดจากการตรวจยอดธนาคาร' : 'รายการแก้ไข';
+    subtitle = `${tx.note ? tx.note + ' · ' : ''}${accountById(tx.account)?.name || 'บัญชี'}`;
+    const delta = Number(tx.totalDelta ?? tx.amount);
+    amount = `${delta >= 0 ? '+' : '−'}${formatAmount(Math.abs(delta), tx.currency)}`; className = delta >= 0 ? 'positive' : 'negative';
   } else if (tx.type === 'adjust') {
     iconName = 'refresh'; title = tx.note || 'ปรับยอด';
     const goalId=String(tx.account||'').startsWith('goal:')?String(tx.account).slice(5):'';
@@ -775,19 +844,25 @@ function transactionHTML(tx, scopeAccountId = null) {
     const goalId=String(tx.account||'').startsWith('goal:')?String(tx.account).slice(5):'';
     const placeName = accountById(tx.account)?.name || goalById(goalId)?.name || 'บัญชี';
     const autoLabel = tx.auto==='withdraw' ? 'ถอนเงินอัตโนมัติ' : tx.auto==='deposit' ? 'ฝากเงินอัตโนมัติ' : '';
-    subtitle = autoLabel && tx.note!==autoLabel ? `${autoLabel} · ${placeName}` : placeName;
+    const cfWhere = tx.place ? ` · ${cfPlaceName(tx.place)}` : '';
+    subtitle = (autoLabel && tx.note!==autoLabel ? `${autoLabel} · ${placeName}` : placeName) + cfWhere;
     amount = `${tx.type === 'income' ? '+' : '−'}${formatAmount(tx.amount,tx.currency)}`;
     className = tx.type === 'income' ? 'positive' : 'negative';
   }
   return `<article class="transaction"><span class="tx-icon">${icon(iconName)}</span><span class="tx-copy"><b>${esc(title)}</b><small>${esc(subtitle)} · ${formatTime(tx.date)}</small></span><span class="tx-money"><b class="${className} balance-value">${amount}</b><small>${tx.type === 'transfer' && tx.receivedCurrency !== tx.currency ? `ได้ ${formatAmount(tx.received,tx.receivedCurrency)}` : ''}</small></span></article>`;
 }
 
+function txGroup(tx) {
+  if (tx.type === 'transfer' || tx.type === 'internal_transfer') return 'transfer';
+  if (tx.type === 'adjust' || tx.type === 'cash_reconciliation' || tx.type === 'bank_reconciliation' || tx.type === 'correction') return 'adjust';
+  return tx.type;
+}
 function relatedToAccount(tx, id) { return tx.account === id || tx.from === id || (tx.toType === 'account' && tx.to === id); }
 
 function renderTransactions() {
   const sorted = [...state.transactions].sort((a,b) => new Date(b.date) - new Date(a.date));
   $('#recentList').innerHTML = sorted.length ? sorted.slice(0,3).map(tx => transactionHTML(tx)).join('') : '<p class="empty">ยังไม่มีรายการ</p>';
-  const filtered = transactionFilter === 'all' ? sorted : sorted.filter(tx => tx.type === transactionFilter);
+  const filtered = transactionFilter === 'all' ? sorted : sorted.filter(tx => txGroup(tx) === transactionFilter);
   const moreButton = (list, limit, target) => list.length > limit ? `<button type="button" class="history-more" data-history-more="${target}">แสดงเพิ่มเติม (${(list.length-limit).toLocaleString('th-TH')})</button>` : '';
   $('#allTransactions').innerHTML = filtered.length ? filtered.slice(0,historyLimit).map(tx => transactionHTML(tx)).join('') + moreButton(filtered,historyLimit,'all') : '<p class="empty">ไม่พบรายการประเภทนี้</p>';
   const accountItems = sorted.filter(tx => relatedToAccount(tx, selectedAccountId));
@@ -797,7 +872,13 @@ function renderTransactions() {
 function accountCardHTML(account) {
   const equivalent = account.currency !== 'THB' ? `<small class="balance-value">≈ ${formatAmount(account.balance*rateOf(account.currency),'THB')}</small>` : '';
   const separated = account.id==='thb' ? formatAmount(state.goals.reduce((sum,goal)=>sum+goal.balance,0),'THB') : formatAmount(account.balance*.15,account.currency);
+  if (isCashflow(account)) return cashflowHeroHTML(account);
   return `<section class="account-hero flow-card" style="--wc-grad:${walletCardColors(account).grad}" aria-label="บัญชี ${esc(account.name)}">${FLOW_SHAPES}<div class="hero-head"><div class="hero-brand">${showsFlag(account)?flagHTML(account):''}<div><h2>${esc(account.name)}</h2><p>${esc(accountDescription(account))}</p></div></div><button type="button" class="account-number" data-copy-account="${esc(account.accountNo)}" aria-label="คัดลอกเลขบัญชี ${esc(account.accountNo)}">${esc(account.accountNo)} ${icon('copy','icon icon-inline')}</button></div><div class="hero-balance"><span>ยอดเงินที่ใช้ได้ ${icon('info','icon icon-inline')}</span><strong class="balance-value">${formatAmount(account.balance,account.currency)}</strong>${equivalent}</div><div class="hero-split"><div><span>ยอดเงินที่แยกเก็บได้ ${icon('info','icon icon-inline')}</span><b class="balance-value">${separated}</b></div><button class="book-button">${icon('book','icon icon-inline')} สมุดบัญชี ${icon('chevron-right','icon icon-inline')}</button></div></section>`;
+}
+
+// same hero card as the other Pockets; the lower strip shows where the money is instead of “แยกเก็บ”
+function cashflowHeroHTML(account) {
+  return `<section class="account-hero flow-card" style="--wc-grad:${walletCardColors(account).grad}" aria-label="บัญชี ${esc(account.name)}">${FLOW_SHAPES}<div class="hero-head"><div class="hero-brand">${showsFlag(account)?flagHTML(account):''}<div><h2>${esc(account.name)}</h2><p>${esc(accountDescription(account))}</p></div></div><button type="button" class="account-number" data-copy-account="${esc(account.accountNo)}" aria-label="คัดลอกเลขบัญชี ${esc(account.accountNo)}">${esc(account.accountNo)} ${icon('copy','icon icon-inline')}</button></div><div class="hero-balance"><span>ยอดรวม</span><strong class="balance-value">${formatAmount(account.balance,'THB')}</strong></div><div class="hero-split cf-split"><div><span>เงินสดในมือ</span><b class="balance-value">${formatAmount(account.cashBalance,'THB')}</b></div><div><span>บัญชีธนาคาร</span><b class="balance-value">${formatAmount(account.bankBalance,'THB')}</b></div></div></section>`;
 }
 
 function renderDetail() {
@@ -813,7 +894,10 @@ function updateDetailMeta() {
   $('#detailUpdated').textContent = formatTime();
   $('#detailInterest').textContent = formatAmount(account.balance * .00008,account.currency);
   $('#accountTransactionTitle').textContent = `รายการเดินบัญชี ${account.name}`;
-  const actions = account.currency === 'THB'
+  const detailInterest = $('.detail-interest'); if (detailInterest) detailInterest.hidden = isCashflow(account);
+  const actions = isCashflow(account)
+    ? [['cf-receive','deposit','รับเงิน'],['cf-pay','withdraw','จ่ายเงิน'],['cf-move','exchange','ย้ายเงิน'],['cf-check','check','ตรวจยอด']]
+    : account.currency === 'THB'
     ? [['transfer','transfer','โอนเงิน'],['income','deposit','ฝากเงิน'],['expense','withdraw','รายจ่าย'],['scan','scan','สแกน']]
     : [['exchange-in','deposit','แลกเงินเข้า'],['exchange-out','withdraw','แลกเงินออก'],['income','plus','เพิ่มเงิน'],['scan','scan','สแกน']];
   $('#accountActions').innerHTML = actions.map(([action,iconName,label]) => `<button data-action="${action}" data-account-source="${account.id}"><span>${icon(iconName)}</span><b>${label}</b></button>`).join('');
@@ -949,7 +1033,7 @@ function renderSchedules() {
   const schedules=[...(state.scheduledDeposits||[])].filter(item=>item.status!=='done').sort((a,b)=>new Date(a.runAt)-new Date(b.runAt));
   list.innerHTML=schedules.length?schedules.map(item=>{const destination=getScheduleDestination(item);const label=item.status==='done'?'ดำเนินการแล้ว':item.status==='failed'?'ไม่สำเร็จ':'รอดำเนินการ';return `<article class="schedule-item ${esc(item.status)}"><span class="schedule-icon">${icon('calendar')}</span><span><b>${item.kind==='withdraw'?'ถอนจาก':'ฝากเข้า'} ${esc(destination.entity?.name||'กล่องที่ถูกลบ')}</b><small>${formatTime(item.runAt)} · ${item.kind==='withdraw'?'−':'+'}${formatAmount(item.amount,item.currency||destination.currency,true)}</small><em>${label}</em></span><button data-delete-schedule="${esc(item.id)}" aria-label="ลบรายการตั้งเวลา">${icon('trash')}</button></article>`;}).join(''):'<p class="schedule-empty">ยังไม่มีรายการฝากหรือถอนอัตโนมัติ</p>';
   const select=$('#scheduleDestination');
-  if(select){const previous=select.value;select.innerHTML=`<optgroup label="เงินของฉัน">${state.accounts.map(account=>`<option value="account:${esc(account.id)}">${account.flag} ${esc(account.name)} · ${esc(account.currency)}</option>`).join('')}</optgroup>${state.goals.length?`<optgroup label="กล่องเป้าหมาย">${state.goals.map(goal=>`<option value="goal:${esc(goal.id)}">◎ ${esc(goal.name)} · THB</option>`).join('')}</optgroup>`:''}`;if([...select.options].some(option=>option.value===previous))select.value=previous;updateScheduleDestination();}
+  if(select){const previous=select.value;select.innerHTML=`<optgroup label="เงินของฉัน">${state.accounts.map(account=>`<option value="account:${esc(account.id)}">${account.flag||""} ${esc(account.name)} · ${esc(account.currency)}</option>`).join('')}</optgroup>${state.goals.length?`<optgroup label="กล่องเป้าหมาย">${state.goals.map(goal=>`<option value="goal:${esc(goal.id)}">◎ ${esc(goal.name)} · THB</option>`).join('')}</optgroup>`:''}`;if([...select.options].some(option=>option.value===previous))select.value=previous;updateScheduleDestination();}
 }
 
 function getScheduleDestination(value) {
@@ -964,6 +1048,7 @@ function updateScheduleDestination() {
   const destination=getScheduleDestination($('#scheduleDestination')?.value||'');
   $('#scheduleCurrency').textContent=destination.currency;
   const name=destination.entity?.name||(destination.type==='goal'?'กล่องเป้าหมาย':'Pocket');
+  setCfPlace('#schedulePlace',destination.type==='account'&&isCashflow(destination.entity),null,scheduleKind==='withdraw'?'ถอนจาก':'เข้าที่');
   $('#scheduleDestinationNote').textContent=scheduleKind==='withdraw'?`หักเงินออกจาก “${name}” เมื่อถึงเวลา`:destination.type==='goal'?`บันทึกเงินเข้า “${name}” โดยตรง`:`บันทึกเป็นเงินเข้าใน “${name}”`;
 }
 
@@ -1100,8 +1185,8 @@ function showSheet(id) { const sheet=$(id); sheet.classList.add('open'); sheet.s
 function closeSheets() { $$('.sheet.open').forEach(sheet => {sheet.classList.remove('open');sheet.setAttribute('aria-hidden','true');}); document.body.style.overflow=''; $$('.form-error').forEach(error=>error.textContent=''); resetTransferPin(); }
 
 function fillSelects() {
-  const accountOptions = state.accounts.map(account => `<option value="${esc(account.id)}">${account.flag} ${esc(account.name)} · ${formatAmount(account.balance,account.currency,true)}</option>`).join('');
-  const destinations = state.accounts.map(account => `<option value="account:${esc(account.id)}">${account.flag} ${esc(account.name)}</option>`).join('') + state.goals.map(goal => `<option value="goal:${esc(goal.id)}">◎ กล่อง: ${esc(goal.name)}</option>`).join('');
+  const accountOptions = state.accounts.map(account => `<option value="${esc(account.id)}">${account.flag||""} ${esc(account.name)} · ${formatAmount(account.balance,account.currency,true)}</option>`).join('');
+  const destinations = state.accounts.map(account => `<option value="account:${esc(account.id)}">${account.flag||""} ${esc(account.name)}</option>`).join('') + state.goals.map(goal => `<option value="goal:${esc(goal.id)}">◎ กล่อง: ${esc(goal.name)}</option>`).join('');
   const from=$('#transferFrom'), to=$('#transferTo'), entry=$('#entryAccount');
   const fromValue=from.value, toValue=to.value, entryValue=entry.value;
   from.innerHTML=accountOptions; to.innerHTML=destinations; entry.innerHTML=accountOptions;
@@ -1109,7 +1194,7 @@ function fillSelects() {
   if([...to.options].some(option=>option.value===toValue)) to.value=toValue;
   if(accountById(entryValue)) entry.value=entryValue;
   const bankFrom=$('#bankTransferFrom');
-  if(bankFrom){const bankValue=bankFrom.value;bankFrom.innerHTML=state.accounts.map(account=>`<option value="${esc(account.id)}">${account.flag} ${esc(account.name)} · ${esc(account.currency)}</option>`).join('');if(accountById(bankValue))bankFrom.value=bankValue;updateBankTransferSource();}
+  if(bankFrom){const bankValue=bankFrom.value;bankFrom.innerHTML=state.accounts.map(account=>`<option value="${esc(account.id)}">${account.flag||""} ${esc(account.name)} · ${esc(account.currency)}</option>`).join('');if(accountById(bankValue))bankFrom.value=bankValue;updateBankTransferSource();}
   ensureDifferentDestination(); updateTransferPreview(); updateEntryCurrency();
 }
 
@@ -1145,6 +1230,7 @@ function updateTransferPreview() {
   $('#transferCurrency').textContent=from.currency;
   const received=amount*rateOf(from.currency)/rateOf(destination.currency);
   $('#conversionNote').textContent=`ปลายทางจะได้รับประมาณ ${formatAmount(received,destination.currency,true)} · อัตราตัวอย่าง 1 USD = 35.20 THB`;
+  setCfPlace('#transferFromPlace',isCashflow(from)); setCfPlace('#transferToPlace',destination.type==='account'&&isCashflow(destination.entity));
 }
 
 function confirmTransfer() {
@@ -1152,10 +1238,11 @@ function confirmTransfer() {
   if(!from||!destination.entity) error='กรุณาเลือกต้นทางและปลายทาง';
   else if(destination.type==='account'&&destination.id===from.id) error='กรุณาเลือกคนละบัญชี';
   else if(!amount||amount<=0) error='กรุณาใส่จำนวนเงิน';
-  else if(amount>from.balance) error='ยอดเงินต้นทางไม่เพียงพอ';
+  else if(roundMoney(amount)>availableIn(from,cfPlaceValue('#transferFromPlace'))) error=isCashflow(from)?`ยอด${cfPlaceName(cfPlaceValue('#transferFromPlace'))}ไม่เพียงพอ`:'ยอดเงินต้นทางไม่เพียงพอ';
   $('#transferError').textContent=error; if(error) return;
   const received=Number((amount*rateOf(from.currency)/rateOf(destination.currency)).toFixed(2));
   pendingTransfer={kind:'internal',originSheet:'#internalTransferSheet',sourceId:from.id,sourceName:from.name,sourceMeta:`${from.accountNo} · ยอดเงิน ${formatAmount(from.balance,from.currency,true)}`,destinationType:destination.type,destinationId:destination.id,destinationName:destination.entity.name,destinationMeta:destination.type==='goal'?'กล่องเป้าหมาย':`${destination.entity.accountNo||destination.currency} · Pocket หลัก`,amount,currency:from.currency,received,receivedCurrency:destination.currency,note:$('#transferNote').value.trim()||'โอนเงิน'};
+  addTransferPlaces(pendingTransfer,from,destination.type==='account'?destination.entity:null,'#transferFromPlace','#transferToPlace');
   openTransferReview();
 }
 
@@ -1163,7 +1250,8 @@ function updateBankTransferSource() {
   const select=$('#bankTransferFrom'); if(!select) return;
   const account=accountById(select.value)||state.accounts[0]; if(!account) return;
   $('#bankSourceName').textContent=account.name;
-  $('#bankSourceBalance').textContent=`ยอดเงิน ${formatAmount(account.balance,account.currency,true)}`;
+  $('#bankSourceBalance').textContent=isCashflow(account)?`เงินสด ${formatAmount(account.cashBalance,'THB',true)} · ธนาคาร ${formatAmount(account.bankBalance,'THB',true)}`:`ยอดเงิน ${formatAmount(account.balance,account.currency,true)}`;
+  setCfPlace('#bankFromPlace',isCashflow(account));
   $('#bankSourceFlag').className=`flag-mini ${flagClass(account)}`;
   $('.transfer-source-card')?.style.setProperty('--source-gradient',account.gradient);
   updateBankTransferDestinations();
@@ -1175,7 +1263,7 @@ function updateBankTransferDestinations() {
   const accounts=state.accounts.filter(account=>account.id!==sourceId);
   const bankOptions=state.externalBanks.map(bank=>{const profile=bankProfile(bank.bankCode);return `<option value="bank:${esc(bank.id)}">${esc(bank.nickname||profile.name)} · ${esc(profile.code)}</option>`;}).join('');
   const favoriteOptions=(state.favorites||[]).map(item=>`<option value="favorite:${esc(item.id)}">★ ${esc(item.name)}</option>`).join('');
-  select.innerHTML=`${favoriteOptions?`<optgroup label="รายการโปรด">${favoriteOptions}</optgroup>`:''}<optgroup label="ธนาคารภายนอก">${bankOptions}<option value="bank:new">โอนไปบัญชีธนาคารใหม่ · SCB</option></optgroup>${accounts.length?`<optgroup label="บัญชี Pocket หลัก">${accounts.map(account=>`<option value="account:${esc(account.id)}">${account.flag} ${esc(account.name)} · ${esc(account.currency)}</option>`).join('')}</optgroup>`:''}${state.goals.length?`<optgroup label="กล่องเป้าหมาย">${state.goals.map(goal=>`<option value="goal:${esc(goal.id)}">${esc(goal.icon||'◎')} ${esc(goal.name)} · THB</option>`).join('')}</optgroup>`:''}`;
+  select.innerHTML=`${favoriteOptions?`<optgroup label="รายการโปรด">${favoriteOptions}</optgroup>`:''}<optgroup label="ธนาคารภายนอก">${bankOptions}<option value="bank:new">โอนไปบัญชีธนาคารใหม่ · SCB</option></optgroup>${accounts.length?`<optgroup label="บัญชี Pocket หลัก">${accounts.map(account=>`<option value="account:${esc(account.id)}">${account.flag||""} ${esc(account.name)} · ${esc(account.currency)}</option>`).join('')}</optgroup>`:''}${state.goals.length?`<optgroup label="กล่องเป้าหมาย">${state.goals.map(goal=>`<option value="goal:${esc(goal.id)}">${esc(goal.icon||'◎')} ${esc(goal.name)} · THB</option>`).join('')}</optgroup>`:''}`;
   if([...select.options].some(option=>option.value===previous)) select.value=previous;
   else select.value=state.externalBanks[0]?`bank:${state.externalBanks[0].id}`:'bank:new';
   updateBankTransferDestination();
@@ -1195,6 +1283,7 @@ function updateBankTransferDestination() {
   const external=destination.type==='bank'; const externalFields=$('#bankExternalFields');
   if(externalFields) externalFields.hidden=!external;
   $('#bankTransferLimit').hidden=!external;
+  setCfPlace('#bankToPlace',destination.type==='account'&&isCashflow(destination.entity));
   $('#confirmBankTransfer').textContent='ตรวจสอบข้อมูล';
   $('#bankDestinationMeta').textContent=external?(destination.entity?.bankName||'ธนาคารภายนอก'):destination.type==='goal'?'กล่องเป้าหมาย':'บัญชี Pocket หลัก';
   $('#bankDestinationName').textContent=destination.entity?.name||'เลือกปลายทาง';
@@ -1274,7 +1363,7 @@ function validateBankTransfer(showError=false) {
   else if(destination.type==='bank'&&number.length<10) error='กรุณากรอกเลขบัญชีให้ครบอย่างน้อย 10 หลัก';
   else if(amount<=0) error='กรุณาใส่จำนวนเงิน';
   else if(destination.type==='bank'&&amount>200000) error='เกินวงเงินโอนคงเหลือวันนี้';
-  else if(amount>account.balance) error='ยอดเงินใน Pocket ไม่เพียงพอ';
+  else if(roundMoney(amount)>availableIn(account,cfPlaceValue('#bankFromPlace'))) error=isCashflow(account)?`ยอด${cfPlaceName(cfPlaceValue('#bankFromPlace'))}ไม่เพียงพอ`:'ยอดเงินใน Pocket ไม่เพียงพอ';
   $('#confirmBankTransfer').disabled=Boolean(error);
   if(showError) $('#bankTransferError').textContent=error;
   else if(!error) $('#bankTransferError').textContent='';
@@ -1287,6 +1376,7 @@ function handleBankTransfer(event) {
   const received=Number((amount*rateOf(account.currency)/rateOf(destination.currency)).toFixed(2));
   const external=destination.type==='bank'; const accountNo=external?(destination.entity?.accountNo||number):destination.entity?.accountNo||'';
   pendingTransfer={kind:'bank',originSheet:'#transferSheet',sourceId:account.id,sourceName:account.name,sourceMeta:`${account.accountNo} · ยอดเงิน ${formatAmount(account.balance,account.currency,true)}`,destinationType:destination.type,destinationId:destination.id,destinationName:destination.entity?.name||destination.entity?.bankName||'ธนาคารภายนอก',destinationMeta:external?`${destination.entity?.bankName||'ธนาคารภายนอก'} · •••• ${accountNo.slice(-4)}`:destination.type==='goal'?'กล่องเป้าหมาย':`${destination.entity?.accountNo||destination.currency} · Pocket หลัก`,amount,currency:account.currency,received,receivedCurrency:destination.currency,note:`โอนไป ${destination.entity?.name||'ปลายทาง'}`,accountNo,bankCode:destination.entity?.bankCode||destination.favorite?.bankCode||'scb'};
+  addTransferPlaces(pendingTransfer,account,destination.type==='account'?destination.entity:null,'#bankFromPlace','#bankToPlace');
   openTransferReview();
 }
 
@@ -1303,6 +1393,9 @@ function openTransferReview() {
   $('#reviewTo').textContent=transfer.destinationName; $('#reviewToMeta').textContent=transfer.destinationMeta;
   $('#reviewDate').textContent=formatTime();
   const note=$('#reviewNote'); note.textContent=transfer.receivedCurrency!==transfer.currency?`ปลายทางจะได้รับประมาณ ${formatAmount(transfer.received,transfer.receivedCurrency,true)}`:transfer.note; note.hidden=!note.textContent;
+  const src=accountById(transfer.sourceId), dst=transfer.destinationType==='account'?accountById(transfer.destinationId):null, cfBox=$('#reviewCashflow');
+  const cfHtml=isCashflow(src)?cfPreviewHTML(src,transfer.sourcePlace==='cash'?-transfer.amount:0,transfer.sourcePlace==='cash'?0:-transfer.amount):isCashflow(dst)?cfPreviewHTML(dst,transfer.destinationPlace==='cash'?transfer.received:0,transfer.destinationPlace==='cash'?0:transfer.received):'';
+  cfBox.innerHTML=cfHtml?`<h4>Pocket Cashflow ก่อน → หลัง</h4>${cfHtml}`:''; cfBox.hidden=!cfHtml;
   switchOpenSheet(transfer.originSheet,'#transferReviewSheet');
 }
 
@@ -1357,16 +1450,19 @@ async function verifyTransferPin() {
 
 function executePendingTransfer() {
   const transfer=pendingTransfer; if(!transfer) return;
-  const source=accountById(transfer.sourceId); if(!source||transfer.amount>source.balance){resetTransferPin('ยอดเงินต้นทางเปลี่ยนแปลง กรุณากลับไปตรวจสอบอีกครั้ง');return;}
+  const source=accountById(transfer.sourceId); if(!source||transfer.amount>availableIn(source,transfer.sourcePlace)){resetTransferPin('ยอดเงินต้นทางเปลี่ยนแปลง กรุณากลับไปตรวจสอบอีกครั้ง');return;}
   const completedAt=new Date(); const transactionId=crypto.randomUUID();
-  source.balance=Number((source.balance-transfer.amount).toFixed(2));
+  const destination=transfer.destinationType==='bank'?null:transfer.destinationType==='goal'?goalById(transfer.destinationId):accountById(transfer.destinationId);
+  if(transfer.destinationType!=='bank'&&!destination){resetTransferPin('ไม่พบปลายทาง กรุณากลับไปเลือกใหม่');return;}
+  const out=pocketAdd(source,-transfer.amount,transfer.sourcePlace);
+  // Pocket Cashflow side of the move (cash/bank deltas), kept on the record like a bank statement line
+  const cfSide=isCashflow(source)?{source:transfer.sourcePlace||'bank',destination:'pocket',...out}:{};
   if(transfer.destinationType==='bank'){
-    state.transactions.push({id:transactionId,type:'expense',account:source.id,amount:transfer.amount,currency:source.currency,note:`โอนไป ${transfer.destinationName} ••••${String(transfer.accountNo||'').slice(-4)}`,date:completedAt.toISOString()});
+    state.transactions.push({id:transactionId,type:'expense',account:source.id,amount:transfer.amount,currency:source.currency,note:`โอนไป ${transfer.destinationName} ••••${String(transfer.accountNo||'').slice(-4)}`,date:completedAt.toISOString(),...cfSide});
   }else{
-    const destination=transfer.destinationType==='goal'?goalById(transfer.destinationId):accountById(transfer.destinationId);
-    if(!destination){source.balance=Number((source.balance+transfer.amount).toFixed(2));resetTransferPin('ไม่พบปลายทาง กรุณากลับไปเลือกใหม่');return;}
-    destination.balance=Number((destination.balance+transfer.received).toFixed(2));
-    state.transactions.push({id:transactionId,type:'transfer',from:source.id,toType:transfer.destinationType,to:transfer.destinationId,amount:transfer.amount,currency:transfer.currency,received:transfer.received,receivedCurrency:transfer.receivedCurrency,note:transfer.note,date:completedAt.toISOString()});
+    const into=transfer.destinationType==='goal'?(destination.balance=addMoney(destination.balance,transfer.received),{}):pocketAdd(destination,transfer.received,transfer.destinationPlace);
+    const cfInto=isCashflow(destination)?{source:'pocket',destination:transfer.destinationPlace||'bank',...into}:{};
+    state.transactions.push({id:transactionId,type:'transfer',from:source.id,toType:transfer.destinationType,to:transfer.destinationId,amount:transfer.amount,currency:transfer.currency,received:transfer.received,receivedCurrency:transfer.receivedCurrency,note:transfer.note,date:completedAt.toISOString(),sourcePlace:isCashflow(source)?transfer.sourcePlace||'bank':undefined,destinationPlace:isCashflow(destination)?transfer.destinationPlace||'bank':undefined,...cfInto,...cfSide});
   }
   completedTransfer={...transfer,completedAt:completedAt.toISOString(),reference:`MP${completedAt.getFullYear()}${String(completedAt.getMonth()+1).padStart(2,'0')}${String(completedAt.getDate()).padStart(2,'0')}${String(Date.now()).slice(-8)}`};
   localStorage.setItem(STORAGE_KEY,JSON.stringify(state)); renderAll(); renderTransferSlip(); resetTransferPin(); switchOpenSheet('#transferPinSheet','#transferSuccessSheet');
@@ -1403,7 +1499,7 @@ function handleScheduleSubmit(event) {
   event.preventDefault(); const destination=getScheduleDestination($('#scheduleDestination').value); const amount=Number($('#scheduleAmount').value); const runAt=new Date(`${$('#scheduleDate').value}T${$('#scheduleTime').value}`); let error='';
   if(!destination.entity) error='กรุณาเลือกกล่องปลายทาง'; else if(!amount||amount<=0) error='กรุณาใส่จำนวนเงิน'; else if(Number.isNaN(runAt.getTime())||runAt<=new Date()) error='กรุณาเลือกเวลาในอนาคต';
   $('#scheduleError').textContent=error; if(error) return;
-  state.scheduledDeposits.push({id:crypto.randomUUID(),kind:scheduleKind,destinationType:destination.type,destinationId:destination.id,currency:destination.currency,amount:Number(amount.toFixed(2)),runAt:runAt.toISOString(),status:'pending',createdAt:new Date().toISOString()});
+  state.scheduledDeposits.push({id:crypto.randomUUID(),kind:scheduleKind,place:destination.type==='account'&&isCashflow(destination.entity)?cfPlaceValue('#schedulePlace'):undefined,destinationType:destination.type,destinationId:destination.id,currency:destination.currency,amount:Number(amount.toFixed(2)),runAt:runAt.toISOString(),status:'pending',createdAt:new Date().toISOString()});
   closeSheets(); saveState(scheduleKind==='withdraw'?`ตั้งถอนจาก “${destination.entity.name}” แล้ว`:`ตั้งฝากเข้า “${destination.entity.name}” แล้ว`); requestSystemNotifications(false);
 }
 
@@ -1418,7 +1514,7 @@ async function importOldApp(file) {
   const save=accountById('thb')||state.accounts.find(account=>account.name===data.pockets?.save)||state.accounts.find(account=>account.currency==='THB');
   if(!save){ notify('ไม่พบ Pocket Save'); return; }
   const dailyName=data.pockets?.daily||'รายวัน';
-  let daily=state.accounts.find(account=>account.name===dailyName);
+  let daily=state.accounts.find(account=>account.name===dailyName)||state.accounts.find(isCashflow);
   const done=new Set(state.transactions.filter(tx=>tx.source==='import'&&tx.ref).map(tx=>tx.ref));
   const rows=data.transactions.filter(row=>!row.ref||!done.has(row.ref));
   const balanceKey=data.balances?`${data.id}:balances:${JSON.stringify(data.balances)}`:'';
@@ -1447,7 +1543,7 @@ async function importOldApp(file) {
   if(needBalances){
     const now=new Date().toISOString();
     Object.entries(data.balances).forEach(([key,value])=>{
-      const pocket=pockets[key]; const target=Number(value); if(!pocket||Number.isNaN(target)) return;
+      const pocket=pockets[key]; const target=Number(value); if(!pocket||isCashflow(pocket)||Number.isNaN(target)) return;
       const diff=Number((target-pocket.balance).toFixed(2)); if(!diff) return;
       pocket.balance=Number(target.toFixed(2));
       state.transactions.push({id:crypto.randomUUID(),type:'adjust',direction:diff>0?'in':'out',account:pocket.id,amount:Math.abs(diff),currency:'THB',note:'ยอดยกมาจากแอปเดิม',date:now,source:'import'});
@@ -1525,11 +1621,13 @@ function processScheduledDeposits() {
     if(!destination.entity){fail('ไม่พบ Pocket หรือกล่องที่เลือกไว้','ไม่พบบัญชีที่เลือกไว้');return;}
     const currency=item.currency||destination.currency; const amountText=formatDepositAmount(item.amount,currency);
     const reference=maskRef(destinationReference(destination)); const targetWord=destination.type==='goal'?'กล่อง':'บัญชี';
-    if(withdraw&&destination.entity.balance<item.amount){fail(`ยอดเงินใน ${destination.entity.name} ไม่เพียงพอ`,`ยอดเงินในบัญชี ${reference} ไม่เพียงพอ`);return;}
-    destination.entity.balance=Number((destination.entity.balance+(withdraw?-item.amount:item.amount)).toFixed(2));
+    const place=item.place||'bank';
+    if(withdraw&&(destination.type==='goal'?destination.entity.balance:availableIn(destination.entity,place))<item.amount){fail(`ยอดเงินใน ${destination.entity.name} ไม่เพียงพอ`,`ยอดเงินในบัญชี ${reference} ไม่เพียงพอ`);return;}
+    const moved=destination.type==='goal'?(destination.entity.balance=addMoney(destination.entity.balance,withdraw?-item.amount:item.amount),{}):pocketAdd(destination.entity,withdraw?-item.amount:item.amount,place);
+    const cfFields=isCashflow(destination.entity)?{place,...moved}:{};
     item.status='done'; item.completedAt=completedAt.toISOString();
     const accountId=destination.type==='goal'?`goal:${destination.id}`:destination.id;
-    state.transactions.push({id:crypto.randomUUID(),type:withdraw?'expense':'income',auto:withdraw?'withdraw':'deposit',account:accountId,amount:item.amount,currency,note:withdraw?'ถอนเงินอัตโนมัติ':'ฝากเงินอัตโนมัติ',date:completedAt.toISOString()});
+    state.transactions.push({id:crypto.randomUUID(),type:withdraw?'expense':'income',auto:withdraw?'withdraw':'deposit',account:accountId,amount:item.amount,currency,note:withdraw?'ถอนเงินอัตโนมัติ':'ฝากเงินอัตโนมัติ',date:completedAt.toISOString(),...cfFields});
     const balanceText=formatDepositAmount(destination.entity.balance,currency);
     if(withdraw){
       showDepositPopup({success:true,kind:'withdraw',title:'รายการเงินออกอัตโนมัติสำเร็จ',amountText,detail:`ออกจาก${targetWord} ${reference} · ${when.time} น.`});
@@ -1543,19 +1641,120 @@ function processScheduledDeposits() {
   localStorage.setItem(STORAGE_KEY,JSON.stringify(state)); renderAll();
 }
 
-function openEntry(type='income', accountId='thb') {
-  entryType=type; fillSelects(); if(accountById(accountId)) $('#entryAccount').value=accountId;
+/* ---------- Pocket Cashflow screens ---------- */
+// cash / bank picker (one per sheet, shown only when Pocket Cashflow is involved)
+function cfPlaceValue(id) { return $(id)?.dataset.value || 'bank'; }
+function setCfPlace(id, show, value, label) {
+  const el = $(id); if (!el) return;
+  el.hidden = !show; if (value) el.dataset.value = value;
+  if (label) $('.cf-place-label', el).textContent = label;
+  $$('[data-cf-pick]', el).forEach(button => button.classList.toggle('active', button.dataset.cfPick === (el.dataset.value || 'bank')));
+}
+function addTransferPlaces(transfer, source, destination, fromId, toId) {
+  if (!transfer) return;
+  if (isCashflow(source)) { transfer.sourcePlace = cfPlaceValue(fromId); transfer.sourceMeta = `${cfPlaceName(transfer.sourcePlace)} · คงเหลือ ${formatAmount(cfPart(source, transfer.sourcePlace), 'THB', true)}`; }
+  if (isCashflow(destination)) { transfer.destinationPlace = cfPlaceValue(toId); transfer.destinationMeta = `เข้า${cfPlaceName(transfer.destinationPlace)}`; }
+}
+// before → after for cash, bank and the card total (shown before every Pocket Cashflow confirm)
+function cfPreviewHTML(account, cashDelta, bankDelta) {
+  const c0 = account.cashBalance, b0 = account.bankBalance, t0 = cfTotal(account);
+  const c1 = addMoney(c0, cashDelta), b1 = addMoney(b0, bankDelta), t1 = addMoney(c1, b1);
+  const row = (label, a, b, strong) => `<p${strong ? ' class="cf-total"' : ''}><span>${label}</span><b class="balance-value">${formatAmount(a, 'THB', true)}${toSatang(a) !== toSatang(b) ? ` <i>→</i> <em>${formatAmount(b, 'THB', true)}</em>` : ''}</b></p>`;
+  const moved = toSatang(cashDelta) || toSatang(bankDelta);
+  return row('เงินสดในมือ', c0, c1) + row('บัญชีธนาคาร', b0, b1) + row('ยอดรวม', t0, t1, true) + (moved && toSatang(t0) === toSatang(t1) ? '<small class="cf-same">ยอดรวมไม่เปลี่ยน · ไม่ใช่รายรับหรือรายจ่าย</small>' : '');
+}
+let cfSheetAccountId = null, cfMoveKind = 'cash-bank', cfCheckKind = 'cash';
+// ย้ายเงิน: cash ↔ bank inside the card (internal transfer), or on to another Pocket
+function openCfMove(id) {
+  cfSheetAccountId = id; cfMoveKind = 'cash-bank';
+  $('#cfMoveAmount').value = ''; $('#cfMoveNote').value = ''; $('#cfMoveError').textContent = '';
+  updateCfMove(); showSheet('#cfMoveSheet');
+}
+function updateCfMove() {
+  const account = accountById(cfSheetAccountId); if (!isCashflow(account)) return;
+  const toBank = cfMoveKind === 'cash-bank', amount = roundMoney($('#cfMoveAmount').value);
+  $$('[data-cf-move]').forEach(button => button.classList.toggle('active', button.dataset.cfMove === cfMoveKind));
+  $('#cfMoveHelp').textContent = toBank ? 'เงินสดในมือ → บัญชีธนาคาร' : 'บัญชีธนาคาร → เงินสดในมือ';
+  $('#cfMovePreview').innerHTML = cfPreviewHTML(account, toBank ? -amount : amount, toBank ? amount : -amount);
+}
+function confirmCfMove() {
+  const account = accountById(cfSheetAccountId); if (!isCashflow(account)) return;
+  const toBank = cfMoveKind === 'cash-bank', from = toBank ? 'cash' : 'bank', amount = roundMoney($('#cfMoveAmount').value);
+  const error = !(amount > 0) ? 'กรุณาใส่จำนวนเงิน' : amount > cfPart(account, from) ? `ยอด${cfPlaceName(from)}ไม่เพียงพอ` : '';
+  $('#cfMoveError').textContent = error; if (error) return;
+  const moved = cfApply(account, toBank ? -amount : amount, toBank ? amount : -amount);
+  state.transactions.push({ id: crypto.randomUUID(), type: 'internal_transfer', account: account.id, amount, currency: 'THB', source: from, destination: toBank ? 'bank' : 'cash', note: $('#cfMoveNote').value.trim(), date: new Date().toISOString(), ...moved });
+  closeSheets(); saveState(`${toBank ? 'ฝากเงินสดเข้าธนาคาร' : 'ถอนเงินเป็นเงินสด'}แล้ว · ยอดรวมไม่เปลี่ยน`);
+}
+function cfMoveToPocket() {
+  const id = cfSheetAccountId; closeSheets();
+  const other = state.accounts.find(account => account.id !== id);
+  openInternalTransfer(id, other ? `account:${other.id}` : '');
+  setCfPlace('#transferFromPlace', true, 'bank');
+}
+// ตรวจยอด: type in what you really have; the gap becomes a new record, old records stay as they are
+function openCfCheck(id, kind = 'cash') {
+  cfSheetAccountId = id; cfCheckKind = kind;
+  $('#cfCheckActual').value = ''; $('#cfCheckNote').value = ''; $('#cfCheckError').textContent = '';
+  updateCfCheck(); showSheet('#cfCheckSheet');
+}
+function cfCheckState() {
+  const account = accountById(cfSheetAccountId); if (!isCashflow(account)) return null;
+  const raw = $('#cfCheckActual').value, system = cfPart(account, cfCheckKind);
+  if (raw === '') return { account, system, empty: true };
+  const actual = roundMoney(raw); return { account, system, actual, diff: addMoney(actual, -system) };
+}
+function updateCfCheck() {
+  const cash = cfCheckKind === 'cash', st = cfCheckState(); if (!st) return;
+  $$('[data-cf-check]').forEach(button => button.classList.toggle('active', button.dataset.cfCheck === cfCheckKind));
+  $('#cfCheckHelp').textContent = cash ? 'อัปเดตจากยอดเงินสดที่นับได้จริง' : 'อัปเดตจากยอดในบัญชีธนาคารจริง';
+  $('#cfCheckLabel').textContent = cash ? 'ยอดเงินสดที่นับได้จริง' : 'ยอดจากแอปธนาคารจริง';
+  $('#cfCheckNote').placeholder = cash ? 'เช่น แลกแบงก์ที่ร้าน' : 'รายการธนาคารที่ยังไม่ได้บันทึก';
+  const word = cash ? 'เงินสด' : 'ธนาคาร', button = $('#cfCheckConfirm');
+  const line = (label, value, cls = '') => `<p class="${cls}"><span>${label}</span><b class="balance-value">${value}</b></p>`;
+  let html = line(`ยอด${word}ตามระบบ`, formatAmount(st.system, 'THB', true));
+  if (st.empty) { button.disabled = true; button.textContent = 'ยืนยันยอด'; }
+  else if (!toSatang(st.diff)) { html += line(`ยอด${word}จริง`, formatAmount(st.actual, 'THB', true)) + '<p class="cf-match">ยอดตรงกัน ✓</p>'; button.disabled = true; button.textContent = 'ยอดตรงกัน ✓'; }
+  else {
+    const total0 = cfTotal(st.account), total1 = addMoney(total0, st.diff), sign = st.diff > 0 ? '+' : '−';
+    html += line(`ยอด${word}จริง`, formatAmount(st.actual, 'THB', true)) + line('ส่วนต่าง', `${sign}${formatAmount(Math.abs(st.diff), 'THB', true)}`, st.diff > 0 ? 'cf-up' : 'cf-down')
+      + line(`ยอด${word}ใหม่`, formatAmount(st.actual, 'THB', true)) + line('ยอด Pocket Cashflow ใหม่', `${formatAmount(total0, 'THB', true)} <i>→</i> <em>${formatAmount(total1, 'THB', true)}</em>`, 'cf-total');
+    button.disabled = false; button.textContent = 'ยืนยันยอด';
+  }
+  $('#cfCheckPreview').innerHTML = html;
+}
+function confirmCfCheck() {
+  const st = cfCheckState(); if (!st) return;
+  if (st.empty || st.actual < 0) { $('#cfCheckError').textContent = 'กรุณากรอกยอดจริง'; return; }
+  if (!toSatang(st.diff)) { closeSheets(); notify('ยอดตรงกัน ✓'); return; }       // nothing to record
+  const cash = cfCheckKind === 'cash';
+  const moved = cfApply(st.account, cash ? st.diff : 0, cash ? 0 : st.diff);
+  state.transactions.push({ id: crypto.randomUUID(), type: cash ? 'cash_reconciliation' : 'bank_reconciliation', account: st.account.id, amount: Math.abs(st.diff), currency: 'THB', source: cash ? 'cash' : 'bank', note: $('#cfCheckNote').value.trim() || (cash ? '' : 'รายการธนาคารที่ยังไม่ได้บันทึก'), date: new Date().toISOString(), ...moved });
+  closeSheets(); saveState(`ปรับยอด${cash ? 'เงินสด' : 'ธนาคาร'} ${st.diff > 0 ? '+' : '−'}${formatAmount(Math.abs(st.diff), 'THB', true)}`);
+}
+
+function openEntry(type='income', accountId='thb', place='cash') {
+  entryType=type; fillSelects(); if(accountById(accountId)) $('#entryAccount').value=accountId; setCfPlace('#entryPlace',false,place);
   $('#entryAmount').value=''; $('#entryNote').value=''; updateEntryType(); updateEntryCurrency(); showSheet('#entrySheet');
 }
-function updateEntryType(){ $$('[data-entry-type]').forEach(button=>button.classList.toggle('active',button.dataset.entryType===entryType)); $('#entryTitle').textContent=entryType==='income'?'บันทึกเงินเข้า':'บันทึกรายจ่าย'; }
-function updateEntryCurrency(){ const account=accountById($('#entryAccount').value); $('#entryCurrency').textContent=account?.currency||'THB'; }
+function updateEntryType(){ $$('[data-entry-type]').forEach(button=>button.classList.toggle('active',button.dataset.entryType===entryType)); const cf=isCashflow(accountById($('#entryAccount').value)); $('#entryTitle').textContent=entryType==='income'?(cf?'รับเงิน':'บันทึกเงินเข้า'):(cf?'จ่ายเงิน':'บันทึกรายจ่าย'); updateEntryCashflow(); }
+function updateEntryCurrency(){ const account=accountById($('#entryAccount').value); $('#entryCurrency').textContent=account?.currency||'THB'; updateEntryCashflow(); }
+function updateEntryCashflow(){
+  const account=accountById($('#entryAccount')?.value), cf=isCashflow(account);
+  setCfPlace('#entryPlace',cf,null,entryType==='income'?'รับเข้าที่':'จ่ายจาก');
+  const preview=$('#entryPreview'); if(!preview) return; preview.hidden=!cf; if(!cf) return;
+  const delta=(entryType==='income'?1:-1)*roundMoney($('#entryAmount').value), place=cfPlaceValue('#entryPlace');
+  preview.innerHTML=cfPreviewHTML(account,place==='cash'?delta:0,place==='bank'?delta:0);
+}
 
 function handleEntrySubmit(event) {
   event.preventDefault(); const account=accountById($('#entryAccount').value); const amount=Number($('#entryAmount').value); let error='';
-  if(!account) error='ไม่พบบัญชี'; else if(!amount||amount<=0) error='กรุณาใส่จำนวนเงิน'; else if(entryType==='expense'&&amount>account.balance) error='ยอดเงินไม่เพียงพอ';
+  const cf=isCashflow(account), place=cf?cfPlaceValue('#entryPlace'):undefined;
+  if(!account) error='ไม่พบบัญชี'; else if(!amount||amount<=0) error='กรุณาใส่จำนวนเงิน'; else if(entryType==='expense'&&roundMoney(amount)>availableIn(account,place)) error=cf?`ยอด${cfPlaceName(place)}ไม่เพียงพอ`:'ยอดเงินไม่เพียงพอ';
   $('#entryError').textContent=error; if(error) return;
-  account.balance=Number((account.balance+(entryType==='income'?amount:-amount)).toFixed(2));
-  state.transactions.push({id:crypto.randomUUID(),type:entryType,account:account.id,amount,currency:account.currency,note:$('#entryNote').value.trim()||(entryType==='income'?'เงินเข้า':'รายจ่าย'),date:new Date().toISOString()});
+  const moved=pocketAdd(account,entryType==='income'?roundMoney(amount):-roundMoney(amount),place);
+  const cfFields=cf?{place,...(entryType==='income'?{destination:place}:{source:place}),...moved}:{};
+  state.transactions.push({id:crypto.randomUUID(),type:entryType,account:account.id,amount:roundMoney(amount),currency:account.currency,note:$('#entryNote').value.trim()||(entryType==='income'?(cf?'รับเงิน':'เงินเข้า'):(cf?'จ่ายเงิน':'รายจ่าย')),date:new Date().toISOString(),...cfFields});
   closeSheets(); saveState(entryType==='income'?'บันทึกเงินเข้าแล้ว':'บันทึกรายจ่ายแล้ว');
 }
 
@@ -1611,7 +1810,7 @@ function openAccountColorEditor(id) {
   const color=/^#[0-9a-f]{6}$/i.test(account.badgeColor||'')?account.badgeColor:'#58f38e';
   $('#accountEditColor').value=color;
   Object.assign(editFlag,{code:account.flagCode||CURRENCIES[account.currency]?.flag||'us',on:showsFlag(account)});
-  $('#accountColorPreviewName').textContent=account.name;
+  $('#accountColorPreviewName').textContent=account.name; $('#accountEditName').value=account.name;
   $('#accountEditCurrency').textContent=`${account.currency} — ${CURRENCIES[account.currency]?.name||''}`;
   updateAccountColorPreview();
   showSheet('#accountColorSheet');
@@ -1625,6 +1824,7 @@ function handleAccountColorEdit(event) {
   account.gradient=accountGradient(color);
   account.tag=mixHex(color,'#ffffff',.78);
   account.flagCode=editFlag.code; account.showFlag=editFlag.on; account.country=FLAGS[editFlag.code]||account.country;
+  const name=$('#accountEditName').value.trim(); if(name) account.name=name;   // history shows the new name too (records keep the Pocket id, not its name)
   closeSheets(); saveState(`บันทึกการ์ด “${account.name}” แล้ว`);
 }
 
@@ -1643,7 +1843,7 @@ function deleteGoal(id) {
   const refund=goal.balance>0?` เงิน ${formatAmount(goal.balance,'THB',true)} จะคืนเข้า Pocket Save`:'';
   if(!confirm(`ลบกล่อง “${goal.name}” หรือไม่?${refund}`)) return;
   const thb=state.accounts.find(account=>account.currency==='THB');
-  if(goal.balance>0 && thb){thb.balance=Number((thb.balance+goal.balance).toFixed(2));state.transactions.push({id:crypto.randomUUID(),type:'income',account:thb.id,amount:goal.balance,currency:'THB',note:`คืนเงินจากกล่อง ${goal.name}`,date:new Date().toISOString()});}
+  if(goal.balance>0 && thb){pocketAdd(thb,goal.balance,'bank');state.transactions.push({id:crypto.randomUUID(),type:'income',account:thb.id,amount:goal.balance,currency:'THB',note:`คืนเงินจากกล่อง ${goal.name}`,date:new Date().toISOString()});}
   state.goals=state.goals.filter(item=>item.id!==id); saveState(`ลบกล่อง “${goal.name}” แล้ว`);
 }
 
@@ -1694,7 +1894,7 @@ function requestClearAllBalances() {
 }
 
 function performClearAllBalances() {
-  state.accounts.forEach(account=>{account.balance=0;});
+  state.accounts.forEach(account=>{account.balance=0; if(isCashflow(account)){account.cashBalance=0;account.bankBalance=0;}});
   state.goals.forEach(goal=>{goal.balance=0;});
   protectedPinAction='transfer';
   closeSheets();
@@ -1715,6 +1915,9 @@ document.addEventListener('click', event => {
   const debitColorButton=event.target.closest('[data-debit-color]'); if(debitColorButton){$('#debitColor').value=debitColorButton.dataset.debitColor;updateColorValue('debit');return;}
   const deleteGoalButton=event.target.closest('[data-delete-goal]'); if(deleteGoalButton){deleteGoal(deleteGoalButton.dataset.deleteGoal);return;}
   const deleteExternalBankButton=event.target.closest('[data-delete-external-bank]'); if(deleteExternalBankButton){deleteExternalBank(deleteExternalBankButton.dataset.deleteExternalBank);return;}
+  const cfPick=event.target.closest('[data-cf-pick]'); if(cfPick){const box=cfPick.closest('.cf-place');box.dataset.value=cfPick.dataset.cfPick;setCfPlace('#'+box.id,!box.hidden);({entryPlace:updateEntryCashflow,transferFromPlace:updateTransferPreview,transferToPlace:updateTransferPreview,bankFromPlace:()=>validateBankTransfer(),bankToPlace:()=>validateBankTransfer(),schedulePlace:updateScheduleDestination})[box.id]?.();return;}
+  const cfMove=event.target.closest('[data-cf-move]'); if(cfMove){cfMoveKind=cfMove.dataset.cfMove;$('#cfMoveError').textContent='';updateCfMove();return;}
+  const cfCheck=event.target.closest('[data-cf-check]'); if(cfCheck){cfCheckKind=cfCheck.dataset.cfCheck;$('#cfCheckActual').value='';$('#cfCheckError').textContent='';updateCfCheck();return;}
   const historyMore=event.target.closest('[data-history-more]')?.dataset.historyMore; if(historyMore){if(historyMore==='all')historyLimit+=HISTORY_STEP*2;else accountHistoryLimit+=HISTORY_STEP*2;renderTransactions();updateBalanceVisibility();return;}
   const scheduleKindButton=event.target.closest('[data-schedule-kind]'); if(scheduleKindButton){scheduleKind=scheduleKindButton.dataset.scheduleKind;updateScheduleKind();return;}
   const deleteScheduleButton=event.target.closest('[data-delete-schedule]'); if(deleteScheduleButton){deleteSchedule(deleteScheduleButton.dataset.deleteSchedule);return;}
@@ -1748,6 +1951,10 @@ document.addEventListener('click', event => {
   if(action==='exchange-in') openTransfer('thb',`account:${source}`);
   if(action==='exchange-out') openTransfer(source,'account:thb');
   if(action==='income'||action==='expense') openEntry(action,source||'thb');
+  if(action==='cf-receive') openEntry('income',source,'cash');
+  if(action==='cf-pay') openEntry('expense',source,'cash');
+  if(action==='cf-move') openCfMove(source);
+  if(action==='cf-check') openCfCheck(source);
   if(action==='add-goal') showSheet('#goalSheet');
   if(action==='add-account'){ if(state.accounts.length>=MAX_POCKETS){ notify(`กระเป๋าเต็มแล้ว ใส่การ์ดได้สูงสุด ${MAX_POCKETS} ใบ`); return; } updateAccountCreatePreview(); showSheet('#accountSheet'); }
   if(action==='add-external-bank') showSheet('#externalBankSheet');
@@ -1794,12 +2001,19 @@ document.addEventListener('click',event=>{
 $$('[data-account-color],[data-account-edit-color],[data-goal-color]').forEach(button=>{ const color=button.dataset.accountColor||button.dataset.accountEditColor||button.dataset.goalColor; button.style.setProperty('--swatch',walletCardColors({badgeColor:color}).grad); });
 $('#accountColor').addEventListener('input',()=>updateColorValue('account'));
 $('#accountEditColor').addEventListener('input',updateAccountColorPreview);
+$('#accountEditName').addEventListener('input',()=>{$('#accountColorPreviewName').textContent=$('#accountEditName').value.trim()||'Pocket';});
 $('#accountCurrency').addEventListener('change',updateAccountCurrencyLabel);
 $('#debitColor').addEventListener('input',()=>updateColorValue('debit'));
 $('#debitNumberInput').addEventListener('input',event=>{const digits=event.target.value.replace(/\D/g,'').slice(0,16);event.target.value=digits.replace(/(\d{4})(?=\d)/g,'$1 ');});
 $('#cardEditForm').addEventListener('submit',handleCardEdit);
 $('#scheduleDestination').addEventListener('change',updateScheduleDestination);
 $('#scheduleForm').addEventListener('submit',handleScheduleSubmit);
+$('#entryAmount').addEventListener('input',updateEntryCashflow);
+$('#cfMoveAmount').addEventListener('input',()=>{$('#cfMoveError').textContent='';updateCfMove();});
+$('#cfMoveConfirm').addEventListener('click',confirmCfMove);
+$('#cfMoveToPocket').addEventListener('click',cfMoveToPocket);
+$('#cfCheckActual').addEventListener('input',()=>{$('#cfCheckError').textContent='';updateCfCheck();});
+$('#cfCheckConfirm').addEventListener('click',confirmCfCheck);
 $('#importOldApp').addEventListener('click',()=>$('#importOldAppFile').click());
 $('#importOldAppFile').addEventListener('change',event=>{const file=event.target.files?.[0];event.target.value='';if(file)importOldApp(file);});
 $('#editName').addEventListener('click',()=>{const name=prompt('ชื่อที่ต้องการแสดง',state.profileName);if(name?.trim()){state.profileName=name.trim().slice(0,30);saveState('แก้ชื่อแล้ว');}});
@@ -1846,6 +2060,7 @@ let lastTouchTarget=null;
 document.addEventListener('touchend',event=>{const now=Date.now();const target=event.target.closest?.('button,a,[role="button"]')||event.target;if(now-lastTouchEnd<320&&target===lastTouchTarget)event.preventDefault();lastTouchEnd=now;lastTouchTarget=target;},{passive:false});
 
 if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+migrateCashflow();
 bindHomeAccountDeck();
 let planScrollFrame=0;
 $('#planGrid').addEventListener('scroll',()=>{cancelAnimationFrame(planScrollFrame);planScrollFrame=requestAnimationFrame(()=>syncPlanTabs());},{passive:true});

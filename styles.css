@@ -174,3 +174,41 @@ html.is-rotated body{position:fixed;top:0;left:0;width:100vh;height:100vw;margin
 html.rot-ccw body{transform:translateY(100vh) rotate(-90deg)}
 html.rot-cw body{transform:translateX(100vw) rotate(90deg)}
 html.is-rotated .app{height:100%;min-height:0;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain}
+
+/* ---------- Pocket Cashflow ---------- */
+/* cash / bank picker inside the sheets */
+.cf-place{margin:2px 0 14px}.cf-place[hidden]{display:none}
+.cf-place-label{display:block;margin:0 0 7px;font-size:.78rem;font-weight:700;color:#74777a}
+.cf-place .segment button{font-size:.82rem}
+.bank-pane .cf-place{margin:14px 0 4px}
+/* before → after box (same feel as the conversion note, neutral colours) */
+.cf-preview{margin:4px 0 12px;padding:12px 14px;border-radius:14px;background:#f2f4f1;font-size:.8rem}.cf-preview[hidden]{display:none}
+.cf-preview p{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:0;padding:3px 0;color:#5f6366}
+.cf-preview b{font-weight:700;color:#17181b;text-align:right;white-space:nowrap}
+.cf-preview i{font-style:normal;color:#9a9ea1;margin:0 2px}
+.cf-preview em{font-style:normal;color:#11934a}
+.cf-preview .cf-total{margin-top:4px;padding-top:7px;border-top:1px solid rgba(0,0,0,.08)}
+.cf-preview .cf-total b{font-size:.92rem}
+.cf-preview .cf-up b{color:#11934a}.cf-preview .cf-down b{color:#d1453b}
+.cf-preview .cf-same{display:block;margin-top:6px;color:#2f7d58;font-weight:700}
+.cf-preview .cf-match{justify-content:center;margin-top:6px;padding:8px;border-radius:10px;background:#e2f8ec;color:#11934a;font-weight:800}
+.cf-preview h4{margin:0 0 6px;font-size:.78rem;color:#74777a}
+.review-cf{margin:12px 0 0}
+.cf-help{margin:9px 2px 12px;font-size:.78rem;color:#74777a}
+.cf-to-pocket{margin:14px auto 0;display:flex}
+/* detail card: cash on the left, bank on the right */
+.cf-split>div:last-child{text-align:right}
+.cf-split>div:last-child>span{justify-content:flex-end}
+html[data-theme="dark"] .cf-place-label,html[data-theme="dark"] .cf-help,html[data-theme="dark"] .cf-preview h4{color:#a6a9ac}
+html[data-theme="dark"] .cf-preview{background:#232528}
+html[data-theme="dark"] .cf-preview p{color:#b4b7b9}
+html[data-theme="dark"] .cf-preview b{color:#eeeff1}
+html[data-theme="dark"] .cf-preview em,html[data-theme="dark"] .cf-preview .cf-up b{color:#58f38e}
+html[data-theme="dark"] .cf-preview .cf-down b{color:#ff7d74}
+html[data-theme="dark"] .cf-preview .cf-total{border-top-color:rgba(255,255,255,.1)}
+html[data-theme="dark"] .cf-preview .cf-same{color:#7fdcae}
+html[data-theme="dark"] .cf-preview .cf-match{background:#15372c;color:#58f38e}
+.detail-interest[hidden]{display:none}
+/* 5 history filters: share the row so ปรับยอด isn't cut off (still scrolls on very small phones) */
+#transactionFilters{gap:6px}
+#transactionFilters button{flex:1 0 auto;padding-inline:11px}
