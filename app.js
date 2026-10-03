@@ -1892,6 +1892,68 @@ function updateAccountCurrencyLabel(){ $('#accountCurrencyLabel').textContent=$(
 
 function handleSetting(key) { state.settings[key]=!state.settings[key]; saveState(); }
 
+/* ---------- ข้อตกลงก่อนแก้ยอด (a rule I set for myself) ----------
+   Before ล้างยอด / ลบประวัติ: read 1,000 lines to the very end and only then can ตกลง be pressed.
+   Scrolling too fast sends you straight back to line 1. Giving up just closes it. */
+const GATE_LINES = 1000, GATE_MAX_SPEED = 1.6, GATE_MAX_JUMP = 900;   // px per ms (smoothed), and the biggest single jump
+const GATE_RULES = [
+  'ฉันเข้าใจว่าการแก้ยอดคือการแก้ตัวเลข ไม่ใช่การแก้ปัญหา',
+  'ถ้ายอดไม่ตรง ฉันจะหาสาเหตุก่อนเสมอ',
+  'ฉันจะลองใช้ “ตรวจยอด” ก่อนคิดจะล้างยอด',
+  'ทุกบาทในแอปนี้คือเงินจริงที่ฉันหามาเอง',
+  'ประวัติที่ลบไปแล้ว กู้คืนไม่ได้',
+  'ฉันไม่ได้แก้ยอดเพราะอารมณ์ชั่ววูบ',
+  'ฉันรู้ว่าเงินแต่ละก้อนอยู่ที่ไหน และมาจากไหน',
+  'ถ้าวันนี้เหนื่อย ฉันกลับมาทำพรุ่งนี้ก็ได้',
+  'การยอมแพ้ตอนนี้ไม่ใช่เรื่องน่าอาย',
+  'ฉันตั้งกฎนี้ไว้เพื่อปกป้องตัวเองจากความมือไว',
+  'ตัวเลขที่สวยแต่ไม่จริง ไม่ช่วยอะไรฉันเลย',
+  'ถ้าบันทึกผิด ฉันลงรายการใหม่แก้ได้ ไม่ต้องลบของเดิม',
+  'เงินทุกก้อนมีที่ของมัน และทุกการเคลื่อนไหวมีประวัติ',
+  'ฉันยังอ่านอยู่ และยังตั้งใจอยู่',
+  'ฉันจะไม่เลื่อนข้าม เพราะกฎนี้ฉันเป็นคนตั้งเอง'
+];
+const GATE_MARKS = { 100: 'ผ่านไป 100 บรรทัดแล้ว ยังอยากแก้อยู่ไหม?', 250: 'หนึ่งในสี่แล้ว ลองหายใจลึกๆ สักที', 500: 'ครึ่งทางแล้ว ถ้าเปลี่ยนใจ กด “ยอมแพ้” ได้เลย', 750: 'อีก 250 บรรทัด เหตุผลที่แก้ยอดยังชัดอยู่ไหม?', 900: 'อีก 100 บรรทัดสุดท้าย', 1000: 'ครบ 1,000 บรรทัด ฉันอ่านจบแล้ว และฉันตัดสินใจเอง' };
+const gate = { last: 0, lastTime: 0, speed: 0, done: false, resets: 0, warnUntil: 0 };
+function renderGateLines() {
+  const box = $('#dcGateScroll'); if (box.childElementCount) return;
+  box.innerHTML = Array.from({ length: GATE_LINES }, (_, i) => { const n = i + 1, mark = GATE_MARKS[n]; return `<p${mark ? ' class="gate-mark"' : ''}><span>${n}</span>${mark || GATE_RULES[i % GATE_RULES.length]}</p>`; }).join('');
+}
+function openDcGate() {
+  renderGateLines();
+  const box = $('#dcGateScroll');
+  Object.assign(gate, { last: 0, lastTime: performance.now(), speed: 0, done: false, resets: 0, warnUntil: 0 });
+  box.scrollTop = 0; $('#dcGateAgree').disabled = true; updateGate(0, false);
+  showSheet('#dcGateSheet');
+}
+function gateBackToStart() {
+  const box = $('#dcGateScroll');
+  box.style.overflow = 'hidden'; box.scrollTop = 0;             // also stops iPhone momentum scrolling
+  requestAnimationFrame(() => { box.style.overflow = ''; });
+  Object.assign(gate, { last: 0, lastTime: performance.now(), speed: 0, warnUntil: performance.now() + 2200 }); gate.resets++;   // keep the warning up for a moment
+  updateGate(0, true);
+  box.classList.remove('gate-shake'); void box.offsetWidth; box.classList.add('gate-shake');
+}
+function updateGate(top, tooFast) {
+  tooFast = tooFast || performance.now() < gate.warnUntil;
+  const box = $('#dcGateScroll'), max = Math.max(1, box.scrollHeight - box.clientHeight), ratio = Math.min(1, top / max);
+  const line = Math.max(1, Math.min(GATE_LINES, Math.round(ratio * GATE_LINES)));
+  $('#dcGateBar').style.width = `${(ratio * 100).toFixed(1)}%`;
+  $('#dcGateStatus').textContent = gate.done ? 'อ่านครบแล้ว ปุ่มตกลงกดได้' : tooFast ? `เลื่อนเร็วเกินไป กลับไปบรรทัดแรก (ครั้งที่ ${gate.resets})` : `บรรทัด ${line.toLocaleString('th-TH')} / ${GATE_LINES.toLocaleString('th-TH')} · เลื่อนเร็วเกินไปจะกลับไปบรรทัดแรก`;
+  $('#dcGateStatus').classList.toggle('is-warn', tooFast && !gate.done);
+}
+function onGateScroll() {
+  if (gate.done) return;
+  const box = $('#dcGateScroll'), now = performance.now(), top = box.scrollTop, jump = top - gate.last;
+  // speed since the previous scroll event, smoothed so one quick frame doesn't count but a flick does
+  const step = Math.max(0, jump) / Math.max(16, now - gate.lastTime);
+  gate.speed = gate.speed * .6 + step * .4;
+  gate.last = top; gate.lastTime = now;
+  if (jump > GATE_MAX_JUMP || gate.speed > GATE_MAX_SPEED) { gateBackToStart(); return; }   // only scrolling down is policed
+  if (top + box.clientHeight >= box.scrollHeight - 4) { gate.done = true; $('#dcGateAgree').disabled = false; }
+  updateGate(top, false);
+}
+
 /* ---------- ล้างยอด / ลบประวัติ ----------
    ล้างยอด: pick cards (and cash / bank of Pocket Cashflow) to set to 0; each one leaves a “ล้างยอด” record.
    ลบประวัติ: pick days (all cards or one card) to delete their records; balances stay as they are.
@@ -2177,8 +2239,11 @@ $('#cfCheckConfirm').addEventListener('click',confirmCfCheck);
 $('#importOldApp').addEventListener('click',()=>$('#importOldAppFile').click());
 $('#importOldAppFile').addEventListener('change',event=>{const file=event.target.files?.[0];event.target.value='';if(file)importOldApp(file);});
 $('#editName').addEventListener('click',()=>{const name=prompt('ชื่อที่ต้องการแสดง',state.profileName);if(name?.trim()){state.profileName=name.trim().slice(0,30);saveState('แก้ชื่อแล้ว');}});
-$('#clearAllBalances').addEventListener('click',()=>openDataClear());
+$('#clearAllBalances').addEventListener('click',openDcGate);   // the rules come first, then ล้างยอด / ลบประวัติ
 $('#dcConfirm').addEventListener('click',requestDataClear);
+$('#dcGateScroll').addEventListener('scroll',onGateScroll,{passive:true});
+$('#dcGateGiveUp').addEventListener('click',()=>{closeSheets();notify('ไม่แก้แล้ว ยอดเดิมยังอยู่ครบ');});
+$('#dcGateAgree').addEventListener('click',()=>{if(!gate.done)return;closeSheets();openDataClear();});
 $('#dcHistoryScope').addEventListener('change',event=>{dcState.scope=event.target.value;dcState.days.clear();dcState.dayLimit=45;renderDataClear();});
 $('#dataClearSheet').addEventListener('input',event=>{const field=event.target.closest('[data-dc-amt]');if(field)dcSetAmount(field.dataset.dcAmt,field.value);});
 $('#dataClearSheet').addEventListener('change',event=>{const field=event.target.closest('[data-dc-amt]');if(field)field.value=dcState.amounts.get(field.dataset.dcAmt)??field.value;});
