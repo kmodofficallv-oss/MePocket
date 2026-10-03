@@ -304,3 +304,20 @@ html[data-theme="dark"] .dc-badge{background:#ff6b5f;color:#1a0d0c}
 html[data-theme="dark"] .gate-save-dot{background:#232528;border-color:#ff6b5f}
 html[data-theme="dark"] .gate-save-dot.is-on{background:#ff6b5f}
 html[data-theme="dark"] .gate-scroll p.gate-save{background:rgba(255,107,95,.1)}
+/* แก้ยอด: ลดยอด / เพิ่มยอด per picked item */
+.dc-amount-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.dc-dir{display:inline-grid;grid-template-columns:1fr 1fr;background:#eef0ed;border-radius:10px;padding:3px;flex:none}
+.dc-dir button{border:0;border-radius:8px;background:transparent;padding:6px 11px;font:inherit;font-size:.72rem;font-weight:800;color:#74777a}
+.dc-amount.is-out .dc-dir button.active{background:#d1453b;color:#fff}
+.dc-amount.is-in .dc-dir button.active{background:#1f9d55;color:#fff}
+.dc-amount.is-in{color:#17653a}
+.dc-amount.is-in .money-input{border-color:#9fd8b5}
+.dc-amount .money-input span{white-space:nowrap}
+.dc-summary .dc-plus{color:#1f9d55}
+html[data-theme="dark"] .dc-dir{background:#2a2b2e}
+html[data-theme="dark"] .dc-dir button{color:#a6a9ac}
+html[data-theme="dark"] .dc-amount.is-out .dc-dir button.active{background:#ff6b5f;color:#1a0d0c}
+html[data-theme="dark"] .dc-amount.is-in .dc-dir button.active{background:#3ecf7c;color:#06210f}
+html[data-theme="dark"] .dc-amount.is-in{color:#8fe0b0}
+html[data-theme="dark"] .dc-amount.is-in .money-input{border-color:#2f7a4f}
+html[data-theme="dark"] .dc-summary .dc-plus{color:#5fe39a}

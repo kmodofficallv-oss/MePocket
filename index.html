@@ -221,7 +221,7 @@
           <div class="setting-row static"><span><b>สกุลเงินหลัก</b><small>ใช้คำนวณยอดรวม</small></span><strong>THB</strong></div>
           <button class="setting-row" id="importOldApp"><span><b>นำเข้าประวัติจากแอปเดิม</b><small>เลือกไฟล์ .json ที่เตรียมไว้ (ไฟล์อยู่ในเครื่องเท่านั้น)</small></span><i><svg class="icon"><use href="#i-deposit"/></svg></i></button>
           <input type="file" id="importOldAppFile" accept=".json,application/json" hidden />
-          <button class="setting-row danger" id="clearAllBalances"><span><b>ล้างยอด / ลบประวัติ</b><small>เลือกการ์ดที่จะล้างยอด หรือวันที่จะลบประวัติ</small></span><i><svg class="icon"><use href="#i-trash"/></svg></i></button>
+          <button class="setting-row danger" id="clearAllBalances"><span><b>แก้ยอด / ลบประวัติ</b><small>เพิ่มหรือลดยอดในการ์ด หรือลบประวัติรายวัน</small></span><i><svg class="icon"><use href="#i-trash"/></svg></i></button>
           <button class="setting-row danger" id="resetData"><span>เริ่มข้อมูลตัวอย่างใหม่</span><i><svg class="icon"><use href="#i-refresh"/></svg></i></button>
         </section>
         <p class="demo-note">เว็บนี้เป็นสมุดบันทึกการเงินส่วนตัว ไม่ได้เชื่อมต่อหรือโอนเงินจริงผ่านธนาคาร</p>
@@ -526,10 +526,10 @@
   <div class="sheet" id="dataClearSheet" aria-hidden="true">
     <div class="sheet-backdrop" data-close></div>
     <section class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="dataClearTitle">
-      <div class="grabber"></div><div class="sheet-head"><div><p class="overline dark-text">จัดการข้อมูล</p><h2 id="dataClearTitle">ล้างยอด / ลบประวัติ</h2></div><button class="close-button" data-close aria-label="ปิด"><svg class="icon"><use href="#i-x"/></svg></button></div>
-      <div class="segment"><button type="button" class="active" data-dc-tab="balance">ล้างยอดเงิน</button><button type="button" data-dc-tab="history">ลบประวัติ</button></div>
+      <div class="grabber"></div><div class="sheet-head"><div><p class="overline dark-text">จัดการข้อมูล</p><h2 id="dataClearTitle">แก้ยอด / ลบประวัติ</h2></div><button class="close-button" data-close aria-label="ปิด"><svg class="icon"><use href="#i-x"/></svg></button></div>
+      <div class="segment"><button type="button" class="active" data-dc-tab="balance">แก้ยอดเงิน</button><button type="button" data-dc-tab="history">ลบประวัติ</button></div>
       <div class="dc-pane" data-dc-pane="balance">
-        <div class="dc-head"><p>เลือกการ์ด แล้วแก้จำนวนที่จะล้างได้</p><button type="button" class="dc-all" data-dc-all="balance">เลือกทั้งหมด</button></div>
+        <div class="dc-head"><p>เลือกการ์ด แล้วเลือกลดหรือเพิ่มยอด</p><button type="button" class="dc-all" data-dc-all="balance">เลือกทั้งหมด</button></div>
         <div class="dc-list" id="dcBalanceList"></div>
       </div>
       <div class="dc-pane" data-dc-pane="history" hidden>
@@ -538,7 +538,7 @@
         <div class="dc-list" id="dcHistoryList"></div>
       </div>
       <div class="dc-summary" id="dcSummary"></div>
-      <button class="primary-button danger-button" type="button" id="dcConfirm" disabled>ล้างยอดที่เลือก</button>
+      <button class="primary-button danger-button" type="button" id="dcConfirm" disabled>แก้ยอดที่เลือก</button>
     </section>
   </div>
 

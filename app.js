@@ -1988,7 +1988,7 @@ function onGateScroll() {
    ล้างยอด: pick cards (and cash / bank of Pocket Cashflow) to set to 0; each one leaves a “ล้างยอด” record.
    ลบประวัติ: pick days (all cards or one card) to delete their records; balances stay as they are.
    Both ask for the PIN before anything happens. */
-const dcState = { tab: 'balance', balance: new Set(), amounts: new Map(), days: new Set(), scope: 'all', dayLimit: 45 };   // amounts: how much to clear per item (full balance unless edited)
+const dcState = { tab: 'balance', balance: new Set(), amounts: new Map(), dirs: new Map(), days: new Set(), scope: 'all', dayLimit: 45 };   // amounts: how much to clear per item (full balance unless edited)
 let pendingClear = null;
 function dcDayKey(date) { const d = new Date(date); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function dcInScope(tx) {
@@ -2011,22 +2011,28 @@ function dcDays() {
   return [...days.entries()].sort((a, b) => b[0].localeCompare(a[0]));
 }
 const dcCheck = on => `<span class="dc-check" aria-hidden="true">${on ? icon('check') : ''}</span>`;
-function dcAmount(key, value) { return dcState.amounts.has(key) ? dcState.amounts.get(key) : Math.max(0, roundMoney(value)); }
-function dcAmountField(key, value, currency, label = 'จำนวนที่จะล้าง') {
+// each picked item either goes down (ลดยอด, the default) or up (เพิ่มยอด)
+const dcDir = key => dcState.dirs.get(key) || 'out';
+const DC_MAX_ADD = 99999999;
+function dcAmount(key, value) { return dcState.amounts.has(key) ? dcState.amounts.get(key) : dcDir(key) === 'out' ? Math.max(0, roundMoney(value)) : 0; }
+const dcAfter = (key, value, amount) => addMoney(value, dcDir(key) === 'out' ? -amount : amount);
+function dcAmountField(key, value, currency, label = '') {
   if (!dcState.balance.has(key)) return '';
-  const amount = dcAmount(key, value), left = addMoney(value, -amount);
-  return `<div class="dc-amount"><span>${label}</span><div class="money-input"><span>${esc(currency)}</span><input data-dc-amt="${esc(key)}" inputmode="decimal" type="number" min="0" step="0.01" value="${amount}" /></div><small data-dc-left="${esc(key)}">คงเหลือหลังล้าง <b class="balance-value">${formatAmount(left, currency, true)}</b></small></div>`;
+  const dir = dcDir(key), amount = dcAmount(key, value), after = dcAfter(key, value, amount);
+  const seg = (d, text) => `<button type="button" class="${dir === d ? 'active' : ''}" data-dc-dir="${esc(key)}" data-dir="${d}">${text}</button>`;
+  return `<div class="dc-amount is-${dir}"><div class="dc-amount-head"><span>${label}</span><div class="dc-dir">${seg('out', 'ลดยอด')}${seg('in', 'เพิ่มยอด')}</div></div><div class="money-input"><span>${dir === 'out' ? '−' : '+'} ${esc(currency)}</span><input data-dc-amt="${esc(key)}" inputmode="decimal" type="number" min="0" step="0.01" value="${amount || ''}" placeholder="0.00" /></div><small data-dc-left="${esc(key)}">ยอดหลังแก้ <b class="balance-value">${formatAmount(after, currency, true)}</b></small></div>`;
 }
-// keep amounts sane while typing: 0 … current balance
+// keep amounts sane while typing: ลดยอด 0 … current balance, เพิ่มยอด 0 … a big cap
 function dcSetAmount(key, raw) {
   const item = dcBalanceItems().find(entry => entry.key === key); if (!item) return;
-  const max = Math.max(0, roundMoney(item.value)), amount = Math.min(max, Math.max(0, roundMoney(raw)));
+  const max = dcDir(key) === 'out' ? Math.max(0, roundMoney(item.value)) : DC_MAX_ADD, amount = Math.min(max, Math.max(0, roundMoney(raw)));
   dcState.amounts.set(key, amount);
-  const left = $(`[data-dc-left="${CSS.escape(key)}"] b`); if (left) left.textContent = formatAmount(addMoney(item.value, -amount), item.account?.currency || 'THB', true);
+  const left = $(`[data-dc-left="${CSS.escape(key)}"] b`); if (left) left.textContent = formatAmount(dcAfter(key, item.value, amount), item.account?.currency || 'THB', true);
   renderDcSummary();
 }
+function dcSetDir(key, dir) { if (dcDir(key) === dir) return; dcState.dirs.set(key, dir); dcState.amounts.delete(key); renderDataClear(); const field = $(`[data-dc-amt="${CSS.escape(key)}"]`); if (field && dir === 'in') field.focus(); }
 function openDataClear(tab = 'balance') {
-  dcState.tab = tab; dcState.balance.clear(); dcState.amounts.clear(); dcState.days.clear(); dcState.scope = 'all'; dcState.dayLimit = 45;
+  dcState.tab = tab; dcState.balance.clear(); dcState.amounts.clear(); dcState.dirs.clear(); dcState.days.clear(); dcState.scope = 'all'; dcState.dayLimit = 45;
   const scope = $('#dcHistoryScope');
   scope.innerHTML = `<option value="all">ทุกการ์ดและกล่อง</option>${state.accounts.map(account => `<option value="${esc(account.id)}">${esc(account.name)}</option>`).join('')}${state.goals.map(goal => `<option value="goal:${esc(goal.id)}">กล่อง: ${esc(goal.name)}</option>`).join('')}`;
   renderDataClear(); showSheet('#dataClearSheet');
@@ -2040,7 +2046,7 @@ function renderDataClear() {
       if (isCashflow(account)) {
         const keys = [`cf:${account.id}:cash`, `cf:${account.id}:bank`], on = keys.every(key => dcState.balance.has(key));
         const chip = (key, label, value) => `<button type="button" class="dc-chip ${dcState.balance.has(key) ? 'is-on' : ''}" data-dc-key="${esc(key)}">${dcCheck(dcState.balance.has(key))}<span>${label}<b class="balance-value">${formatAmount(value, 'THB', true)}</b></span></button>`;
-        return `<div class="dc-group"><button type="button" class="dc-row ${on ? 'is-on' : ''}" data-dc-keys="${esc(keys.join(','))}">${dcCheck(on)}<span><b>${esc(account.name)}</b><small>เลือกเงินสด ธนาคาร หรือทั้งคู่</small></span><strong class="balance-value">${formatAmount(account.balance, 'THB', true)}</strong></button><div class="dc-parts">${chip(keys[0], 'เงินสดในมือ', account.cashBalance)}${chip(keys[1], 'บัญชีธนาคาร', account.bankBalance)}</div>${dcAmountField(keys[0], account.cashBalance, 'THB', 'ล้างเงินสด')}${dcAmountField(keys[1], account.bankBalance, 'THB', 'ล้างเงินในธนาคาร')}</div>`;
+        return `<div class="dc-group"><button type="button" class="dc-row ${on ? 'is-on' : ''}" data-dc-keys="${esc(keys.join(','))}">${dcCheck(on)}<span><b>${esc(account.name)}</b><small>เลือกเงินสด ธนาคาร หรือทั้งคู่</small></span><strong class="balance-value">${formatAmount(account.balance, 'THB', true)}</strong></button><div class="dc-parts">${chip(keys[0], 'เงินสดในมือ', account.cashBalance)}${chip(keys[1], 'บัญชีธนาคาร', account.bankBalance)}</div>${dcAmountField(keys[0], account.cashBalance, 'THB', 'เงินสด')}${dcAmountField(keys[1], account.bankBalance, 'THB', 'เงินในธนาคาร')}</div>`;
       }
       const key = `acc:${account.id}`, on = dcState.balance.has(key);
       return `<div class="dc-group"><button type="button" class="dc-row ${on ? 'is-on' : ''}" data-dc-key="${esc(key)}">${dcCheck(on)}<span><b>${esc(account.name)}</b><small>Pocket · ${esc(account.currency)}</small></span><strong class="balance-value">${formatAmount(account.balance, account.currency, true)}</strong></button>${dcAmountField(key, account.balance, account.currency)}</div>`;
@@ -2067,39 +2073,40 @@ function renderDataClear() {
 }
 /* what is picked on both tabs right now — one confirm does both */
 function dcPlan() {
-  const picked = dcBalanceItems().filter(item => dcState.balance.has(item.key)).map(item => ({ ...item, amount: dcAmount(item.key, item.value) }));
+  const picked = dcBalanceItems().filter(item => dcState.balance.has(item.key)).map(item => ({ ...item, dir: dcDir(item.key), amount: dcAmount(item.key, item.value) }));
   const jobs = picked.filter(item => toSatang(item.amount));
   const days = dcDays().filter(([key]) => dcState.days.has(key));
-  return {
-    jobs, days,
-    txCount: days.reduce((sum, day) => sum + day[1], 0),
-    partial: jobs.filter(item => toSatang(item.amount) !== toSatang(item.value)).length,
-    sumTHB: jobs.reduce((sum, item) => addMoney(sum, roundMoney(item.amount * rateOf(item.account?.currency || 'THB'))), 0)
-  };
+  const thb = list => list.reduce((sum, item) => addMoney(sum, roundMoney(item.amount * rateOf(item.account?.currency || 'THB'))), 0);
+  const down = jobs.filter(item => item.dir === 'out'), up = jobs.filter(item => item.dir === 'in');
+  return { jobs, days, down, up, txCount: days.reduce((sum, day) => sum + day[1], 0), outTHB: thb(down), inTHB: thb(up) };
 }
 function renderDcSummary() {
   const plan = dcPlan(), hasJobs = plan.jobs.length > 0, hasDays = plan.days.length > 0;
   const badge = n => n ? ` <i class="dc-badge">${n}</i>` : '';
-  $('[data-dc-tab="balance"]').innerHTML = `ล้างยอดเงิน${badge(plan.jobs.length)}`;
+  $('[data-dc-tab="balance"]').innerHTML = `แก้ยอดเงิน${badge(plan.jobs.length)}`;
   $('[data-dc-tab="history"]').innerHTML = `ลบประวัติ${badge(plan.days.length)}`;
   const lines = [];
-  if (hasJobs) lines.push(`<p><span>ล้างยอด</span><b>${plan.jobs.length} รายการ${plan.partial ? ` (บางส่วน ${plan.partial})` : ''}</b></p><p><span>ยอดที่จะหายไป (เทียบบาท)</span><b class="balance-value">${formatAmount(plan.sumTHB, 'THB', true)}</b></p>`);
+  if (hasJobs) {
+    lines.push(`<p><span>แก้ยอด</span><b>${plan.jobs.length} รายการ</b></p>`);
+    if (plan.down.length) lines.push(`<p><span>ลดลง ${plan.down.length} รายการ (เทียบบาท)</span><b class="balance-value">−${formatAmount(plan.outTHB, 'THB', true)}</b></p>`);
+    if (plan.up.length) lines.push(`<p><span>เพิ่มขึ้น ${plan.up.length} รายการ (เทียบบาท)</span><b class="balance-value dc-plus">+${formatAmount(plan.inTHB, 'THB', true)}</b></p>`);
+  }
   if (hasDays) lines.push(`<p><span>ลบประวัติ</span><b>${plan.days.length} วัน · ${plan.txCount.toLocaleString('th-TH')} รายการ</b></p>`);
   const notes = [];
-  if (hasJobs) notes.push('ล้างยอดไม่บันทึกลงรายการเดินบัญชี');
+  if (hasJobs) notes.push('แก้ยอดไม่บันทึกลงรายการเดินบัญชี');
   if (hasDays) notes.push('ลบประวัติแล้วกู้คืนไม่ได้ ยอดเงินไม่เปลี่ยน');
-  if (hasJobs !== hasDays) notes.push(hasJobs ? 'เลือกวันที่จะลบในแท็บ “ลบประวัติ” เพิ่มได้' : 'เลือกการ์ดที่จะล้างในแท็บ “ล้างยอดเงิน” เพิ่มได้');
+  if (hasJobs !== hasDays) notes.push(hasJobs ? 'เลือกวันที่จะลบในแท็บ “ลบประวัติ” เพิ่มได้' : 'เลือกการ์ดที่จะแก้ในแท็บ “แก้ยอดเงิน” เพิ่มได้');
   $('#dcSummary').innerHTML = lines.length ? `${lines.join('')}<small>${notes.join(' · ')}</small>` : '<small>ยังไม่ได้เลือก · เลือกได้ทั้งสองแท็บ แล้วยืนยันทีเดียว</small>';
   const button = $('#dcConfirm');
-  button.textContent = hasJobs && hasDays ? 'ยืนยันทั้งสองอย่าง' : hasDays ? 'ลบประวัติที่เลือก' : 'ล้างยอดที่เลือก';
+  button.textContent = hasJobs && hasDays ? 'ยืนยันทั้งสองอย่าง' : hasDays ? 'ลบประวัติที่เลือก' : 'แก้ยอดที่เลือก';
   button.disabled = !hasJobs && !hasDays;
 }
 function dcToggle(set, keys) { const all = keys.every(key => set.has(key)); keys.forEach(key => all ? set.delete(key) : set.add(key)); renderDataClear(); }
 function requestDataClear() {
   const plan = dcPlan(); if (!plan.jobs.length && !plan.days.length) return;
-  pendingClear = { jobs: plan.jobs.map(item => ({ key: item.key, amount: item.amount })), days: plan.days.map(day => day[0]), scope: dcState.scope };
-  const parts = [plan.jobs.length && `ล้างยอด ${plan.jobs.length} รายการ`, plan.days.length && `ลบประวัติ ${plan.days.length} วัน`].filter(Boolean);
-  const title = plan.jobs.length && plan.days.length ? 'ยืนยันล้างยอดและลบประวัติ' : plan.jobs.length ? 'ยืนยันการล้างยอด' : 'ยืนยันการลบประวัติ';
+  pendingClear = { jobs: plan.jobs.map(item => ({ key: item.key, dir: item.dir, amount: item.amount })), days: plan.days.map(day => day[0]), scope: dcState.scope };
+  const parts = [plan.jobs.length && `แก้ยอด ${plan.jobs.length} รายการ`, plan.days.length && `ลบประวัติ ${plan.days.length} วัน`].filter(Boolean);
+  const title = plan.jobs.length && plan.days.length ? 'ยืนยันแก้ยอดและลบประวัติ' : plan.jobs.length ? 'ยืนยันการแก้ยอด' : 'ยืนยันการลบประวัติ';
   askClearPin(title, parts.join(' · '), plan.jobs.length ? 'ไม่บันทึกลงรายการเดินบัญชี' : 'ยอดเงินในการ์ดไม่เปลี่ยน');
 }
 function askClearPin(title, amount, destination) {
@@ -2112,22 +2119,25 @@ function askClearPin(title, amount, destination) {
   $('#transferPinDestination').textContent = destination;
   switchOpenSheet('#dataClearSheet', '#transferPinSheet');
 }
-/* Clearing only changes the balances — nothing is written to รายการเดินบัญชี.
+/* แก้ยอด (down or up) only changes the balances — nothing is written to รายการเดินบัญชี.
    Afterwards the sheet stays open (selections reset) so you can keep going without the rules again. */
 function performDataClear() {
   const job = pendingClear; pendingClear = null; protectedPinAction = 'transfer';
   if (!job) { closeSheets(); return; }
   let cleared = 0, removed = 0;
-  job.jobs.forEach(({ key, amount: wanted }) => {
-    const [kind, id, part] = key.split(':');
+  job.jobs.forEach(({ key, dir, amount: wanted }) => {
+    const [kind, id, part] = key.split(':'), up = dir === 'in';
+    // going down never takes more than what's there; going up adds what was typed
+    const howMuch = current => up ? Math.min(DC_MAX_ADD, Math.max(0, roundMoney(wanted))) : Math.min(Math.max(0, roundMoney(current)), roundMoney(wanted));
     if (kind === 'cf') {
       const account = accountById(id); if (!isCashflow(account)) return;
-      const amount = Math.min(Math.max(0, roundMoney(cfPart(account, part))), roundMoney(wanted)); if (!toSatang(amount)) return;
-      cfApply(account, part === 'cash' ? -amount : 0, part === 'bank' ? -amount : 0); cleared++;
+      const amount = howMuch(cfPart(account, part)); if (!toSatang(amount)) return;
+      const delta = up ? amount : -amount;
+      cfApply(account, part === 'cash' ? delta : 0, part === 'bank' ? delta : 0); cleared++;
     } else {
       const entity = kind === 'goal' ? goalById(id) : accountById(id); if (!entity) return;
-      const amount = Math.min(Math.max(0, roundMoney(entity.balance)), roundMoney(wanted)); if (!toSatang(amount)) return;
-      entity.balance = addMoney(entity.balance, -amount); cleared++;
+      const amount = howMuch(entity.balance); if (!toSatang(amount)) return;
+      entity.balance = addMoney(entity.balance, up ? amount : -amount); cleared++;
     }
   });
   if (job.days.length) {
@@ -2137,9 +2147,9 @@ function performDataClear() {
     dcState.scope = scope; removed = before - state.transactions.length;
     historyLimit = HISTORY_STEP; accountHistoryLimit = HISTORY_STEP;
   }
-  const msg = [job.jobs.length && (cleared ? `ล้างยอด ${cleared} รายการแล้ว` : 'ยอดที่เลือกเป็น 0 อยู่แล้ว'), job.days.length && `ลบประวัติ ${removed.toLocaleString('th-TH')} รายการแล้ว`].filter(Boolean).join(' · ');
+  const msg = [job.jobs.length && (cleared ? `แก้ยอด ${cleared} รายการแล้ว` : 'ยอดที่เลือกเป็น 0 อยู่แล้ว'), job.days.length && `ลบประวัติ ${removed.toLocaleString('th-TH')} รายการแล้ว`].filter(Boolean).join(' · ');
   saveState(msg);
-  dcState.balance.clear(); dcState.amounts.clear(); dcState.days.clear();
+  dcState.balance.clear(); dcState.amounts.clear(); dcState.dirs.clear(); dcState.days.clear();
   resetTransferPin(); renderDataClear(); switchOpenSheet('#transferPinSheet', '#dataClearSheet');
 }
 
@@ -2281,7 +2291,7 @@ $('#cfCheckConfirm').addEventListener('click',confirmCfCheck);
 $('#importOldApp').addEventListener('click',()=>$('#importOldAppFile').click());
 $('#importOldAppFile').addEventListener('change',event=>{const file=event.target.files?.[0];event.target.value='';if(file)importOldApp(file);});
 $('#editName').addEventListener('click',()=>{const name=prompt('ชื่อที่ต้องการแสดง',state.profileName);if(name?.trim()){state.profileName=name.trim().slice(0,30);saveState('แก้ชื่อแล้ว');}});
-$('#clearAllBalances').addEventListener('click',openDcGate);   // the rules come first, then ล้างยอด / ลบประวัติ
+$('#clearAllBalances').addEventListener('click',openDcGate);   // the rules come first, then แก้ยอด / ลบประวัติ
 $('#dcConfirm').addEventListener('click',requestDataClear);
 $('#dcGateScroll').addEventListener('scroll',onGateScroll,{passive:true});
 $('#dcGateGiveUp').addEventListener('click',()=>{closeSheets();notify('ไม่แก้แล้ว ยอดเดิมยังอยู่ครบ');});
@@ -2290,6 +2300,7 @@ $('#dcHistoryScope').addEventListener('change',event=>{dcState.scope=event.targe
 $('#dataClearSheet').addEventListener('input',event=>{const field=event.target.closest('[data-dc-amt]');if(field)dcSetAmount(field.dataset.dcAmt,field.value);});
 $('#dataClearSheet').addEventListener('change',event=>{const field=event.target.closest('[data-dc-amt]');if(field)field.value=dcState.amounts.get(field.dataset.dcAmt)??field.value;});
 $('#dataClearSheet').addEventListener('click',event=>{
+  const dir=event.target.closest('[data-dc-dir]'); if(dir){dcSetDir(dir.dataset.dcDir,dir.dataset.dir);return;}
   const tab=event.target.closest('[data-dc-tab]'); if(tab){dcState.tab=tab.dataset.dcTab;renderDataClear();return;}
   const key=event.target.closest('[data-dc-key]'); if(key){dcToggle(dcState.balance,[key.dataset.dcKey]);return;}
   const keys=event.target.closest('[data-dc-keys]'); if(keys){dcToggle(dcState.balance,keys.dataset.dcKeys.split(','));return;}
