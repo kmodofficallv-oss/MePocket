@@ -971,7 +971,7 @@ body { color: var(--concept-deep); }
   box-shadow: none;
 }
 
-@media (max-width:420px), (orientation:landscape) and (max-height:500px) and (pointer:coarse) and (max-height:420px) {
+@media (max-width:480px), (orientation:landscape) and (max-height:500px) and (pointer:coarse) and (max-height:480px) {   /* every phone: date above time (iPhone date boxes overflow a half-width column) */
   .schedule-date-grid {
     grid-template-columns: 1fr;
     gap: 0;

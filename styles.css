@@ -212,3 +212,6 @@ html[data-theme="dark"] .cf-preview .cf-match{background:#15372c;color:#58f38e}
 /* 5 history filters: share the row so ปรับยอด isn't cut off (still scrolls on very small phones) */
 #transactionFilters{gap:6px}
 #transactionFilters button{flex:1 0 auto;padding-inline:11px}
+/* iPhone date/time boxes: drop the native min width so they always fit their column */
+.schedule-date-grid input{display:block;-webkit-appearance:none;appearance:none;text-align:left}
+.schedule-date-grid input::-webkit-date-and-time-value{text-align:left}

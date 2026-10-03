@@ -1497,10 +1497,13 @@ function openScheduleEditor() {
 
 function handleScheduleSubmit(event) {
   event.preventDefault(); const destination=getScheduleDestination($('#scheduleDestination').value); const amount=Number($('#scheduleAmount').value); const runAt=new Date(`${$('#scheduleDate').value}T${$('#scheduleTime').value}`); let error='';
-  if(!destination.entity) error='กรุณาเลือกกล่องปลายทาง'; else if(!amount||amount<=0) error='กรุณาใส่จำนวนเงิน'; else if(Number.isNaN(runAt.getTime())||runAt<=new Date()) error='กรุณาเลือกเวลาในอนาคต';
+  if(!destination.entity) error='กรุณาเลือกกล่องปลายทาง'; else if(!amount||amount<=0) error='กรุณาใส่จำนวนเงิน'; else if(Number.isNaN(runAt.getTime())) error='กรุณาเลือกวันและเวลา';
   $('#scheduleError').textContent=error; if(error) return;
   state.scheduledDeposits.push({id:crypto.randomUUID(),kind:scheduleKind,place:destination.type==='account'&&isCashflow(destination.entity)?cfPlaceValue('#schedulePlace'):undefined,destinationType:destination.type,destinationId:destination.id,currency:destination.currency,amount:Number(amount.toFixed(2)),runAt:runAt.toISOString(),status:'pending',createdAt:new Date().toISOString()});
-  closeSheets(); saveState(scheduleKind==='withdraw'?`ตั้งถอนจาก “${destination.entity.name}” แล้ว`:`ตั้งฝากเข้า “${destination.entity.name}” แล้ว`); requestSystemNotifications(false);
+  const past=runAt<=new Date();
+  closeSheets(); saveState(past?`บันทึกย้อนหลัง ${formatTime(runAt.toISOString())} แล้ว`:scheduleKind==='withdraw'?`ตั้งถอนจาก “${destination.entity.name}” แล้ว`:`ตั้งฝากเข้า “${destination.entity.name}” แล้ว`);
+  requestSystemNotifications(false);
+  if(past) processScheduledDeposits();   // a past date is done straight away
 }
 
 /* ---------- import of the old app's history ----------
@@ -1616,7 +1619,7 @@ function processScheduledDeposits() {
   const due=(state.scheduledDeposits||[]).filter(item=>item.status==='pending'&&new Date(item.runAt)<=new Date()); if(!due.length) return;
   due.forEach(item=>{
     const withdraw=item.kind==='withdraw';
-    const destination=getScheduleDestination(item); const completedAt=new Date(); const when=depositTimestamp(completedAt);
+    const destination=getScheduleDestination(item); const completedAt=new Date(); const at=new Date(item.runAt); const when=depositTimestamp(at);
     const fail=(detail,notice)=>{item.status='failed';item.completedAt=completedAt.toISOString();showDepositPopup({success:false,kind:item.kind,title:withdraw?'ถอนเงินอัตโนมัติไม่สำเร็จ':'ฝากเงินอัตโนมัติไม่สำเร็จ',detail});sendSystemNotification(withdraw?'รายการเงินออกไม่สำเร็จ':'รายการเงินเข้าไม่สำเร็จ',`${notice} เมื่อ ${when.day} เวลา ${when.time} น.`);};
     if(!destination.entity){fail('ไม่พบ Pocket หรือกล่องที่เลือกไว้','ไม่พบบัญชีที่เลือกไว้');return;}
     const currency=item.currency||destination.currency; const amountText=formatDepositAmount(item.amount,currency);
@@ -1627,7 +1630,7 @@ function processScheduledDeposits() {
     const cfFields=isCashflow(destination.entity)?{place,...moved}:{};
     item.status='done'; item.completedAt=completedAt.toISOString();
     const accountId=destination.type==='goal'?`goal:${destination.id}`:destination.id;
-    state.transactions.push({id:crypto.randomUUID(),type:withdraw?'expense':'income',auto:withdraw?'withdraw':'deposit',account:accountId,amount:item.amount,currency,note:withdraw?'ถอนเงินอัตโนมัติ':'ฝากเงินอัตโนมัติ',date:completedAt.toISOString(),...cfFields});
+    state.transactions.push({id:crypto.randomUUID(),type:withdraw?'expense':'income',auto:withdraw?'withdraw':'deposit',account:accountId,amount:item.amount,currency,note:withdraw?'ถอนเงินอัตโนมัติ':'ฝากเงินอัตโนมัติ',date:at.toISOString(),recordedAt:completedAt.toISOString(),...cfFields});
     const balanceText=formatDepositAmount(destination.entity.balance,currency);
     if(withdraw){
       showDepositPopup({success:true,kind:'withdraw',title:'รายการเงินออกอัตโนมัติสำเร็จ',amountText,detail:`ออกจาก${targetWord} ${reference} · ${when.time} น.`});
