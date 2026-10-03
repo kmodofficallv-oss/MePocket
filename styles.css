@@ -294,3 +294,6 @@ html[data-theme="dark"] .gate-scroll p{color:#d5d7d8;border-bottom-color:rgba(25
 html[data-theme="dark"] .gate-scroll p span{color:#74777a}
 html[data-theme="dark"] .gate-giveup{background:#1c1d1f;border-color:#38393e;color:#eeeff1}
 @media (prefers-reduced-motion:reduce){.gate-shake{animation:none}}
+/* how many picked on each tab of ล้างยอด / ลบประวัติ */
+.dc-badge{display:inline-grid;place-items:center;min-width:19px;height:19px;padding:0 5px;margin-left:5px;border-radius:999px;background:#d1453b;color:#fff;font-style:normal;font-size:.68rem;font-weight:800;line-height:1;vertical-align:1px}
+html[data-theme="dark"] .dc-badge{background:#ff6b5f;color:#1a0d0c}

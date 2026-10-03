@@ -2004,7 +2004,6 @@ function openDataClear(tab = 'balance') {
 function renderDataClear() {
   $$('[data-dc-tab]').forEach(button => button.classList.toggle('active', button.dataset.dcTab === dcState.tab));
   $$('[data-dc-pane]').forEach(pane => { pane.hidden = pane.dataset.dcPane !== dcState.tab; });
-  const button = $('#dcConfirm'), summary = $('#dcSummary');
   if (dcState.tab === 'balance') {
     const items = dcBalanceItems();
     const rows = state.accounts.map(account => {
@@ -2021,8 +2020,6 @@ function renderDataClear() {
     }).join('');
     $('#dcBalanceList').innerHTML = rows || '<p class="empty">ยังไม่มีการ์ด</p>';
     $('[data-dc-all="balance"]').textContent = items.length && items.every(item => dcState.balance.has(item.key)) ? 'ไม่เลือกทั้งหมด' : 'เลือกทั้งหมด';
-    button.textContent = 'ล้างยอดที่เลือก';
-    renderDcSummary();
   } else {
     const days = dcDays(), fmt = new Intl.DateTimeFormat('th-TH', { weekday: 'short', day: 'numeric', month: 'short', year: '2-digit' }), monthFmt = new Intl.DateTimeFormat('th-TH', { month: 'long', year: 'numeric' });
     let html = '', month = '';
@@ -2034,33 +2031,46 @@ function renderDataClear() {
     });
     if (days.length > dcState.dayLimit) html += `<button type="button" class="history-more" data-dc-more>แสดงวันเพิ่มเติม (${days.length - dcState.dayLimit})</button>`;
     $('#dcHistoryList').innerHTML = html || '<p class="empty">ไม่มีประวัติ</p>';
-    const pickedDays = days.filter(([key]) => dcState.days.has(key)), count = pickedDays.reduce((sum, day) => sum + day[1], 0);
-    $('[data-dc-all="history"]').textContent = pickedDays.length === days.length && days.length ? 'ไม่เลือกทั้งหมด' : 'เลือกทั้งหมด';
-    summary.innerHTML = pickedDays.length ? `<p><span>จะลบ</span><b>${pickedDays.length} วัน · ${count.toLocaleString('th-TH')} รายการ</b></p><small>ลบเฉพาะประวัติ ยอดเงินในการ์ดไม่เปลี่ยน · ลบแล้วกู้คืนไม่ได้</small>` : '<small>ยังไม่ได้เลือกวัน</small>';
-    button.textContent = 'ลบประวัติที่เลือก'; button.disabled = !pickedDays.length;
+    $('[data-dc-all="history"]').textContent = days.length && days.every(([key]) => dcState.days.has(key)) ? 'ไม่เลือกทั้งหมด' : 'เลือกทั้งหมด';
   }
+  renderDcSummary();
+}
+/* what is picked on both tabs right now — one confirm does both */
+function dcPlan() {
+  const picked = dcBalanceItems().filter(item => dcState.balance.has(item.key)).map(item => ({ ...item, amount: dcAmount(item.key, item.value) }));
+  const jobs = picked.filter(item => toSatang(item.amount));
+  const days = dcDays().filter(([key]) => dcState.days.has(key));
+  return {
+    jobs, days,
+    txCount: days.reduce((sum, day) => sum + day[1], 0),
+    partial: jobs.filter(item => toSatang(item.amount) !== toSatang(item.value)).length,
+    sumTHB: jobs.reduce((sum, item) => addMoney(sum, roundMoney(item.amount * rateOf(item.account?.currency || 'THB'))), 0)
+  };
 }
 function renderDcSummary() {
-  if (dcState.tab !== 'balance') return;
-  const picked = dcBalanceItems().filter(item => dcState.balance.has(item.key)).map(item => ({ ...item, amount: dcAmount(item.key, item.value) }));
-  const real = picked.filter(item => toSatang(item.amount));
-  const sumTHB = real.reduce((sum, item) => addMoney(sum, roundMoney(item.amount * rateOf(item.account?.currency || 'THB'))), 0);
-  const toZero = real.filter(item => toSatang(item.amount) === toSatang(item.value)).length;
-  $('#dcSummary').innerHTML = picked.length ? `<p><span>จะล้าง</span><b>${real.length} รายการ${toZero !== real.length ? ` (บางส่วน ${real.length - toZero})` : ''}</b></p><p><span>ยอดที่จะหายไป (เทียบบาท)</span><b class="balance-value">${formatAmount(sumTHB, 'THB', true)}</b></p><small>ประวัติเดิมยังอยู่ และจะมีรายการ “ล้างยอด” บันทึกไว้</small>` : '<small>ยังไม่ได้เลือกการ์ด</small>';
-  $('#dcConfirm').disabled = !real.length;
+  const plan = dcPlan(), hasJobs = plan.jobs.length > 0, hasDays = plan.days.length > 0;
+  const badge = n => n ? ` <i class="dc-badge">${n}</i>` : '';
+  $('[data-dc-tab="balance"]').innerHTML = `ล้างยอดเงิน${badge(plan.jobs.length)}`;
+  $('[data-dc-tab="history"]').innerHTML = `ลบประวัติ${badge(plan.days.length)}`;
+  const lines = [];
+  if (hasJobs) lines.push(`<p><span>ล้างยอด</span><b>${plan.jobs.length} รายการ${plan.partial ? ` (บางส่วน ${plan.partial})` : ''}</b></p><p><span>ยอดที่จะหายไป (เทียบบาท)</span><b class="balance-value">${formatAmount(plan.sumTHB, 'THB', true)}</b></p>`);
+  if (hasDays) lines.push(`<p><span>ลบประวัติ</span><b>${plan.days.length} วัน · ${plan.txCount.toLocaleString('th-TH')} รายการ</b></p>`);
+  const notes = [];
+  if (hasJobs) notes.push('ล้างยอดไม่บันทึกลงรายการเดินบัญชี');
+  if (hasDays) notes.push('ลบประวัติแล้วกู้คืนไม่ได้ ยอดเงินไม่เปลี่ยน');
+  if (hasJobs !== hasDays) notes.push(hasJobs ? 'เลือกวันที่จะลบในแท็บ “ลบประวัติ” เพิ่มได้' : 'เลือกการ์ดที่จะล้างในแท็บ “ล้างยอดเงิน” เพิ่มได้');
+  $('#dcSummary').innerHTML = lines.length ? `${lines.join('')}<small>${notes.join(' · ')}</small>` : '<small>ยังไม่ได้เลือก · เลือกได้ทั้งสองแท็บ แล้วยืนยันทีเดียว</small>';
+  const button = $('#dcConfirm');
+  button.textContent = hasJobs && hasDays ? 'ยืนยันทั้งสองอย่าง' : hasDays ? 'ลบประวัติที่เลือก' : 'ล้างยอดที่เลือก';
+  button.disabled = !hasJobs && !hasDays;
 }
 function dcToggle(set, keys) { const all = keys.every(key => set.has(key)); keys.forEach(key => all ? set.delete(key) : set.add(key)); renderDataClear(); }
 function requestDataClear() {
-  if (dcState.tab === 'balance') {
-    const picked = dcBalanceItems().filter(item => dcState.balance.has(item.key)); if (!picked.length) return;
-    const jobs = picked.map(item => ({ key: item.key, amount: dcAmount(item.key, item.value) })).filter(job => toSatang(job.amount)); if (!jobs.length) return;
-    pendingClear = { tab: 'balance', jobs };
-    askClearPin('ยืนยันการล้างยอด', `ล้างยอด ${jobs.length} รายการ`, 'ประวัติเดิมยังอยู่');
-  } else {
-    const days = dcDays().filter(([key]) => dcState.days.has(key)); if (!days.length) return;
-    pendingClear = { tab: 'history', days: [...dcState.days], scope: dcState.scope };
-    askClearPin('ยืนยันการลบประวัติ', `ลบประวัติ ${days.length} วัน`, 'ยอดเงินในการ์ดไม่เปลี่ยน');
-  }
+  const plan = dcPlan(); if (!plan.jobs.length && !plan.days.length) return;
+  pendingClear = { jobs: plan.jobs.map(item => ({ key: item.key, amount: item.amount })), days: plan.days.map(day => day[0]), scope: dcState.scope };
+  const parts = [plan.jobs.length && `ล้างยอด ${plan.jobs.length} รายการ`, plan.days.length && `ลบประวัติ ${plan.days.length} วัน`].filter(Boolean);
+  const title = plan.jobs.length && plan.days.length ? 'ยืนยันล้างยอดและลบประวัติ' : plan.jobs.length ? 'ยืนยันการล้างยอด' : 'ยืนยันการลบประวัติ';
+  askClearPin(title, parts.join(' · '), plan.jobs.length ? 'ไม่บันทึกลงรายการเดินบัญชี' : 'ยอดเงินในการ์ดไม่เปลี่ยน');
 }
 function askClearPin(title, amount, destination) {
   protectedPinAction = 'clear-balances';
@@ -2072,33 +2082,35 @@ function askClearPin(title, amount, destination) {
   $('#transferPinDestination').textContent = destination;
   switchOpenSheet('#dataClearSheet', '#transferPinSheet');
 }
+/* Clearing only changes the balances — nothing is written to รายการเดินบัญชี.
+   Afterwards the sheet stays open (selections reset) so you can keep going without the rules again. */
 function performDataClear() {
   const job = pendingClear; pendingClear = null; protectedPinAction = 'transfer';
   if (!job) { closeSheets(); return; }
-  const now = new Date().toISOString();
-  if (job.tab === 'balance') {
-    let done = 0;
-    job.jobs.forEach(({ key, amount: wanted }) => {
-      const [kind, id, part] = key.split(':');
-      if (kind === 'cf') {
-        const account = accountById(id); if (!isCashflow(account)) return;
-        const value = cfPart(account, part), amount = Math.min(Math.max(0, roundMoney(value)), roundMoney(wanted)); if (!toSatang(amount)) return;
-        state.transactions.push({ id: crypto.randomUUID(), type: part === 'cash' ? 'cash_reconciliation' : 'bank_reconciliation', account: id, amount, currency: 'THB', source: part, note: toSatang(amount) === toSatang(value) ? 'ล้างยอด' : 'ล้างยอดบางส่วน', date: now, ...cfApply(account, part === 'cash' ? -amount : 0, part === 'bank' ? -amount : 0) }); done++;
-      } else {
-        const entity = kind === 'goal' ? goalById(id) : accountById(id); if (!entity) return;
-        const amount = Math.min(Math.max(0, roundMoney(entity.balance)), roundMoney(wanted)); if (!toSatang(amount)) return;
-        state.transactions.push({ id: crypto.randomUUID(), type: 'adjust', direction: 'out', account: kind === 'goal' ? `goal:${id}` : id, amount, currency: kind === 'goal' ? 'THB' : entity.currency, note: toSatang(amount) === toSatang(entity.balance) ? 'ล้างยอด' : 'ล้างยอดบางส่วน', date: now });
-        entity.balance = addMoney(entity.balance, -amount); done++;
-      }
-    });
-    closeSheets(); saveState(done ? `ล้างยอด ${done} รายการแล้ว` : 'รายการที่เลือกเป็น 0 อยู่แล้ว');
-  } else {
+  let cleared = 0, removed = 0;
+  job.jobs.forEach(({ key, amount: wanted }) => {
+    const [kind, id, part] = key.split(':');
+    if (kind === 'cf') {
+      const account = accountById(id); if (!isCashflow(account)) return;
+      const amount = Math.min(Math.max(0, roundMoney(cfPart(account, part))), roundMoney(wanted)); if (!toSatang(amount)) return;
+      cfApply(account, part === 'cash' ? -amount : 0, part === 'bank' ? -amount : 0); cleared++;
+    } else {
+      const entity = kind === 'goal' ? goalById(id) : accountById(id); if (!entity) return;
+      const amount = Math.min(Math.max(0, roundMoney(entity.balance)), roundMoney(wanted)); if (!toSatang(amount)) return;
+      entity.balance = addMoney(entity.balance, -amount); cleared++;
+    }
+  });
+  if (job.days.length) {
     const days = new Set(job.days), before = state.transactions.length, scope = dcState.scope;
     dcState.scope = job.scope;
     state.transactions = state.transactions.filter(tx => !(days.has(dcDayKey(tx.date)) && dcInScope(tx)));
-    dcState.scope = scope; historyLimit = HISTORY_STEP; accountHistoryLimit = HISTORY_STEP;
-    closeSheets(); saveState(`ลบประวัติ ${(before - state.transactions.length).toLocaleString('th-TH')} รายการแล้ว`);
+    dcState.scope = scope; removed = before - state.transactions.length;
+    historyLimit = HISTORY_STEP; accountHistoryLimit = HISTORY_STEP;
   }
+  const msg = [job.jobs.length && (cleared ? `ล้างยอด ${cleared} รายการแล้ว` : 'ยอดที่เลือกเป็น 0 อยู่แล้ว'), job.days.length && `ลบประวัติ ${removed.toLocaleString('th-TH')} รายการแล้ว`].filter(Boolean).join(' · ');
+  saveState(msg);
+  dcState.balance.clear(); dcState.amounts.clear(); dcState.days.clear();
+  resetTransferPin(); renderDataClear(); switchOpenSheet('#transferPinSheet', '#dataClearSheet');
 }
 
 function requestClearAllBalances() {
