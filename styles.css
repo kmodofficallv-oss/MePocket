@@ -274,11 +274,11 @@ html[data-theme="dark"] .dc-amount small b{color:#eeeff1}
 
 /* ---------- ข้อตกลงก่อนแก้ยอด ---------- */
 .sheet-panel.gate-panel{display:flex;flex-direction:column;height:calc(92 * var(--app-vh, 1dvh));overflow:hidden}
-.gate-progress{height:6px;border-radius:99px;background:#eceeeb;overflow:hidden;margin:4px 0 8px}
+.gate-progress{position:relative;height:6px;border-radius:99px;background:#eceeeb;margin:4px 0 8px}
 .gate-progress i{display:block;height:100%;width:0;background:#d1453b;border-radius:inherit;transition:width .12s linear}
 .gate-status{margin:0 2px 10px;font-size:.74rem;font-weight:700;color:#74777a;min-height:2.2em}
 .gate-status.is-warn{color:#d1453b}
-.gate-scroll{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;border-radius:16px;background:#f2f4f1;padding:6px 14px}
+.gate-scroll{position:relative;flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;border-radius:16px;background:#f2f4f1;padding:6px 14px}
 .gate-scroll p{display:grid;grid-template-columns:3.2em 1fr;gap:6px;margin:0;padding:6px 0;border-bottom:1px solid rgba(0,0,0,.05);font-size:.82rem;line-height:1.45;color:#3b3f42}
 .gate-scroll p span{color:#a3a6a8;font:600 .7rem/1.9 'IBM Plex Mono',ui-monospace,monospace;text-align:right}
 .gate-scroll p.gate-mark{color:#b0342b;font-weight:800}
@@ -297,3 +297,10 @@ html[data-theme="dark"] .gate-giveup{background:#1c1d1f;border-color:#38393e;col
 /* how many picked on each tab of ล้างยอด / ลบประวัติ */
 .dc-badge{display:inline-grid;place-items:center;min-width:19px;height:19px;padding:0 5px;margin-left:5px;border-radius:999px;background:#d1453b;color:#fff;font-style:normal;font-size:.68rem;font-weight:800;line-height:1;vertical-align:1px}
 html[data-theme="dark"] .dc-badge{background:#ff6b5f;color:#1a0d0c}
+/* save point at line 500: a dot in the middle of the bar, filled once reached */
+.gate-save-dot{position:absolute;left:50%;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:#fff;border:2px solid #d1453b;box-sizing:border-box;transition:background .2s}
+.gate-save-dot.is-on{background:#d1453b}
+.gate-scroll p.gate-save{background:rgba(209,69,59,.08);border-radius:10px;padding-left:4px;padding-right:4px}
+html[data-theme="dark"] .gate-save-dot{background:#232528;border-color:#ff6b5f}
+html[data-theme="dark"] .gate-save-dot.is-on{background:#ff6b5f}
+html[data-theme="dark"] .gate-scroll p.gate-save{background:rgba(255,107,95,.1)}

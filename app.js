@@ -1894,8 +1894,12 @@ function handleSetting(key) { state.settings[key]=!state.settings[key]; saveStat
 
 /* ---------- ข้อตกลงก่อนแก้ยอด (a rule I set for myself) ----------
    Before ล้างยอด / ลบประวัติ: read 1,000 lines to the very end and only then can ตกลง be pressed.
-   Scrolling too fast sends you straight back to line 1. Giving up just closes it. */
+   Scrolling too fast steps you back a few lines — the further you've read, the more: 2 lines in the first 100,
+   4 in 101–200, 6, 8, 10 … up to 20 near the end.
+   Line 500 is a save point: once reached, you never fall back below it. Giving up just closes it. */
 const GATE_LINES = 1000, GATE_MAX_SPEED = 1.6, GATE_MAX_JUMP = 900;   // px per ms (smoothed), and the biggest single jump
+const GATE_STEP = 2, GATE_TIER = 100, GATE_SAVE = 500;               // back 2 lines per 100 read; save point line
+const gateBackFor = line => GATE_STEP * Math.max(1, Math.ceil(line / GATE_TIER));
 const GATE_RULES = [
   'ฉันเข้าใจว่าการแก้ยอดคือการแก้ตัวเลข ไม่ใช่การแก้ปัญหา',
   'ถ้ายอดไม่ตรง ฉันจะหาสาเหตุก่อนเสมอ',
@@ -1913,45 +1917,71 @@ const GATE_RULES = [
   'ฉันยังอ่านอยู่ และยังตั้งใจอยู่',
   'ฉันจะไม่เลื่อนข้าม เพราะกฎนี้ฉันเป็นคนตั้งเอง'
 ];
-const GATE_MARKS = { 100: 'ผ่านไป 100 บรรทัดแล้ว ยังอยากแก้อยู่ไหม?', 250: 'หนึ่งในสี่แล้ว ลองหายใจลึกๆ สักที', 500: 'ครึ่งทางแล้ว ถ้าเปลี่ยนใจ กด “ยอมแพ้” ได้เลย', 750: 'อีก 250 บรรทัด เหตุผลที่แก้ยอดยังชัดอยู่ไหม?', 900: 'อีก 100 บรรทัดสุดท้าย', 1000: 'ครบ 1,000 บรรทัด ฉันอ่านจบแล้ว และฉันตัดสินใจเอง' };
-const gate = { last: 0, lastTime: 0, speed: 0, done: false, resets: 0, warnUntil: 0 };
+const GATE_MARKS = { 100: 'ผ่านไป 100 บรรทัดแล้ว ยังอยากแก้อยู่ไหม?', 250: 'หนึ่งในสี่แล้ว ลองหายใจลึกๆ สักที', 500: 'จุดเซฟครึ่งทาง — จากนี้เลื่อนเร็วไปก็ไม่ถอยต่ำกว่าบรรทัดนี้', 750: 'อีก 250 บรรทัด เหตุผลที่แก้ยอดยังชัดอยู่ไหม?', 900: 'อีก 100 บรรทัดสุดท้าย', 1000: 'ครบ 1,000 บรรทัด ฉันอ่านจบแล้ว และฉันตัดสินใจเอง' };
+const gate = { last: 0, lastTime: 0, speed: 0, best: 0, done: false, strikes: 0, saved: false, back: 0, floored: false, warnUntil: 0, savedUntil: 0, holdUntil: 0, holdTop: 0 };
 function renderGateLines() {
   const box = $('#dcGateScroll'); if (box.childElementCount) return;
-  box.innerHTML = Array.from({ length: GATE_LINES }, (_, i) => { const n = i + 1, mark = GATE_MARKS[n]; return `<p${mark ? ' class="gate-mark"' : ''}><span>${n}</span>${mark || GATE_RULES[i % GATE_RULES.length]}</p>`; }).join('');
+  box.innerHTML = Array.from({ length: GATE_LINES }, (_, i) => { const n = i + 1, mark = GATE_MARKS[n]; return `<p${mark ? ` class="gate-mark${n === GATE_SAVE ? ' gate-save' : ''}"` : ''}><span>${n}</span>${mark || GATE_RULES[i % GATE_RULES.length]}</p>`; }).join('');
+}
+// the last line you can fully see at this scroll position = how far you've read
+function gateLineAt(top) {
+  const box = $('#dcGateScroll'), lines = box.children, bottom = top + box.clientHeight + 1;
+  let lo = 0, hi = lines.length;
+  while (lo < hi) { const mid = (lo + hi) >> 1; const p = lines[mid]; if (p.offsetTop + p.offsetHeight <= bottom) lo = mid + 1; else hi = mid; }
+  return Math.max(1, lo);
+}
+// scroll position where line n is the last fully visible line
+function gateTopFor(line) {
+  const box = $('#dcGateScroll'), p = box.children[Math.max(0, Math.min(GATE_LINES, line) - 1)];
+  return Math.max(0, p.offsetTop + p.offsetHeight - box.clientHeight);
 }
 function openDcGate() {
   renderGateLines();
   const box = $('#dcGateScroll');
-  Object.assign(gate, { last: 0, lastTime: performance.now(), speed: 0, done: false, resets: 0, warnUntil: 0 });
-  box.scrollTop = 0; $('#dcGateAgree').disabled = true; updateGate(0, false);
+  Object.assign(gate, { last: 0, lastTime: performance.now(), speed: 0, best: 0, done: false, strikes: 0, saved: false, back: 0, floored: false, warnUntil: 0, savedUntil: 0, holdUntil: 0, holdTop: 0 });
   showSheet('#dcGateSheet');
+  box.scrollTop = 0; $('#dcGateAgree').disabled = true; updateGate(0);
 }
-function gateBackToStart() {
+function gateStepBack() {
   const box = $('#dcGateScroll');
-  box.style.overflow = 'hidden'; box.scrollTop = 0;             // also stops iPhone momentum scrolling
+  const from = gateLineAt(gate.best);
+  gate.strikes++; gate.back = gateBackFor(from);
+  const floor = gate.saved ? GATE_SAVE : 1;
+  const line = Math.max(floor, from - gate.back); gate.floored = gate.saved && from - gate.back < GATE_SAVE;
+  const top = line <= 1 && !gate.saved ? 0 : gateTopFor(line);
+  box.style.overflow = 'hidden'; box.scrollTop = top;          // also stops iPhone momentum scrolling
   requestAnimationFrame(() => { box.style.overflow = ''; });
-  Object.assign(gate, { last: 0, lastTime: performance.now(), speed: 0, warnUntil: performance.now() + 2200 }); gate.resets++;   // keep the warning up for a moment
-  updateGate(0, true);
+  const now = performance.now();
+  Object.assign(gate, { last: top, best: top, lastTime: now, speed: 0, warnUntil: now + 2200, holdUntil: now + 900, holdTop: top });   // warning stays up a moment; one flick = one strike
+  updateGate(top);
   box.classList.remove('gate-shake'); void box.offsetWidth; box.classList.add('gate-shake');
 }
-function updateGate(top, tooFast) {
-  tooFast = tooFast || performance.now() < gate.warnUntil;
-  const box = $('#dcGateScroll'), max = Math.max(1, box.scrollHeight - box.clientHeight), ratio = Math.min(1, top / max);
-  const line = Math.max(1, Math.min(GATE_LINES, Math.round(ratio * GATE_LINES)));
+function updateGate(top) {
+  const now = performance.now(), box = $('#dcGateScroll'), line = gateLineAt(top);
+  const ratio = gate.done ? 1 : Math.min(1, line / GATE_LINES), warn = now < gate.warnUntil && !gate.done;
   $('#dcGateBar').style.width = `${(ratio * 100).toFixed(1)}%`;
-  $('#dcGateStatus').textContent = gate.done ? 'อ่านครบแล้ว ปุ่มตกลงกดได้' : tooFast ? `เลื่อนเร็วเกินไป กลับไปบรรทัดแรก (ครั้งที่ ${gate.resets})` : `บรรทัด ${line.toLocaleString('th-TH')} / ${GATE_LINES.toLocaleString('th-TH')} · เลื่อนเร็วเกินไปจะกลับไปบรรทัดแรก`;
-  $('#dcGateStatus').classList.toggle('is-warn', tooFast && !gate.done);
+  $('#dcGateSave').classList.toggle('is-on', gate.saved);
+  const next = gateBackFor(Math.max(line, gateLineAt(gate.best))), saved = gate.saved ? ' · เซฟไว้ที่บรรทัด 500' : '';
+  $('#dcGateStatus').textContent = gate.done ? 'อ่านครบแล้ว ปุ่มตกลงกดได้'
+    : warn ? `เลื่อนเร็วไป ถอยกลับ ${gate.back} บรรทัด (ครั้งที่ ${gate.strikes})${gate.floored ? ' · หยุดที่จุดเซฟ 500' : ''}`
+    : now < gate.savedUntil ? 'ถึงจุดเซฟบรรทัด 500 แล้ว จากนี้ไม่ถอยต่ำกว่านี้'
+    : `บรรทัด ${line.toLocaleString('th-TH')} / ${GATE_LINES.toLocaleString('th-TH')} · เร็วไปจะถอย ${next} บรรทัด${saved}`;
+  $('#dcGateStatus').classList.toggle('is-warn', warn);
 }
 function onGateScroll() {
   if (gate.done) return;
   const box = $('#dcGateScroll'), now = performance.now(), top = box.scrollTop, jump = top - gate.last;
+  // right after stepping back, the rest of the same flick just gets held in place (no extra strikes)
+  if (now < gate.holdUntil) { if (top > gate.holdTop + 2) box.scrollTop = gate.holdTop; gate.last = Math.min(top, gate.holdTop); gate.lastTime = now; gate.speed = 0; return; }
   // speed since the previous scroll event, smoothed so one quick frame doesn't count but a flick does
-  const step = Math.max(0, jump) / Math.max(16, now - gate.lastTime);
+  const step = Math.max(0, jump) / Math.min(120, Math.max(16, now - gate.lastTime));   // a long pause doesn't excuse a big jump
   gate.speed = gate.speed * .6 + step * .4;
   gate.last = top; gate.lastTime = now;
-  if (jump > GATE_MAX_JUMP || gate.speed > GATE_MAX_SPEED) { gateBackToStart(); return; }   // only scrolling down is policed
+  if (jump > GATE_MAX_JUMP || gate.speed > GATE_MAX_SPEED) { gateStepBack(); return; }   // only scrolling down is policed
+  if (top > gate.best) gate.best = top;                                                  // furthest point read at a calm pace
+  if (!gate.saved && gateLineAt(top) >= GATE_SAVE) { gate.saved = true; gate.savedUntil = now + 2200; }
   if (top + box.clientHeight >= box.scrollHeight - 4) { gate.done = true; $('#dcGateAgree').disabled = false; }
-  updateGate(top, false);
+  updateGate(top);
 }
 
 /* ---------- ล้างยอด / ลบประวัติ ----------
