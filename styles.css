@@ -261,3 +261,13 @@ html[data-theme="dark"] .dc-summary b{color:#ff9a90}
 html[data-theme="dark"] .dc-summary small{color:#c19590}
 html[data-theme="dark"] .dc-all,html[data-theme="dark"] .dc-month em{color:#ff8a80}
 .sheet-panel .primary-button.danger-button,html[data-theme="dark"] .sheet-panel .primary-button.danger-button{background:#d1453b;color:#fff;border-color:#d1453b}
+/* amount to clear, under a picked card */
+.dc-amount{margin:0 12px 12px 45px;font-size:.72rem;font-weight:700;color:#7c3a33}
+.dc-amount .money-input{margin-top:5px;background:#fff;border:1px solid #e9a39d;border-radius:12px;min-height:44px}
+.dc-amount .money-input input{font-size:16px;font-weight:700}
+.dc-amount small{display:block;margin-top:5px;font-weight:600;color:#7a7e81}
+.dc-amount small b{color:#17181b}
+html[data-theme="dark"] .dc-amount{color:#e5b5af}
+html[data-theme="dark"] .dc-amount .money-input{background:#1c1d1f;border-color:#8a3a33}
+html[data-theme="dark"] .dc-amount small{color:#a6a9ac}
+html[data-theme="dark"] .dc-amount small b{color:#eeeff1}

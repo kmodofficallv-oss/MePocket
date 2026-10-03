@@ -1066,8 +1066,17 @@ function updateScheduleKind() {
 /* bank-app style: show only part of the account number, e.g. xxx-x-x4523-x */
 function maskRef(ref) {
   const digits=String(ref||'').replace(/\D/g,'');
-  if(digits.length===10) return `xxx-x-x${digits.slice(5,9)}-x`;
-  return digits.length>4?`x${digits.slice(-4)}`:digits;
+  return digits.length>4?`X-${digits.slice(-4)}`:digits;      // like the bank apps: X-0227
+}
+/* phone notification for money moving, bank-app style:
+   รายการเงินออก · จำนวน 1,000.87 บาท จากบัญชี X-4523 วันที่ 03/10/2026 @17:52 ยอดเงินที่ใช้ได้ 13,271.19 บาท */
+function notifyMoney(direction, amount, currency, place, date = new Date()) {
+  if (!place?.entity) return;
+  const d = new Date(date), pad = n => String(n).padStart(2, '0');
+  const stamp = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} @${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const ref = maskRef(destinationReference(place)), out = direction === 'out';
+  sendSystemNotification(out ? 'รายการเงินออก' : 'รายการเงินเข้า',
+    `จำนวน ${formatDepositAmount(amount, currency)} ${out ? 'จากบัญชี' : 'เข้าบัญชี'} ${ref} วันที่ ${stamp} ยอดเงินที่ใช้ได้ ${formatDepositAmount(place.entity.balance, place.type === 'goal' ? 'THB' : place.entity.currency)}`);
 }
 
 function renderAll() {
@@ -1464,6 +1473,8 @@ function executePendingTransfer() {
     const cfInto=isCashflow(destination)?{source:'pocket',destination:transfer.destinationPlace||'bank',...into}:{};
     state.transactions.push({id:transactionId,type:'transfer',from:source.id,toType:transfer.destinationType,to:transfer.destinationId,amount:transfer.amount,currency:transfer.currency,received:transfer.received,receivedCurrency:transfer.receivedCurrency,note:transfer.note,date:completedAt.toISOString(),sourcePlace:isCashflow(source)?transfer.sourcePlace||'bank':undefined,destinationPlace:isCashflow(destination)?transfer.destinationPlace||'bank':undefined,...cfInto,...cfSide});
   }
+  notifyMoney('out',transfer.amount,source.currency,{type:'account',id:source.id,entity:source},completedAt);
+  if(destination) notifyMoney('in',transfer.received,transfer.receivedCurrency,{type:transfer.destinationType,id:transfer.destinationId,entity:destination},completedAt);
   completedTransfer={...transfer,completedAt:completedAt.toISOString(),reference:`MP${completedAt.getFullYear()}${String(completedAt.getMonth()+1).padStart(2,'0')}${String(completedAt.getDate()).padStart(2,'0')}${String(Date.now()).slice(-8)}`};
   localStorage.setItem(STORAGE_KEY,JSON.stringify(state)); renderAll(); renderTransferSlip(); resetTransferPin(); switchOpenSheet('#transferPinSheet','#transferSuccessSheet');
 }
@@ -1631,13 +1642,12 @@ function processScheduledDeposits() {
     item.status='done'; item.completedAt=completedAt.toISOString();
     const accountId=destination.type==='goal'?`goal:${destination.id}`:destination.id;
     state.transactions.push({id:crypto.randomUUID(),type:withdraw?'expense':'income',auto:withdraw?'withdraw':'deposit',account:accountId,amount:item.amount,currency,note:withdraw?'ถอนเงินอัตโนมัติ':'ฝากเงินอัตโนมัติ',date:at.toISOString(),recordedAt:completedAt.toISOString(),...cfFields});
-    const balanceText=formatDepositAmount(destination.entity.balance,currency);
     if(withdraw){
       showDepositPopup({success:true,kind:'withdraw',title:'รายการเงินออกอัตโนมัติสำเร็จ',amountText,detail:`ออกจาก${targetWord} ${reference} · ${when.time} น.`});
-      sendSystemNotification('รายการเงินออก',`${amountText} ออกจาก${targetWord} ${reference} เมื่อ ${when.day} ${when.time} น. คงเหลือ ${balanceText}`);
+      notifyMoney('out',item.amount,currency,destination,at);
     } else {
       showDepositPopup({success:true,kind:'deposit',amountText,detail:`เข้า${targetWord} ${reference} · ${when.time} น.`});
-      sendSystemNotification('รายการเงินเข้า',`${amountText} เข้า${targetWord} ${reference} เมื่อ ${when.day} ${when.time} น. คงเหลือ ${balanceText}`);
+      notifyMoney('in',item.amount,currency,destination,at);
     }
   });
   state.scheduledDeposits=(state.scheduledDeposits||[]).filter(item=>item.status!=='done');
@@ -1886,7 +1896,7 @@ function handleSetting(key) { state.settings[key]=!state.settings[key]; saveStat
    ล้างยอด: pick cards (and cash / bank of Pocket Cashflow) to set to 0; each one leaves a “ล้างยอด” record.
    ลบประวัติ: pick days (all cards or one card) to delete their records; balances stay as they are.
    Both ask for the PIN before anything happens. */
-const dcState = { tab: 'balance', balance: new Set(), days: new Set(), scope: 'all', dayLimit: 45 };
+const dcState = { tab: 'balance', balance: new Set(), amounts: new Map(), days: new Set(), scope: 'all', dayLimit: 45 };   // amounts: how much to clear per item (full balance unless edited)
 let pendingClear = null;
 function dcDayKey(date) { const d = new Date(date); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function dcInScope(tx) {
@@ -1909,8 +1919,22 @@ function dcDays() {
   return [...days.entries()].sort((a, b) => b[0].localeCompare(a[0]));
 }
 const dcCheck = on => `<span class="dc-check" aria-hidden="true">${on ? icon('check') : ''}</span>`;
+function dcAmount(key, value) { return dcState.amounts.has(key) ? dcState.amounts.get(key) : Math.max(0, roundMoney(value)); }
+function dcAmountField(key, value, currency, label = 'จำนวนที่จะล้าง') {
+  if (!dcState.balance.has(key)) return '';
+  const amount = dcAmount(key, value), left = addMoney(value, -amount);
+  return `<div class="dc-amount"><span>${label}</span><div class="money-input"><span>${esc(currency)}</span><input data-dc-amt="${esc(key)}" inputmode="decimal" type="number" min="0" step="0.01" value="${amount}" /></div><small data-dc-left="${esc(key)}">คงเหลือหลังล้าง <b class="balance-value">${formatAmount(left, currency, true)}</b></small></div>`;
+}
+// keep amounts sane while typing: 0 … current balance
+function dcSetAmount(key, raw) {
+  const item = dcBalanceItems().find(entry => entry.key === key); if (!item) return;
+  const max = Math.max(0, roundMoney(item.value)), amount = Math.min(max, Math.max(0, roundMoney(raw)));
+  dcState.amounts.set(key, amount);
+  const left = $(`[data-dc-left="${CSS.escape(key)}"] b`); if (left) left.textContent = formatAmount(addMoney(item.value, -amount), item.account?.currency || 'THB', true);
+  renderDcSummary();
+}
 function openDataClear(tab = 'balance') {
-  dcState.tab = tab; dcState.balance.clear(); dcState.days.clear(); dcState.scope = 'all'; dcState.dayLimit = 45;
+  dcState.tab = tab; dcState.balance.clear(); dcState.amounts.clear(); dcState.days.clear(); dcState.scope = 'all'; dcState.dayLimit = 45;
   const scope = $('#dcHistoryScope');
   scope.innerHTML = `<option value="all">ทุกการ์ดและกล่อง</option>${state.accounts.map(account => `<option value="${esc(account.id)}">${esc(account.name)}</option>`).join('')}${state.goals.map(goal => `<option value="goal:${esc(goal.id)}">กล่อง: ${esc(goal.name)}</option>`).join('')}`;
   renderDataClear(); showSheet('#dataClearSheet');
@@ -1925,20 +1949,18 @@ function renderDataClear() {
       if (isCashflow(account)) {
         const keys = [`cf:${account.id}:cash`, `cf:${account.id}:bank`], on = keys.every(key => dcState.balance.has(key));
         const chip = (key, label, value) => `<button type="button" class="dc-chip ${dcState.balance.has(key) ? 'is-on' : ''}" data-dc-key="${esc(key)}">${dcCheck(dcState.balance.has(key))}<span>${label}<b class="balance-value">${formatAmount(value, 'THB', true)}</b></span></button>`;
-        return `<div class="dc-group"><button type="button" class="dc-row ${on ? 'is-on' : ''}" data-dc-keys="${esc(keys.join(','))}">${dcCheck(on)}<span><b>${esc(account.name)}</b><small>เลือกเงินสด ธนาคาร หรือทั้งคู่</small></span><strong class="balance-value">${formatAmount(account.balance, 'THB', true)}</strong></button><div class="dc-parts">${chip(keys[0], 'เงินสดในมือ', account.cashBalance)}${chip(keys[1], 'บัญชีธนาคาร', account.bankBalance)}</div></div>`;
+        return `<div class="dc-group"><button type="button" class="dc-row ${on ? 'is-on' : ''}" data-dc-keys="${esc(keys.join(','))}">${dcCheck(on)}<span><b>${esc(account.name)}</b><small>เลือกเงินสด ธนาคาร หรือทั้งคู่</small></span><strong class="balance-value">${formatAmount(account.balance, 'THB', true)}</strong></button><div class="dc-parts">${chip(keys[0], 'เงินสดในมือ', account.cashBalance)}${chip(keys[1], 'บัญชีธนาคาร', account.bankBalance)}</div>${dcAmountField(keys[0], account.cashBalance, 'THB', 'ล้างเงินสด')}${dcAmountField(keys[1], account.bankBalance, 'THB', 'ล้างเงินในธนาคาร')}</div>`;
       }
       const key = `acc:${account.id}`, on = dcState.balance.has(key);
-      return `<button type="button" class="dc-row ${on ? 'is-on' : ''}" data-dc-key="${esc(key)}">${dcCheck(on)}<span><b>${esc(account.name)}</b><small>Pocket · ${esc(account.currency)}</small></span><strong class="balance-value">${formatAmount(account.balance, account.currency, true)}</strong></button>`;
+      return `<div class="dc-group"><button type="button" class="dc-row ${on ? 'is-on' : ''}" data-dc-key="${esc(key)}">${dcCheck(on)}<span><b>${esc(account.name)}</b><small>Pocket · ${esc(account.currency)}</small></span><strong class="balance-value">${formatAmount(account.balance, account.currency, true)}</strong></button>${dcAmountField(key, account.balance, account.currency)}</div>`;
     }).join('') + state.goals.map(goal => {
       const key = `goal:${goal.id}`, on = dcState.balance.has(key);
-      return `<button type="button" class="dc-row ${on ? 'is-on' : ''}" data-dc-key="${esc(key)}">${dcCheck(on)}<span><b>${esc(goal.name)}</b><small>กล่องเป้าหมาย</small></span><strong class="balance-value">${formatAmount(goal.balance, 'THB', true)}</strong></button>`;
+      return `<div class="dc-group"><button type="button" class="dc-row ${on ? 'is-on' : ''}" data-dc-key="${esc(key)}">${dcCheck(on)}<span><b>${esc(goal.name)}</b><small>กล่องเป้าหมาย</small></span><strong class="balance-value">${formatAmount(goal.balance, 'THB', true)}</strong></button>${dcAmountField(key, goal.balance, 'THB')}</div>`;
     }).join('');
     $('#dcBalanceList').innerHTML = rows || '<p class="empty">ยังไม่มีการ์ด</p>';
-    const picked = items.filter(item => dcState.balance.has(item.key));
-    const sumTHB = picked.reduce((sum, item) => addMoney(sum, roundMoney(item.value * rateOf(item.account?.currency || 'THB'))), 0);
-    $('[data-dc-all="balance"]').textContent = picked.length === items.length && items.length ? 'ไม่เลือกทั้งหมด' : 'เลือกทั้งหมด';
-    summary.innerHTML = picked.length ? `<p><span>จะตั้งเป็น 0</span><b>${picked.length} รายการ</b></p><p><span>ยอดที่จะหายไป (เทียบบาท)</span><b class="balance-value">${formatAmount(sumTHB, 'THB', true)}</b></p><small>ประวัติเดิมยังอยู่ และจะมีรายการ “ล้างยอด” บันทึกไว้</small>` : '<small>ยังไม่ได้เลือกการ์ด</small>';
-    button.textContent = 'ล้างยอดที่เลือก'; button.disabled = !picked.length;
+    $('[data-dc-all="balance"]').textContent = items.length && items.every(item => dcState.balance.has(item.key)) ? 'ไม่เลือกทั้งหมด' : 'เลือกทั้งหมด';
+    button.textContent = 'ล้างยอดที่เลือก';
+    renderDcSummary();
   } else {
     const days = dcDays(), fmt = new Intl.DateTimeFormat('th-TH', { weekday: 'short', day: 'numeric', month: 'short', year: '2-digit' }), monthFmt = new Intl.DateTimeFormat('th-TH', { month: 'long', year: 'numeric' });
     let html = '', month = '';
@@ -1956,12 +1978,22 @@ function renderDataClear() {
     button.textContent = 'ลบประวัติที่เลือก'; button.disabled = !pickedDays.length;
   }
 }
+function renderDcSummary() {
+  if (dcState.tab !== 'balance') return;
+  const picked = dcBalanceItems().filter(item => dcState.balance.has(item.key)).map(item => ({ ...item, amount: dcAmount(item.key, item.value) }));
+  const real = picked.filter(item => toSatang(item.amount));
+  const sumTHB = real.reduce((sum, item) => addMoney(sum, roundMoney(item.amount * rateOf(item.account?.currency || 'THB'))), 0);
+  const toZero = real.filter(item => toSatang(item.amount) === toSatang(item.value)).length;
+  $('#dcSummary').innerHTML = picked.length ? `<p><span>จะล้าง</span><b>${real.length} รายการ${toZero !== real.length ? ` (บางส่วน ${real.length - toZero})` : ''}</b></p><p><span>ยอดที่จะหายไป (เทียบบาท)</span><b class="balance-value">${formatAmount(sumTHB, 'THB', true)}</b></p><small>ประวัติเดิมยังอยู่ และจะมีรายการ “ล้างยอด” บันทึกไว้</small>` : '<small>ยังไม่ได้เลือกการ์ด</small>';
+  $('#dcConfirm').disabled = !real.length;
+}
 function dcToggle(set, keys) { const all = keys.every(key => set.has(key)); keys.forEach(key => all ? set.delete(key) : set.add(key)); renderDataClear(); }
 function requestDataClear() {
   if (dcState.tab === 'balance') {
     const picked = dcBalanceItems().filter(item => dcState.balance.has(item.key)); if (!picked.length) return;
-    pendingClear = { tab: 'balance', keys: [...dcState.balance] };
-    askClearPin('ยืนยันการล้างยอด', `ล้างยอด ${picked.length} รายการ`, 'ประวัติเดิมยังอยู่');
+    const jobs = picked.map(item => ({ key: item.key, amount: dcAmount(item.key, item.value) })).filter(job => toSatang(job.amount)); if (!jobs.length) return;
+    pendingClear = { tab: 'balance', jobs };
+    askClearPin('ยืนยันการล้างยอด', `ล้างยอด ${jobs.length} รายการ`, 'ประวัติเดิมยังอยู่');
   } else {
     const days = dcDays().filter(([key]) => dcState.days.has(key)); if (!days.length) return;
     pendingClear = { tab: 'history', days: [...dcState.days], scope: dcState.scope };
@@ -1984,15 +2016,17 @@ function performDataClear() {
   const now = new Date().toISOString();
   if (job.tab === 'balance') {
     let done = 0;
-    job.keys.forEach(key => {
+    job.jobs.forEach(({ key, amount: wanted }) => {
       const [kind, id, part] = key.split(':');
       if (kind === 'cf') {
-        const account = accountById(id); if (!isCashflow(account)) return; const value = cfPart(account, part); if (!toSatang(value)) return;
-        state.transactions.push({ id: crypto.randomUUID(), type: part === 'cash' ? 'cash_reconciliation' : 'bank_reconciliation', account: id, amount: Math.abs(value), currency: 'THB', source: part, note: 'ล้างยอด', date: now, ...cfApply(account, part === 'cash' ? -value : 0, part === 'bank' ? -value : 0) }); done++;
+        const account = accountById(id); if (!isCashflow(account)) return;
+        const value = cfPart(account, part), amount = Math.min(Math.max(0, roundMoney(value)), roundMoney(wanted)); if (!toSatang(amount)) return;
+        state.transactions.push({ id: crypto.randomUUID(), type: part === 'cash' ? 'cash_reconciliation' : 'bank_reconciliation', account: id, amount, currency: 'THB', source: part, note: toSatang(amount) === toSatang(value) ? 'ล้างยอด' : 'ล้างยอดบางส่วน', date: now, ...cfApply(account, part === 'cash' ? -amount : 0, part === 'bank' ? -amount : 0) }); done++;
       } else {
-        const entity = kind === 'goal' ? goalById(id) : accountById(id); if (!entity || !toSatang(entity.balance)) return;
-        state.transactions.push({ id: crypto.randomUUID(), type: 'adjust', direction: entity.balance > 0 ? 'out' : 'in', account: kind === 'goal' ? `goal:${id}` : id, amount: Math.abs(entity.balance), currency: kind === 'goal' ? 'THB' : entity.currency, note: 'ล้างยอด', date: now });
-        entity.balance = 0; done++;
+        const entity = kind === 'goal' ? goalById(id) : accountById(id); if (!entity) return;
+        const amount = Math.min(Math.max(0, roundMoney(entity.balance)), roundMoney(wanted)); if (!toSatang(amount)) return;
+        state.transactions.push({ id: crypto.randomUUID(), type: 'adjust', direction: 'out', account: kind === 'goal' ? `goal:${id}` : id, amount, currency: kind === 'goal' ? 'THB' : entity.currency, note: toSatang(amount) === toSatang(entity.balance) ? 'ล้างยอด' : 'ล้างยอดบางส่วน', date: now });
+        entity.balance = addMoney(entity.balance, -amount); done++;
       }
     });
     closeSheets(); saveState(done ? `ล้างยอด ${done} รายการแล้ว` : 'รายการที่เลือกเป็น 0 อยู่แล้ว');
@@ -2146,6 +2180,8 @@ $('#editName').addEventListener('click',()=>{const name=prompt('ชื่อท�
 $('#clearAllBalances').addEventListener('click',()=>openDataClear());
 $('#dcConfirm').addEventListener('click',requestDataClear);
 $('#dcHistoryScope').addEventListener('change',event=>{dcState.scope=event.target.value;dcState.days.clear();dcState.dayLimit=45;renderDataClear();});
+$('#dataClearSheet').addEventListener('input',event=>{const field=event.target.closest('[data-dc-amt]');if(field)dcSetAmount(field.dataset.dcAmt,field.value);});
+$('#dataClearSheet').addEventListener('change',event=>{const field=event.target.closest('[data-dc-amt]');if(field)field.value=dcState.amounts.get(field.dataset.dcAmt)??field.value;});
 $('#dataClearSheet').addEventListener('click',event=>{
   const tab=event.target.closest('[data-dc-tab]'); if(tab){dcState.tab=tab.dataset.dcTab;renderDataClear();return;}
   const key=event.target.closest('[data-dc-key]'); if(key){dcToggle(dcState.balance,[key.dataset.dcKey]);return;}
