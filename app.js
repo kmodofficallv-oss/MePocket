@@ -1429,7 +1429,7 @@ function openTransferPinVerification() {
 }
 
 function returnToTransferReview() {
-  if(protectedPinAction==='clear-balances'){protectedPinAction='transfer';closeSheets();return;}
+  if(protectedPinAction==='clear-balances'){protectedPinAction='transfer';if(pendingClear){pendingClear=null;resetTransferPin();switchOpenSheet('#transferPinSheet','#dataClearSheet');return;}closeSheets();return;}
   resetTransferPin();
   switchOpenSheet('#transferPinSheet','#transferReviewSheet');
 }
@@ -1443,7 +1443,7 @@ async function verifyTransferPin() {
   const storedHash=localStorage.getItem(PIN_HASH_KEY);
   const correct=storedHash&&(await hashPin(entered))===storedHash;
   if(verificationToken!==transferPinVerificationToken||!$('#transferPinSheet').classList.contains('open')) return;
-  if(correct){if(protectedPinAction==='clear-balances'){performClearAllBalances();return;}executePendingTransfer();return;}
+  if(correct){if(protectedPinAction==='clear-balances'){if(pendingClear)performDataClear();else performClearAllBalances();return;}executePendingTransfer();return;}
   resetTransferPin(storedHash?'รหัส PIN ไม่ถูกต้อง กรุณาลองอีกครั้ง':'ยังไม่ได้ตั้งรหัส PIN สำหรับยืนยันรายการ');
   const dots=$('#transferPinDots'); dots.classList.remove('shake'); void dots.offsetWidth; dots.classList.add('shake');
 }
@@ -1882,6 +1882,129 @@ function updateAccountCurrencyLabel(){ $('#accountCurrencyLabel').textContent=$(
 
 function handleSetting(key) { state.settings[key]=!state.settings[key]; saveState(); }
 
+/* ---------- ล้างยอด / ลบประวัติ ----------
+   ล้างยอด: pick cards (and cash / bank of Pocket Cashflow) to set to 0; each one leaves a “ล้างยอด” record.
+   ลบประวัติ: pick days (all cards or one card) to delete their records; balances stay as they are.
+   Both ask for the PIN before anything happens. */
+const dcState = { tab: 'balance', balance: new Set(), days: new Set(), scope: 'all', dayLimit: 45 };
+let pendingClear = null;
+function dcDayKey(date) { const d = new Date(date); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function dcInScope(tx) {
+  const scope = dcState.scope; if (scope === 'all') return true;
+  return scope.startsWith('goal:') ? (tx.account === scope || (tx.toType === 'goal' && `goal:${tx.to}` === scope)) : relatedToAccount(tx, scope);
+}
+// everything that can be cleared, as selectable keys
+function dcBalanceItems() {
+  const items = [];
+  state.accounts.forEach(account => {
+    if (isCashflow(account)) { items.push({ key: `cf:${account.id}:cash`, account, part: 'cash', value: account.cashBalance }, { key: `cf:${account.id}:bank`, account, part: 'bank', value: account.bankBalance }); }
+    else items.push({ key: `acc:${account.id}`, account, value: account.balance });
+  });
+  state.goals.forEach(goal => items.push({ key: `goal:${goal.id}`, goal, value: goal.balance }));
+  return items;
+}
+function dcDays() {
+  const days = new Map();
+  state.transactions.filter(dcInScope).forEach(tx => { const key = dcDayKey(tx.date); days.set(key, (days.get(key) || 0) + 1); });
+  return [...days.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+}
+const dcCheck = on => `<span class="dc-check" aria-hidden="true">${on ? icon('check') : ''}</span>`;
+function openDataClear(tab = 'balance') {
+  dcState.tab = tab; dcState.balance.clear(); dcState.days.clear(); dcState.scope = 'all'; dcState.dayLimit = 45;
+  const scope = $('#dcHistoryScope');
+  scope.innerHTML = `<option value="all">ทุกการ์ดและกล่อง</option>${state.accounts.map(account => `<option value="${esc(account.id)}">${esc(account.name)}</option>`).join('')}${state.goals.map(goal => `<option value="goal:${esc(goal.id)}">กล่อง: ${esc(goal.name)}</option>`).join('')}`;
+  renderDataClear(); showSheet('#dataClearSheet');
+}
+function renderDataClear() {
+  $$('[data-dc-tab]').forEach(button => button.classList.toggle('active', button.dataset.dcTab === dcState.tab));
+  $$('[data-dc-pane]').forEach(pane => { pane.hidden = pane.dataset.dcPane !== dcState.tab; });
+  const button = $('#dcConfirm'), summary = $('#dcSummary');
+  if (dcState.tab === 'balance') {
+    const items = dcBalanceItems();
+    const rows = state.accounts.map(account => {
+      if (isCashflow(account)) {
+        const keys = [`cf:${account.id}:cash`, `cf:${account.id}:bank`], on = keys.every(key => dcState.balance.has(key));
+        const chip = (key, label, value) => `<button type="button" class="dc-chip ${dcState.balance.has(key) ? 'is-on' : ''}" data-dc-key="${esc(key)}">${dcCheck(dcState.balance.has(key))}<span>${label}<b class="balance-value">${formatAmount(value, 'THB', true)}</b></span></button>`;
+        return `<div class="dc-group"><button type="button" class="dc-row ${on ? 'is-on' : ''}" data-dc-keys="${esc(keys.join(','))}">${dcCheck(on)}<span><b>${esc(account.name)}</b><small>เลือกเงินสด ธนาคาร หรือทั้งคู่</small></span><strong class="balance-value">${formatAmount(account.balance, 'THB', true)}</strong></button><div class="dc-parts">${chip(keys[0], 'เงินสดในมือ', account.cashBalance)}${chip(keys[1], 'บัญชีธนาคาร', account.bankBalance)}</div></div>`;
+      }
+      const key = `acc:${account.id}`, on = dcState.balance.has(key);
+      return `<button type="button" class="dc-row ${on ? 'is-on' : ''}" data-dc-key="${esc(key)}">${dcCheck(on)}<span><b>${esc(account.name)}</b><small>Pocket · ${esc(account.currency)}</small></span><strong class="balance-value">${formatAmount(account.balance, account.currency, true)}</strong></button>`;
+    }).join('') + state.goals.map(goal => {
+      const key = `goal:${goal.id}`, on = dcState.balance.has(key);
+      return `<button type="button" class="dc-row ${on ? 'is-on' : ''}" data-dc-key="${esc(key)}">${dcCheck(on)}<span><b>${esc(goal.name)}</b><small>กล่องเป้าหมาย</small></span><strong class="balance-value">${formatAmount(goal.balance, 'THB', true)}</strong></button>`;
+    }).join('');
+    $('#dcBalanceList').innerHTML = rows || '<p class="empty">ยังไม่มีการ์ด</p>';
+    const picked = items.filter(item => dcState.balance.has(item.key));
+    const sumTHB = picked.reduce((sum, item) => addMoney(sum, roundMoney(item.value * rateOf(item.account?.currency || 'THB'))), 0);
+    $('[data-dc-all="balance"]').textContent = picked.length === items.length && items.length ? 'ไม่เลือกทั้งหมด' : 'เลือกทั้งหมด';
+    summary.innerHTML = picked.length ? `<p><span>จะตั้งเป็น 0</span><b>${picked.length} รายการ</b></p><p><span>ยอดที่จะหายไป (เทียบบาท)</span><b class="balance-value">${formatAmount(sumTHB, 'THB', true)}</b></p><small>ประวัติเดิมยังอยู่ และจะมีรายการ “ล้างยอด” บันทึกไว้</small>` : '<small>ยังไม่ได้เลือกการ์ด</small>';
+    button.textContent = 'ล้างยอดที่เลือก'; button.disabled = !picked.length;
+  } else {
+    const days = dcDays(), fmt = new Intl.DateTimeFormat('th-TH', { weekday: 'short', day: 'numeric', month: 'short', year: '2-digit' }), monthFmt = new Intl.DateTimeFormat('th-TH', { month: 'long', year: 'numeric' });
+    let html = '', month = '';
+    days.slice(0, dcState.dayLimit).forEach(([key, count]) => {
+      const date = new Date(`${key}T12:00:00`), m = key.slice(0, 7);
+      if (m !== month) { month = m; const monthDays = days.filter(day => day[0].startsWith(m)).map(day => day[0]), allOn = monthDays.every(day => dcState.days.has(day)); html += `<button type="button" class="dc-month ${allOn ? 'is-on' : ''}" data-dc-month="${m}"><span>${monthFmt.format(date)}</span><em>${allOn ? 'ไม่เลือกทั้งเดือน' : 'เลือกทั้งเดือน'}</em></button>`; }
+      const on = dcState.days.has(key);
+      html += `<button type="button" class="dc-row ${on ? 'is-on' : ''}" data-dc-day="${key}">${dcCheck(on)}<span><b>${fmt.format(date)}</b></span><strong>${count} รายการ</strong></button>`;
+    });
+    if (days.length > dcState.dayLimit) html += `<button type="button" class="history-more" data-dc-more>แสดงวันเพิ่มเติม (${days.length - dcState.dayLimit})</button>`;
+    $('#dcHistoryList').innerHTML = html || '<p class="empty">ไม่มีประวัติ</p>';
+    const pickedDays = days.filter(([key]) => dcState.days.has(key)), count = pickedDays.reduce((sum, day) => sum + day[1], 0);
+    $('[data-dc-all="history"]').textContent = pickedDays.length === days.length && days.length ? 'ไม่เลือกทั้งหมด' : 'เลือกทั้งหมด';
+    summary.innerHTML = pickedDays.length ? `<p><span>จะลบ</span><b>${pickedDays.length} วัน · ${count.toLocaleString('th-TH')} รายการ</b></p><small>ลบเฉพาะประวัติ ยอดเงินในการ์ดไม่เปลี่ยน · ลบแล้วกู้คืนไม่ได้</small>` : '<small>ยังไม่ได้เลือกวัน</small>';
+    button.textContent = 'ลบประวัติที่เลือก'; button.disabled = !pickedDays.length;
+  }
+}
+function dcToggle(set, keys) { const all = keys.every(key => set.has(key)); keys.forEach(key => all ? set.delete(key) : set.add(key)); renderDataClear(); }
+function requestDataClear() {
+  if (dcState.tab === 'balance') {
+    const picked = dcBalanceItems().filter(item => dcState.balance.has(item.key)); if (!picked.length) return;
+    pendingClear = { tab: 'balance', keys: [...dcState.balance] };
+    askClearPin('ยืนยันการล้างยอด', `ล้างยอด ${picked.length} รายการ`, 'ประวัติเดิมยังอยู่');
+  } else {
+    const days = dcDays().filter(([key]) => dcState.days.has(key)); if (!days.length) return;
+    pendingClear = { tab: 'history', days: [...dcState.days], scope: dcState.scope };
+    askClearPin('ยืนยันการลบประวัติ', `ลบประวัติ ${days.length} วัน`, 'ยอดเงินในการ์ดไม่เปลี่ยน');
+  }
+}
+function askClearPin(title, amount, destination) {
+  protectedPinAction = 'clear-balances';
+  resetTransferPin();
+  $('#transferPinTitle').textContent = title;
+  $('#transferPinHeading').textContent = 'ใส่รหัส PIN เพื่อดำเนินการ';
+  $('#transferPinMessage').textContent = 'ขั้นตอนนี้ป้องกันการเผลอล้างข้อมูล';
+  $('#transferPinAmount').textContent = amount;
+  $('#transferPinDestination').textContent = destination;
+  switchOpenSheet('#dataClearSheet', '#transferPinSheet');
+}
+function performDataClear() {
+  const job = pendingClear; pendingClear = null; protectedPinAction = 'transfer';
+  if (!job) { closeSheets(); return; }
+  const now = new Date().toISOString();
+  if (job.tab === 'balance') {
+    let done = 0;
+    job.keys.forEach(key => {
+      const [kind, id, part] = key.split(':');
+      if (kind === 'cf') {
+        const account = accountById(id); if (!isCashflow(account)) return; const value = cfPart(account, part); if (!toSatang(value)) return;
+        state.transactions.push({ id: crypto.randomUUID(), type: part === 'cash' ? 'cash_reconciliation' : 'bank_reconciliation', account: id, amount: Math.abs(value), currency: 'THB', source: part, note: 'ล้างยอด', date: now, ...cfApply(account, part === 'cash' ? -value : 0, part === 'bank' ? -value : 0) }); done++;
+      } else {
+        const entity = kind === 'goal' ? goalById(id) : accountById(id); if (!entity || !toSatang(entity.balance)) return;
+        state.transactions.push({ id: crypto.randomUUID(), type: 'adjust', direction: entity.balance > 0 ? 'out' : 'in', account: kind === 'goal' ? `goal:${id}` : id, amount: Math.abs(entity.balance), currency: kind === 'goal' ? 'THB' : entity.currency, note: 'ล้างยอด', date: now });
+        entity.balance = 0; done++;
+      }
+    });
+    closeSheets(); saveState(done ? `ล้างยอด ${done} รายการแล้ว` : 'รายการที่เลือกเป็น 0 อยู่แล้ว');
+  } else {
+    const days = new Set(job.days), before = state.transactions.length, scope = dcState.scope;
+    dcState.scope = job.scope;
+    state.transactions = state.transactions.filter(tx => !(days.has(dcDayKey(tx.date)) && dcInScope(tx)));
+    dcState.scope = scope; historyLimit = HISTORY_STEP; accountHistoryLimit = HISTORY_STEP;
+    closeSheets(); saveState(`ลบประวัติ ${(before - state.transactions.length).toLocaleString('th-TH')} รายการแล้ว`);
+  }
+}
+
 function requestClearAllBalances() {
   const hasBalance=state.accounts.some(account=>Number(account.balance)>0)||state.goals.some(goal=>Number(goal.balance)>0);
   if(!hasBalance){notify('ยอดเงินทุกบัญชีเป็น 0 อยู่แล้ว');return;}
@@ -2020,7 +2143,18 @@ $('#cfCheckConfirm').addEventListener('click',confirmCfCheck);
 $('#importOldApp').addEventListener('click',()=>$('#importOldAppFile').click());
 $('#importOldAppFile').addEventListener('change',event=>{const file=event.target.files?.[0];event.target.value='';if(file)importOldApp(file);});
 $('#editName').addEventListener('click',()=>{const name=prompt('ชื่อที่ต้องการแสดง',state.profileName);if(name?.trim()){state.profileName=name.trim().slice(0,30);saveState('แก้ชื่อแล้ว');}});
-$('#clearAllBalances').addEventListener('click',requestClearAllBalances);
+$('#clearAllBalances').addEventListener('click',()=>openDataClear());
+$('#dcConfirm').addEventListener('click',requestDataClear);
+$('#dcHistoryScope').addEventListener('change',event=>{dcState.scope=event.target.value;dcState.days.clear();dcState.dayLimit=45;renderDataClear();});
+$('#dataClearSheet').addEventListener('click',event=>{
+  const tab=event.target.closest('[data-dc-tab]'); if(tab){dcState.tab=tab.dataset.dcTab;renderDataClear();return;}
+  const key=event.target.closest('[data-dc-key]'); if(key){dcToggle(dcState.balance,[key.dataset.dcKey]);return;}
+  const keys=event.target.closest('[data-dc-keys]'); if(keys){dcToggle(dcState.balance,keys.dataset.dcKeys.split(','));return;}
+  const day=event.target.closest('[data-dc-day]'); if(day){dcToggle(dcState.days,[day.dataset.dcDay]);return;}
+  const month=event.target.closest('[data-dc-month]'); if(month){dcToggle(dcState.days,dcDays().map(d=>d[0]).filter(d=>d.startsWith(month.dataset.dcMonth)));return;}
+  if(event.target.closest('[data-dc-more]')){dcState.dayLimit+=60;renderDataClear();return;}
+  const all=event.target.closest('[data-dc-all]'); if(all){if(all.dataset.dcAll==='balance')dcToggle(dcState.balance,dcBalanceItems().map(i=>i.key));else dcToggle(dcState.days,dcDays().map(d=>d[0]));}
+});
 $('#changePin').addEventListener('click',startPinChange);
 $('#enableBiometric').addEventListener('click',enableBiometric);
 $('#pinKeypad').addEventListener('click',event=>{const key=event.target.closest('[data-pin-key]')?.dataset.pinKey;if(key&&pinDigits.length<6){pinDigits+=key;$('#pinError').textContent='';updatePinDots();if(pinDigits.length===6)submitPin();}if(event.target.closest('[data-pin-delete]')){pinDigits=pinDigits.slice(0,-1);$('#pinError').textContent='';updatePinDots();}});
