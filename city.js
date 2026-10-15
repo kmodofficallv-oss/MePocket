@@ -762,12 +762,12 @@ function makeGateTag() {
   el.className = 'mpc-tag mpc-tag-gate'; el.innerHTML = `<b>ทางเข้า–ออกเมือง</b>`;
   tagLayer.appendChild(el); world.gateTag = el;
 }
-function bubble(B, text, tone, at) {
+function bubble(B, text, tone, at, fixed) {
   if (!B || !tagLayer) return;
   const el = document.createElement('div');
   el.className = `mpc-bubble ${tone || ''}`; el.textContent = text;
   tagLayer.appendChild(el);
-  bubbles.push({ el, B, t: 0, at });
+  bubbles.push({ el, B, t: 0, at, fixed });
 }
 const xrayOn = () => Boolean(state.settings && state.settings.cityXray);
 function feed(iconName, text, tone) {
@@ -870,14 +870,68 @@ function spawnTruck(pts, kind, label, onDone) {
   addActor({ kind: 'truck', mesh, info: pathInfo(lanePath(pts, 0.85)), speed: 7.5, tag, onDone, fadeIn: true, fadeOut: true });
 }
 // a person walking a path; keep = stay in the scene at the end (they carry on with another walk or get into a car)
-function spawnWalker(pts, seed, onDone, mesh, keep) {
+function spawnWalker(pts, seed, onDone, mesh, keep, speed) {
   mesh = mesh || walkerMesh(seed);
   scene.add(mesh);
-  addActor({ kind: 'walker', mesh, info: pathInfo(dedupe(pts)), speed: 1.5, onDone, keep, own: true });
+  addActor({ kind: 'walker', mesh, info: pathInfo(dedupe(pts)), speed: speed || 1.5, onDone, keep, own: true });
 }
 function drive(mesh, pts, onDone, opts = {}) {
   scene.add(mesh);
-  addActor({ kind: 'car', mesh, info: pathInfo(dedupe(pts)), speed: opts.speed || 6.5, onDone, keep: opts.keep, fadeIn: opts.fadeIn, fadeOut: opts.fadeOut });
+  let tag = null;
+  if (opts.label) { tag = document.createElement('div'); tag.className = `mpc-truck-tag ${opts.labelKind || ''}`; tag.textContent = opts.label; tagLayer.appendChild(tag); }
+  addActor({ kind: 'car', mesh, info: pathInfo(dedupe(pts)), speed: opts.speed || 6.5, onDone, keep: opts.keep, fadeIn: opts.fadeIn, fadeOut: opts.fadeOut, tag });
+}
+function edgeOf(x) {
+  const g = world.ground, fromEast = Math.abs(g.x1 - x) < Math.abs(x - g.x0);
+  return { startX: fromEast ? g.x1 + 6 : g.x0 - 6, endX: fromEast ? g.x0 - 6 : g.x1 + 6 };
+}
+function newTruck(kind) { const m = new THREE.Mesh(truckGeometry(kind), MAT); if (quality === 'pretty') m.castShadow = true; return m; }
+/* spending: an empty truck drives up to the yard, the money is loaded (−amount pops up, crates go), then it leaves town */
+function pickupTruck(B, amountTxt, onLoaded) {
+  const { startX } = edgeOf(B.dock.x), dock = { x: B.dock.x, z: B.dock.z };
+  const truck = newTruck('out');
+  const arrive = [...lanePath([{ x: startX, z: B.zr }, { x: dock.x, z: B.zr }], 0.85), dock];
+  drive(truck, arrive, () => wait(0.4, () => {
+    bubble(B, `−${amountTxt}`, 'out', dock, true);
+    onLoaded && onLoaded();
+    wait(0.8, () => drive(truck, [dock, ...lanePath(routeToGate(B).slice(1), 0.85)], null, { fadeOut: true, speed: 9, label: `−${amountTxt}`, labelKind: 'out' }));
+  }), { fadeIn: true, keep: true, speed: 9 });
+}
+/* income: a truck brings the goods to the yard, unloads and drives on */
+function deliveryTruck(B, amountTxt) {
+  const { startX, endX } = edgeOf(B.dock.x), dock = { x: B.dock.x, z: B.dock.z };
+  const truck = newTruck('in');
+  const arrive = [...lanePath([{ x: startX, z: B.zr }, { x: dock.x, z: B.zr }], 0.85), dock];
+  drive(truck, arrive, () => wait(0.7, () => drive(truck, [dock, ...lanePath([{ x: dock.x, z: B.zr }, { x: endX, z: B.zr }], 0.85)], null, { fadeOut: true, speed: 9 })),
+    { fadeIn: true, keep: true, speed: 9, label: `+${amountTxt}`, labelKind: 'in' });
+}
+
+/* the yard and floors wait for the animation: crates change when the money is actually handed over, not before */
+function holdKeys(tx) {
+  if (tx.type === 'transfer') return [keyOfAccount(tx.from), tx.toType === 'goal' ? keyOfGoal(tx.to) : tx.toType === 'account' ? keyOfAccount(tx.to) : null];
+  return [entityKeyFromTx(tx.account)];
+}
+function hold(key) {
+  const B = bld(key); if (!B || B.kind === 'park') return;
+  B.hold = (B.hold || 0) + 1;
+  clearTimeout(B.holdTimer); B.holdTimer = setTimeout(() => { B.hold = 0; refreshVisual(B); }, 60000);   // safety net if an animation never finishes
+}
+function release(B) {
+  if (!B || !B.hold) return;
+  B.hold--;
+  if (!B.hold) { clearTimeout(B.holdTimer); refreshVisual(B); }
+}
+function refreshVisual(B) {
+  if (!B || B.kind === 'park') return;
+  refreshStats(B);
+  const vs = visualSig(B);
+  if (vs !== B.vsig) {
+    const oldFloors = B.floors.length;
+    buildBuilding(B); B.vsig = vs;
+    if (B.kind !== 'lot' && B.stats.floors > oldFloors && oldFloors > 0 && opened) { bubble(B, `ขยายเป็น ${B.stats.floors} ชั้น`, 'up'); feed('up', `${nameOf(B)} ขยายตึกเป็น ${B.stats.floors} ชั้น`, 'up'); }
+    applyLight();
+  }
+  fillTag(B);
 }
 function stepActors(dt) {
   for (let k = actors.length - 1; k >= 0; k--) {
@@ -925,16 +979,16 @@ function visit(B, onCounter, fromSeat) {
   const tryLeave = () => {
     if (!carHere || !personBack) return;
     scene.remove(person); person.geometry.dispose();                    // gets into the car
-    wait(0.4, () => drive(car, leavePts, null, { fadeOut: true, speed: 8 }));
+    wait(0.3, () => drive(car, leavePts, null, { fadeOut: true, speed: 10 }));
   };
-  const goBack = () => spawnWalker([counter, B.door, B.side, curb], 0, () => { personBack = true; tryLeave(); }, person, true);
-  const atCounter = () => wait(1.0, () => { onCounter && onCounter(counter); wait(1.1, goBack); });
+  const goBack = () => spawnWalker([counter, B.door, B.side, curb], 0, () => { personBack = true; tryLeave(); }, person, true, 2.1);
+  const atCounter = () => wait(0.7, () => { onCounter && onCounter(counter); wait(0.8, goBack); });
   if (fromSeat) {
     const seat = local2world(B, B.queueSpot.x, B.queueSpot.z);
-    drive(car, arrivePts, () => { carHere = true; tryLeave(); }, { fadeIn: true, keep: true, speed: 8 });
-    spawnWalker([seat, counter], 0, atCounter, person, true);
+    drive(car, arrivePts, () => { carHere = true; tryLeave(); }, { fadeIn: true, keep: true, speed: 10 });
+    spawnWalker([seat, counter], 0, atCounter, person, true, 2.1);
   } else {
-    drive(car, arrivePts, () => wait(0.4, () => spawnWalker([curb, B.side, B.door, counter], 0, atCounter, person, true)), { fadeIn: true, keep: true, speed: 8 });
+    drive(car, arrivePts, () => wait(0.25, () => spawnWalker([curb, B.side, B.door, counter], 0, atCounter, person, true, 2.1)), { fadeIn: true, keep: true, speed: 10 });
   }
 }
 
@@ -990,12 +1044,12 @@ function playTx(tx) {
   const seat = Boolean(tx.auto);                       // auto deposits / withdrawals come from the lobby queue
   if (tx.type === 'income') {
     const B = bld(entityKeyFromTx(tx.account)); if (!B) return;
-    spawnTruck(routeToGate(B).reverse(), 'in', `+${amountTxt}`);
-    visit(B, at => bubble(B, `+${amountTxt}`, 'in', at), seat);
+    deliveryTruck(B, amountTxt);
+    visit(B, at => { bubble(B, `+${amountTxt}`, 'in', at); release(B); }, seat);
     feed('deposit', `${auto}รถส่งของเข้า ${nameOf(B)} · +${amountTxt}`, 'in');
   } else if (tx.type === 'expense') {
     const B = bld(entityKeyFromTx(tx.account)); if (!B) return;
-    visit(B, at => { bubble(B, `−${amountTxt}`, 'out', at); spawnTruck(routeToGate(B), 'out', `−${amountTxt}`); }, seat);
+    visit(B, at => { bubble(B, `−${amountTxt}`, 'out', at); pickupTruck(B, amountTxt, () => release(B)); }, seat);
     feed('withdraw', `${auto}${nameOf(B)} ส่งออเดอร์ออกนอกเมือง · ${amountTxt}`, 'out');
   } else if (tx.type === 'transfer') {
     const A = bld(keyOfAccount(tx.from));
@@ -1003,29 +1057,29 @@ function playTx(tx) {
     if (A && B) {
       const got = money2(tx.received ?? tx.amount, tx.receivedCurrency || tx.currency);
       visit(A, at => {
-        bubble(A, `−${amountTxt}`, 'out', at);
-        spawnTruck(routeBetween(A, B), 'move', amountTxt, () => bubble(B, `+${got}`, 'in'));
+        bubble(A, `−${amountTxt}`, 'out', at); release(A);
+        spawnTruck(routeBetween(A, B), 'move', amountTxt, () => { bubble(B, `+${got}`, 'in', { x: B.dock.x, z: B.dock.z }, true); release(B); });
       });
       feed('transfer', `${nameOf(A)} → ${nameOf(B)} · ${amountTxt}`, 'move');
     } else if (A) {
-      visit(A, at => { bubble(A, `−${amountTxt}`, 'out', at); spawnTruck(routeToGate(A), 'out', `−${amountTxt}`); });
+      visit(A, at => { bubble(A, `−${amountTxt}`, 'out', at); pickupTruck(A, amountTxt, () => release(A)); });
       feed('transfer', `${nameOf(A)} ส่งของออกนอกเมือง · ${amountTxt}`, 'out');
     }
   } else if (tx.type === 'internal_transfer') {
     const B = bld(keyOfAccount(tx.account)); if (!B) return;
     const toBank = tx.destination === 'bank';
-    visit(B, at => bubble(B, `${toBank ? 'เงินสด → ธนาคาร' : 'ธนาคาร → เงินสด'} ${amountTxt}`, 'move', at));
+    visit(B, at => { bubble(B, `${toBank ? 'เงินสด → ธนาคาร' : 'ธนาคาร → เงินสด'} ${amountTxt}`, 'move', at); release(B); });
     feed('exchange', `${nameOf(B)}: ย้าย${toBank ? 'เงินสดเข้าธนาคาร' : 'เงินจากธนาคารมาเป็นเงินสด'} · ${amountTxt}`, 'move');
   } else if (tx.type === 'cash_reconciliation' || tx.type === 'bank_reconciliation') {
     const B = bld(keyOfAccount(tx.account)); if (!B) return;
     const cashCheck = tx.type === 'cash_reconciliation';
     const delta = Number(cashCheck ? tx.cashDelta : tx.bankDelta);
     const sign = Number.isFinite(delta) && delta !== 0 ? (delta > 0 ? '+' : '−') : '';
-    visit(B, at => bubble(B, `${cashCheck ? 'นับเงินสด' : 'ตรวจยอดธนาคาร'} · ปรับ ${sign}${amountTxt}`, sign === '−' ? 'out' : 'in', at));
+    visit(B, at => { bubble(B, `${cashCheck ? 'นับเงินสด' : 'ตรวจยอดธนาคาร'} · ปรับ ${sign}${amountTxt}`, sign === '−' ? 'out' : 'in', at); release(B); });
     feed('check', `${nameOf(B)}: ${cashCheck ? 'ห้องนับเงินตรวจนับเงินสดแล้ว' : 'เคาน์เตอร์ตรวจยอดธนาคารแล้ว'} · ปรับ ${sign}${amountTxt}`, 'move');
   } else if (tx.type === 'adjust') {
     const B = bld(entityKeyFromTx(tx.account)); if (!B) return;
-    visit(B, at => bubble(B, `ปรับยอด ${tx.direction === 'out' ? '−' : '+'}${amountTxt}`, tx.direction === 'out' ? 'out' : 'in', at));
+    visit(B, at => { bubble(B, `ปรับยอด ${tx.direction === 'out' ? '−' : '+'}${amountTxt}`, tx.direction === 'out' ? 'out' : 'in', at); release(B); });
   }
 }
 // remembers every transaction the city has already shown (short id prefixes, so even a long history stays small);
@@ -1043,6 +1097,7 @@ function newTransactions() {
 function playNew(delay = 0) {
   const fresh = newTransactions();
   markSeen();
+  fresh.forEach(tx => holdKeys(tx).forEach(k => k && hold(k)));
   fresh.forEach((tx, k) => setTimeout(() => { if (opened) playTx(tx); }, delay + k * 900));
   return fresh.length;
 }
@@ -1053,20 +1108,13 @@ function sync() {
   night = document.documentElement.getAttribute('data-theme') === 'dark';
   const list = entityList();
   if (layoutSig(list) !== world.sig) { buildWorld(); if (opened) playNew(400); updateHud(); return; }
+  if (opened) playNew(0);                       // new records first: they hold their buildings until the money is handed over
   world.buildings.forEach(B => {
     if (B.kind === 'park') return;
     const item = list.find(it => it.key === B.key); if (item) B.item = item;
-    refreshStats(B);
-    const vs = visualSig(B);
-    if (vs !== B.vsig) {
-      const oldFloors = B.floors.length;
-      buildBuilding(B); B.vsig = vs;
-      if (B.kind !== 'lot' && B.stats.floors > oldFloors && oldFloors > 0 && opened) { bubble(B, `ขยายเป็น ${B.stats.floors} ชั้น`, 'up'); feed('up', `${nameOf(B)} ขยายตึกเป็น ${B.stats.floors} ชั้น`, 'up'); }
-      applyLight();
-    }
-    fillTag(B);
+    if (B.hold) { refreshStats(B); fillTag(B); return; }
+    refreshVisual(B);
   });
-  if (opened) playNew(0);
   updateHud(); syncXrayButton();
   if (openKey) renderPanel();
 }
@@ -1401,7 +1449,7 @@ function stepTags(dt) {
   for (let k = bubbles.length - 1; k >= 0; k--) {
     const b = bubbles[k]; b.t += dt;
     const B = b.B;
-    if (b.at && B.open > 0.5) placeEl(b.el, b.at.x, BASE_Y + 1.6 + b.t * 0.6, b.at.z);      // over the counter when the building is open
+    if (b.at && (b.fixed || B.open > 0.5)) placeEl(b.el, b.at.x, BASE_Y + (b.fixed ? 2.3 : 1.6) + b.t * 0.6, b.at.z);   // over the counter (building open) or the loading dock
     else {
       const h = B.floors && B.floors.length ? B.floors.length * B.fh * (1 + GAP * B.open) + 2.2 : 3.4;
       placeEl(b.el, B.kind === 'lot' ? B.cx : B.bx, BASE_Y + h + b.t * 0.8, B.kind === 'lot' ? B.cz : B.bz);
@@ -1750,6 +1798,7 @@ function close() {
   for (let k = actors.length - 1; k >= 0; k--) { const a = actors[k]; if (a.ambient) continue; if (a.mesh) scene.remove(a.mesh); a.tag?.remove(); actors.splice(k, 1); }
   bubbles.splice(0).forEach(b => b.el.remove());
   if (feedEl) feedEl.innerHTML = '';
+  if (world) world.buildings.forEach(B => { if (B.hold) { B.hold = 0; clearTimeout(B.holdTimer); refreshVisual(B); } });
 }
 
 window.MePocketCity = { open, close, sync: () => { if (world) sync(); }, isOpen: () => opened };
