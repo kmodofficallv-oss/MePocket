@@ -53,7 +53,7 @@ function savePrefs() {
 }
 
 /* geometry baker: many coloured boxes / cylinders merged into one mesh = few draw calls on the phone */
-const UNIT = { box: new THREE.BoxGeometry(1, 1, 1), cyl: new THREE.CylinderGeometry(1, 1, 1, 10), ball: new THREE.IcosahedronGeometry(1, 1), cone: new THREE.ConeGeometry(1, 1, 7) };
+const UNIT = { box: new THREE.BoxGeometry(1, 1, 1), cyl: new THREE.CylinderGeometry(1, 1, 1, 10), ball: new THREE.IcosahedronGeometry(1, 1), lump: new THREE.IcosahedronGeometry(1, 0), cone: new THREE.ConeGeometry(1, 1, 7) };
 const NONIDX = {};
 Object.keys(UNIT).forEach(k => { NONIDX[k] = UNIT[k].index ? UNIT[k].toNonIndexed() : UNIT[k]; });
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _v = new THREE.Vector3(), _s = new THREE.Vector3(), _n = new THREE.Matrix3();
@@ -78,6 +78,7 @@ class Bake {
   box(x, y, z, w, h, d, color, ry = 0) { this.add('box', x, y, z, w, h, d, color, ry); }
   cyl(x, y, z, r, h, color) { this.add('cyl', x, y, z, r, h, r, color); }
   ball(x, y, z, r, color) { this.add('ball', x, y, z, r, r, r, color); }
+  lump(x, y, z, r, color) { this.add('lump', x, y, z, r, r * 0.9, r, color); }
   cone(x, y, z, r, h, color) { this.add('cone', x, y, z, r, h, r, color); }
   mesh(material, shadows) {
     if (!this.p.length) return null;
@@ -451,22 +452,139 @@ function buildLot(B, g) {
   const pick = new THREE.Mesh(UNIT.box, PICK); pick.scale.set(8, 2, 8); pick.position.y = 1; pick.userData.key = B.key; g.add(pick); B.pick = pick;
 }
 
+/* ---------- land: the town sits in a valley — fields and rice paddies, a river to the east with a bridge,
+   hills around and a ring of mountains on the horizon (Loei style), so the town never floats in the air ---------- */
+function noise2(x, z) {
+  const xi = Math.floor(x), zi = Math.floor(z), xf = x - xi, zf = z - zi;
+  const h = (a, b) => { let n = Math.imul(a, 374761393) + Math.imul(b, 668265263); n = Math.imul(n ^ (n >>> 13), 1274126177); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
+  const u = xf * xf * (3 - 2 * xf), v = zf * zf * (3 - 2 * zf);
+  const a = h(xi, zi), b = h(xi + 1, zi), c = h(xi, zi + 1), d = h(xi + 1, zi + 1);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+function fbm(x, z) { let s = 0, a = 0.5, f = 1; for (let o = 0; o < 4; o++) { s += a * noise2(x * f, z * f); f *= 2.03; a *= 0.5; } return s / 0.9375; }
+const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+
+function makeLand(g) {
+  // g: { cx, cz, flatR, riverX(z), hz, x1 }
+  const height = (x, z) => {
+    const r = Math.hypot(x - g.cx, z - g.cz);
+    let h = 0;
+    const t = smooth(g.flatR, g.flatR + 70, r);
+    h += (fbm(x * 0.011 + 3, z * 0.011 - 7) - 0.35) * 22 * t;
+    h += smooth(230, 380, r) * (35 + fbm(x * 0.006 + 11, z * 0.006 + 2) * 95);
+    const dr = Math.abs(x - g.riverX(z));
+    h *= smooth(6, 26, dr);                                                // the river valley is flat
+    if (x > g.x1 - 4) h *= smooth(5, 16, Math.abs(z - g.hz));              // the highway cuts a pass east
+    h = Math.max(h, 0) - 0.03;
+    if (dr < 9) h = h * smooth(4.5, 9, dr) + (-1.5) * (1 - smooth(4.5, 9, dr));
+    return h;
+  };
+  const SIZE = 1100, SEG = quality === 'eco' ? 110 : 150;
+  const geo = new THREE.PlaneGeometry(SIZE, SIZE, SEG, SEG);
+  geo.rotateX(-Math.PI / 2);
+  geo.translate(g.cx, 0, g.cz);
+  const pos = geo.attributes.position, colors = [];
+  const c = new THREE.Color(), grass = new THREE.Color(0xa6d78c), grass2 = new THREE.Color(0x8cc779), forest = new THREE.Color(0x5f9a5c), rock = new THREE.Color(0x7d8b80), sand = new THREE.Color(0xdccb98), bed = new THREE.Color(0x6f8f8c);
+  const paddy = [0x9fd05a, 0xbdd96a, 0xd9cf72, 0x8fc65a].map(v => new THREE.Color(v));
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i);
+    const h = height(x, z);
+    pos.setY(i, h);
+    const r = Math.hypot(x - g.cx, z - g.cz), dr = Math.abs(x - g.riverX(z));
+    c.copy(grass).lerp(grass2, fbm(x * 0.05, z * 0.05));
+    // rice paddies on the flat land between the town and the hills
+    if (r > g.flatR + 8 && r < 200 && h < 3 && dr > 12 && Math.abs(z - g.hz) > 6) {
+      const cell = noise2(Math.floor(x / 14) * 1.7, Math.floor(z / 14) * 1.3);
+      if (cell > 0.52) c.copy(paddy[Math.floor(noise2(Math.floor(x / 14) + 9, Math.floor(z / 14)) * 4) % 4]);
+    }
+    if (h > 6) c.lerp(forest, smooth(6, 22, h));
+    if (h > 55) c.lerp(rock, smooth(55, 110, h) * 0.8);
+    if (dr < 11) c.lerp(sand, 1 - smooth(7, 11, dr));
+    if (dr < 7) c.copy(bed);
+    colors.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geo.computeVertexNormals();
+  const land = new THREE.Mesh(geo, MAT);
+  land.receiveShadow = quality === 'pretty';
+  // river water: a strip that follows the river's curve
+  const wp = [], wi = [];
+  let n = 0;
+  for (let z = g.cz - SIZE / 2; z <= g.cz + SIZE / 2; z += 6) {
+    const xr = g.riverX(z);
+    wp.push(xr - 6.2, -0.45, z, xr + 6.2, -0.45, z);
+    if (n) wi.push(2 * n - 2, 2 * n - 1, 2 * n, 2 * n - 1, 2 * n + 1, 2 * n);
+    n++;
+  }
+  const wgeo = new THREE.BufferGeometry();
+  wgeo.setAttribute('position', new THREE.Float32BufferAttribute(wp, 3));
+  wgeo.setIndex(wi); wgeo.computeVertexNormals();
+  const water = new THREE.Mesh(wgeo, new THREE.MeshPhongMaterial({ color: 0x4f9fcf, shininess: 90, specular: 0xffffff, side: THREE.DoubleSide }));
+  water.receiveShadow = quality === 'pretty';
+  return { land, water, height };
+}
+
+/* trees: rounder canopies made of a few overlapping lumps, layered pines, bushes and coconut palms */
+function tree(b, x, z, r, y = 0, kind) {
+  const greens = [0x5fb35a, 0x4ea353, 0x6cc067, 0x3f9455, 0x79c45e];
+  const pick = () => tint(greens[Math.floor(r() * greens.length)], (r() - 0.5) * 0.12, r() > 0.5 ? 0xffffff : 0x1a3020);
+  const s = 0.8 + r() * 0.6;
+  kind = kind || (r() < 0.3 ? 'pine' : r() < 0.15 ? 'bush' : 'round');
+  if (kind === 'pine') {
+    b.cyl(x, y + 0.35 * s, z, 0.11 * s, 0.7 * s, 0x7a5a40);
+    const c = pick();
+    b.cone(x, y + 1.0 * s, z, 0.75 * s, 1.1 * s, c);
+    b.cone(x, y + 1.55 * s, z, 0.58 * s, 0.95 * s, tint(c, 0.06));
+    b.cone(x, y + 2.05 * s, z, 0.38 * s, 0.8 * s, tint(c, 0.12));
+  } else if (kind === 'bush') {
+    const c = pick();
+    b.lump(x, y + 0.28 * s, z, 0.42 * s, c);
+    b.lump(x + 0.3 * s, y + 0.22 * s, z + 0.15 * s, 0.3 * s, tint(c, 0.08));
+  } else if (kind === 'palm') {
+    let px = x, pz = z; const lean = r() * Math.PI * 2;
+    for (let k = 0; k < 6; k++) { px += Math.cos(lean) * 0.05 * k; pz += Math.sin(lean) * 0.05 * k; b.cyl(px, y + 0.3 + k * 0.5, pz, 0.11, 0.55, k % 2 ? 0x9c7a55 : 0x8a6a48); }
+    const top = y + 3.2;
+    for (let k = 0; k < 7; k++) { const a = k / 7 * Math.PI * 2 + r(); b.box(px + Math.cos(a) * 0.75, top - 0.15, pz + Math.sin(a) * 0.75, 1.6, 0.06, 0.32, 0x4f9e48, -a); }
+    b.lump(px, top, pz, 0.22, 0x6b8f3a);
+  } else {
+    const h = (0.7 + r() * 0.4) * s;
+    b.cyl(x, y + h / 2, z, 0.13 * s, h, 0x7a5a40);
+    const c = pick();
+    b.lump(x, y + h + 0.55 * s, z, 0.7 * s, c);
+    b.lump(x + 0.38 * s, y + h + 0.4 * s, z + 0.12 * s, 0.48 * s, tint(c, 0.07));
+    b.lump(x - 0.3 * s, y + h + 0.45 * s, z - 0.22 * s, 0.5 * s, tint(c, -0.02, 0x10301a));
+    b.lump(x + 0.05 * s, y + h + 0.95 * s, z - 0.05 * s, 0.42 * s, tint(c, 0.12));
+  }
+}
+
 /* ---------- ground, roads, trees, lamps ---------- */
 function buildGround(ext, usedBlocks) {
   const grp = new THREE.Group();
-  const b = new Bake(), lamps = new Bake();
+  const b = new Bake(), lamps = new Bake(), tb = new Bake();
   const lampSpots = [];
   const x0 = (ext.imin - 0.5) * P, x1 = (ext.imax + 0.5) * P, z0 = (ext.jmin - 0.5) * P, z1 = (ext.jmax + 0.5) * P;
   const spanX = x1 - x0, spanZ = z1 - z0;
   const gateX = x1 + 10;
-  b.box((x0 + x1) / 2 + 12, -0.05, (z0 + z1) / 2, spanX + 110, 0.1, spanZ + 90, 0xbfe3a4);
+  const cx0 = (x0 + x1) / 2, cz0 = (z0 + z1) / 2, R = Math.hypot(spanX, spanZ) / 2;
+  const hz = P / 2;
+  const riverX = z => x1 + 34 + Math.sin(z * 0.028) * 7 + Math.sin(z * 0.011 + 1.3) * 10;
+  const land = makeLand({ cx: cx0, cz: cz0, flatR: R + 16, riverX, hz, x1 });
+  grp.add(land.land); grp.add(land.water);
   for (let i = ext.imin; i <= ext.imax; i++) for (let j = ext.jmin; j <= ext.jmax; j++) {
     b.box(i * P, 0.06, j * P, HALF * 2, 0.12, HALF * 2, 0xeef0ea);
     if (!usedBlocks.has(`${i},${j}`)) {
-      b.box(i * P, BASE_Y + 0.02, j * P, 9.4, 0.04, 9.4, 0x9fd48a);
-      const r = rng(hash(`park${i},${j}`));
-      for (let k = 0; k < 5; k++) tree(b, i * P - 3.5 + r() * 7, j * P - 3.5 + r() * 7, r);
-      b.box(i * P, BASE_Y + 0.25, j * P + 2.6, 1.6, 0.08, 0.45, 0x8a6a4c);
+      // a park: lawn, crossing paths, a round pond, benches and trees
+      const px = i * P, pz = j * P, r = rng(hash(`park${i},${j}`));
+      b.box(px, BASE_Y + 0.02, pz, 9.4, 0.04, 9.4, 0x9fd48a);
+      b.box(px, BASE_Y + 0.045, pz, 9.4, 0.02, 1.1, 0xe3d6b4);
+      b.box(px, BASE_Y + 0.046, pz, 1.1, 0.02, 9.4, 0xe3d6b4);
+      b.cyl(px, BASE_Y + 0.06, pz, 1.9, 0.06, 0xd9cdb0);
+      b.cyl(px, BASE_Y + 0.08, pz, 1.6, 0.06, 0x5aa7d6);
+      b.cyl(px, BASE_Y + 0.3, pz, 0.18, 0.5, 0xe9ecef);
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
+        for (let k = 0; k < 2; k++) tree(tb, px + sx * (2.6 + r() * 1.6), pz + sz * (2.6 + r() * 1.6), r, BASE_Y);
+        b.box(px + sx * 1.6, BASE_Y + 0.25, pz + sz * 2.6, 1.0, 0.08, 0.36, 0x8a6a4c);
+      });
     }
   }
   // roads
@@ -481,25 +599,40 @@ function buildGround(ext, usedBlocks) {
     b.box((x0 + x1) / 2, 0.031, z, spanX + ROADW, 0.06, ROADW, road);
     for (let x = x0 + 1; x < x1 - 0.5; x += 2.2) b.box(x, 0.066, z, 1.0, 0.01, 0.12, dash);
   }
-  // highway out of town (east), along the road at z = P/2
-  const hz = P / 2;
-  b.box(x1 + 30, 0.03, hz, 60, 0.06, ROADW + 0.6, road);
-  for (let x = x1 + 2; x < x1 + 60; x += 2.2) b.box(x, 0.066, hz, 1.0, 0.01, 0.12, dash);
+  // highway out of town (east) through the hills, over the river
+  b.box(x1 + 200, 0.03, hz, 400, 0.06, ROADW + 0.6, road);
+  for (let x = x1 + 2; x < x1 + 160; x += 2.2) b.box(x, 0.066, hz, 1.0, 0.01, 0.12, dash);
+  const bx = riverX(hz);
+  b.box(bx, 0.12, hz, 16, 0.14, ROADW + 1.4, 0xc9ced4);
+  b.box(bx, 0.5, hz - ROADW / 2 - 0.6, 16, 0.08, 0.12, 0xe9ecef);
+  b.box(bx, 0.5, hz + ROADW / 2 + 0.6, 16, 0.08, 0.12, 0xe9ecef);
+  for (let k = -7; k <= 7; k += 1.75) { b.box(bx + k, 0.33, hz - ROADW / 2 - 0.6, 0.08, 0.36, 0.08, 0xe9ecef); b.box(bx + k, 0.33, hz + ROADW / 2 + 0.6, 0.08, 0.36, 0.08, 0xe9ecef); }
+  [-4, 0, 4].forEach(k => b.box(bx + k, -0.7, hz, 0.7, 1.4, ROADW, 0xaab1b8));
   // gate arch
   b.box(gateX, 1.7, hz - 2.6, 0.35, 3.4, 0.35, 0x1d3540);
   b.box(gateX, 1.7, hz + 2.6, 0.35, 3.4, 0.35, 0x1d3540);
   b.box(gateX, 3.45, hz, 0.5, 0.5, 5.6, 0x1d3540);
   b.box(gateX + 0.26, 3.45, hz, 0.02, 0.32, 4.6, 0x52e884);
-  // trees around town
+  // countryside trees: groves on the land, coconut palms along the river
   const r = rng(777);
-  for (let k = 0; k < 70; k++) {
-    const side = k % 4;
-    let x, z;
-    if (side === 0) { x = x0 - 4 - r() * 14; z = z0 - 6 + r() * (spanZ + 12); }
-    else if (side === 1) { x = x1 + 4 + r() * 18; z = z0 - 6 + r() * (spanZ + 12); if (Math.abs(z - hz) < 4) z += 8; }
-    else if (side === 2) { z = z0 - 4 - r() * 14; x = x0 - 6 + r() * (spanX + 12); }
-    else { z = z1 + 4 + r() * 14; x = x0 - 6 + r() * (spanX + 12); }
-    tree(b, x, z, r);
+  const nTrees = quality === 'eco' ? 110 : 220;
+  for (let k = 0, tries = 0; k < nTrees && tries < nTrees * 6; tries++) {
+    const ang = r() * Math.PI * 2, rad = R + 6 + Math.pow(r(), 1.4) * 150;
+    const x = cx0 + Math.cos(ang) * rad, z = cz0 + Math.sin(ang) * rad;
+    if (Math.abs(z - hz) < 4.5 && x > x0) continue;                       // keep the highway clear
+    if (Math.abs(x - riverX(z)) < 10) continue;
+    if (x > x0 - 3 && x < x1 + 3 && z > z0 - 3 && z < z1 + 3) continue;   // not in town
+    const y = land.height(x, z);
+    if (y < 0 || y > 40) continue;
+    // keep the paddies open: fewer trees on the flat land
+    if (y < 2 && rad < 200 && noise2(Math.floor(x / 14) * 1.7, Math.floor(z / 14) * 1.3) > 0.52) continue;
+    tree(tb, x, z, r, y);
+    k++;
+  }
+  for (let z = cz0 - 120; z < cz0 + 120; z += 7 + r() * 6) {
+    if (Math.abs(z - hz) < 9) continue;
+    const side = r() > 0.5 ? 1 : -1, x = riverX(z) + side * (8.5 + r() * 3);
+    tree(tb, x, z, r, Math.max(0, land.height(x, z)), 'palm');
   }
   // street lamps at the crossings
   for (let i = ext.imin - 1; i <= ext.imax; i++) for (let j = ext.jmin - 1; j <= ext.jmax; j++) {
@@ -510,34 +643,26 @@ function buildGround(ext, usedBlocks) {
     lampSpots.push([x - 0.45, 2.0, z]);
   }
   const m = b.mesh(MAT, false); if (m) { m.receiveShadow = quality === 'pretty'; grp.add(m); }
+  const tm = tb.mesh(MAT, quality === 'pretty'); if (tm) grp.add(tm);
   const lm = lamps.mesh(LIT, false); if (lm) { lm.userData.nightOnly = true; grp.add(lm); }
   // warm glow around each street lamp (shown at night)
   const glows = new THREE.Group();
   lampSpots.forEach(([x, y, z]) => { const sp = new THREE.Sprite(glowMaterial()); sp.position.set(x, y, z); sp.scale.set(2.6, 2.6, 1); glows.add(sp); });
   grp.add(glows);
-  // clouds drifting around the town
-  const clouds = new THREE.Group(), cr = rng(4242), cx0 = (x0 + x1) / 2, cz0 = (z0 + z1) / 2;
-  const n = quality === 'eco' ? 6 : 14;
+  // clouds drifting over the hills
+  const clouds = new THREE.Group(), cr = rng(4242);
+  const n = quality === 'eco' ? 7 : 16;
   for (let k = 0; k < n; k++) {
     const sp = new THREE.Sprite(cloudMaterial());
-    // far out near the horizon, never between the camera and the town
-    const ang = cr() * Math.PI * 2, rad = 120 + cr() * 50;
-    sp.position.set(cx0 + Math.cos(ang) * rad, 7 + cr() * 16, cz0 + Math.sin(ang) * rad);
-    const sc = 46 + cr() * 40; sp.scale.set(sc, sc * 0.4, 1);
+    const ang = cr() * Math.PI * 2, rad = 140 + cr() * 140;
+    sp.position.set(cx0 + Math.cos(ang) * rad, 34 + cr() * 40, cz0 + Math.sin(ang) * rad);
+    const sc = 60 + cr() * 60; sp.scale.set(sc, sc * 0.38, 1);
     sp.userData.ang = ang; sp.userData.rad = rad;
     sp.userData.speed = 0.4 + cr() * 0.6;
     clouds.add(sp);
   }
   grp.add(clouds);
-  return { grp, gateX, farX: x1 + 58, hz, x0, x1, z0, z1, lamps: lm, glows, clouds, cx: cx0, cz: cz0, R: Math.hypot(spanX, spanZ) / 2 };
-}
-function tree(b, x, z, r) {
-  const h = 0.6 + r() * 0.5;
-  b.cyl(x, h / 2, z, 0.12, h, 0x8a6347);
-  const greens = [0x5cb85c, 0x4aa65a, 0x6cc46a, 0x3f9455];
-  const c = greens[Math.floor(r() * greens.length)];
-  if (r() < 0.35) b.cone(x, h + 0.7, z, 0.6, 1.5, c);
-  else b.ball(x, h + 0.55, z, 0.62 + r() * 0.2, c);
+  return { grp, gateX, farX: x1 + 75, hz, x0, x1, z0, z1, lamps: lm, glows, clouds, cx: cx0, cz: cz0, R };
 }
 
 /* ---------- world build ---------- */
@@ -583,6 +708,7 @@ function buildWorld() {
   buildings.forEach(B => { if (B.kind !== 'park') { buildBuilding(B); B.vsig = visualSig(B); makeTag(B); } else buildBuilding(B); });
   makeGateTag();
   renderChips();
+  startAmbient();
   applyLight();
 }
 function local2world(B, lx, lz) {
@@ -636,13 +762,14 @@ function makeGateTag() {
   el.className = 'mpc-tag mpc-tag-gate'; el.innerHTML = `<b>ทางเข้า–ออกเมือง</b>`;
   tagLayer.appendChild(el); world.gateTag = el;
 }
-function bubble(B, text, tone) {
+function bubble(B, text, tone, at) {
   if (!B || !tagLayer) return;
   const el = document.createElement('div');
   el.className = `mpc-bubble ${tone || ''}`; el.textContent = text;
   tagLayer.appendChild(el);
-  bubbles.push({ el, B, t: 0 });
+  bubbles.push({ el, B, t: 0, at });
 }
+const xrayOn = () => Boolean(state.settings && state.settings.cityXray);
 function feed(iconName, text, tone) {
   if (!feedEl) return;
   const el = document.createElement('div');
@@ -666,12 +793,6 @@ function truckGeometry(kind) {
   b.box(0, 0.86, 1.1, 0.86, 0.32, 0.03, 0x2d3b4a);
   [[-0.47, 0.75], [0.47, 0.75], [-0.47, -0.65], [0.47, -0.65]].forEach(([x, z]) => b.box(x, 0.2, z, 0.18, 0.4, 0.4, 0x1c1f24));
   return (truckGeo[kind] = b.mesh(MAT, false).geometry);
-}
-function walkerMesh(seed) {
-  const b = new Bake();
-  person(b, 0, 0, 0, seed, false);
-  const m = b.mesh(MAT, false);
-  return m;
 }
 function dedupe(pts) { const out = []; pts.forEach(p => { const l = out[out.length - 1]; if (!l || Math.hypot(l.x - p.x, l.z - p.z) > 0.01) out.push(p); }); return out; }
 function lanePath(pts, lane) {
@@ -714,41 +835,145 @@ function pointAt(info, d) {
   const a = info.pts[k], b = info.pts[k + 1] || a, L = info.segs[k] || 1, t = clamp(d / L);
   return { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t, dx: b.x - a.x, dz: b.z - a.z };
 }
+const CAR_COLORS = [0xe8608f, 0x3fbf6a, 0xf2c94c, 0xf4f4f2, 0x3a6fd8, 0xd64545, 0x2d3440, 0xb0b8c4];   // pink and green-yellow = Thai taxis
+const carGeo = {};
+function carGeometry(color) {
+  if (carGeo[color]) return carGeo[color];
+  const b = new Bake();
+  b.box(0, 0.3, 0, 0.92, 0.32, 1.8, color);
+  b.box(0, 0.58, -0.08, 0.8, 0.28, 0.95, tint(color, 0.15));
+  b.box(0, 0.58, 0.41, 0.76, 0.22, 0.02, 0x2d3b4a);
+  b.box(0, 0.58, -0.56, 0.76, 0.22, 0.02, 0x2d3b4a);
+  b.box(0.41, 0.58, -0.08, 0.02, 0.2, 0.8, 0x2d3b4a); b.box(-0.41, 0.58, -0.08, 0.02, 0.2, 0.8, 0x2d3b4a);
+  b.box(0.3, 0.33, 0.91, 0.18, 0.08, 0.02, 0xfff3c4); b.box(-0.3, 0.33, 0.91, 0.18, 0.08, 0.02, 0xfff3c4);
+  [[-0.46, 0.55], [0.46, 0.55], [-0.46, -0.55], [0.46, -0.55]].forEach(([x, z]) => b.box(x, 0.16, z, 0.14, 0.32, 0.32, 0x1c1f24));
+  return (carGeo[color] = b.mesh(MAT, false).geometry);
+}
+function carMesh(seed) {
+  const m = new THREE.Mesh(carGeometry(CAR_COLORS[Math.abs(seed) % CAR_COLORS.length]), MAT);
+  if (quality === 'pretty') m.castShadow = true;
+  return m;
+}
+function walkerMesh(seed) {
+  const b = new Bake();
+  person(b, 0, 0, 0, seed, false);
+  return b.mesh(MAT, false);
+}
+function addActor(a) { a.d = a.d || 0; a.life = 0; actors.push(a); return a; }
+function wait(sec, fn) { actors.push({ kind: 'wait', t: sec, life: 0, onDone: fn }); }
 function spawnTruck(pts, kind, label, onDone) {
   const mesh = new THREE.Mesh(truckGeometry(kind), MAT);
   if (quality === 'pretty') mesh.castShadow = true;
-  const info = pathInfo(lanePath(pts, 0.85));
   scene.add(mesh);
   let tag = null;
   if (label) { tag = document.createElement('div'); tag.className = `mpc-truck-tag ${kind}`; tag.textContent = label; tagLayer.appendChild(tag); }
-  actors.push({ mesh, info, d: 0, speed: 7.5, tag, onDone, truck: true, life: 0 });
+  addActor({ kind: 'truck', mesh, info: pathInfo(lanePath(pts, 0.85)), speed: 7.5, tag, onDone, fadeIn: true, fadeOut: true });
 }
-function spawnWalker(pts, seed, onDone) {
-  const mesh = walkerMesh(seed);
-  const info = pathInfo(dedupe(pts));
+// a person walking a path; keep = stay in the scene at the end (they carry on with another walk or get into a car)
+function spawnWalker(pts, seed, onDone, mesh, keep) {
+  mesh = mesh || walkerMesh(seed);
   scene.add(mesh);
-  actors.push({ mesh, info, d: 0, speed: 1.5, onDone, truck: false, life: 0 });
+  addActor({ kind: 'walker', mesh, info: pathInfo(dedupe(pts)), speed: 1.5, onDone, keep, own: true });
+}
+function drive(mesh, pts, onDone, opts = {}) {
+  scene.add(mesh);
+  addActor({ kind: 'car', mesh, info: pathInfo(dedupe(pts)), speed: opts.speed || 6.5, onDone, keep: opts.keep, fadeIn: opts.fadeIn, fadeOut: opts.fadeOut });
 }
 function stepActors(dt) {
   for (let k = actors.length - 1; k >= 0; k--) {
     const a = actors[k];
+    if (a.kind === 'wait') { a.life += dt; if (a.life >= a.t) { actors.splice(k, 1); a.onDone && a.onDone(); } continue; }
     a.d += a.speed * dt; a.life += dt;
-    const p = pointAt(a.info, Math.min(a.d, a.info.total));
-    const y = a.truck ? BASE_Y * 0 + 0.02 : BASE_Y + Math.abs(Math.sin(a.life * 9)) * 0.05;
-    a.mesh.position.set(p.x, y, p.z);
+    const total = a.info.total;
+    const d = a.loop ? a.d % total : Math.min(a.d, total);
+    const p = pointAt(a.info, d);
+    const walking = a.kind === 'walker';
+    a.mesh.position.set(p.x, walking ? BASE_Y + Math.abs(Math.sin(a.life * 9)) * 0.05 : 0.04, p.z);
     if (Math.hypot(p.dx, p.dz) > 0.001) {
       const target = Math.atan2(p.dx, p.dz);
       let diff = target - a.mesh.rotation.y; diff = Math.atan2(Math.sin(diff), Math.cos(diff));
-      a.mesh.rotation.y += diff * Math.min(1, dt * 10);
+      a.mesh.rotation.y += diff * Math.min(1, dt * (walking ? 12 : 8));
     }
-    const remain = a.info.total - a.d;
-    const sc = clamp(Math.min(a.d, remain) / 0.6, 0.05, 1);
+    // vehicles grow / shrink only at the far end of the highway (out of sight); people never sink
+    let sc = 1;
+    if (a.fadeIn) sc = Math.min(sc, clamp(a.d / 1.2, 0.05, 1));
+    if (a.fadeOut) sc = Math.min(sc, clamp((total - a.d) / 1.2, 0.05, 1));
     a.mesh.scale.setScalar(sc);
     if (a.tag) placeEl(a.tag, p.x, 2.0, p.z);
-    if (a.d >= a.info.total) {
-      scene.remove(a.mesh); if (!a.truck) a.mesh.geometry.dispose();
-      a.tag?.remove(); actors.splice(k, 1); a.onDone && a.onDone();
+    if (!a.loop && a.d >= total) {
+      if (!a.keep) { scene.remove(a.mesh); if (a.own) a.mesh.geometry.dispose(); }
+      a.tag?.remove(); actors.splice(k, 1); a.onDone && a.onDone(a);
     }
+  }
+}
+
+/* a customer's visit: a car drives in from outside town and parks at the kerb, the customer gets out,
+   walks in to the counter, the money pops up while they are served, then they walk back, get in and drive away */
+function curbOf(B) { return { x: B.side.x + 1.4, z: B.zr - B.f * 0.95 }; }
+function visit(B, onCounter, fromSeat) {
+  if (!B || !B.queueSpot || !world) { onCounter && onCounter(null); return; }
+  const seed = (Math.random() * 1e9) | 0;
+  const curb = curbOf(B);
+  const counter = local2world(B, B.queueSpot.counterX, B.queueSpot.counterZ + 0.3);
+  // the car drives in along the street from the nearer edge of town, and carries on out the other side
+  const g = world.ground, fromEast = Math.abs(g.x1 - curb.x) < Math.abs(curb.x - g.x0);
+  const startX = fromEast ? g.x1 + 6 : g.x0 - 6, endX = fromEast ? g.x0 - 6 : g.x1 + 6;
+  const arrivePts = [...lanePath([{ x: startX, z: B.zr }, { x: curb.x, z: B.zr }], 0.85), curb];
+  const leavePts = [curb, ...lanePath([{ x: curb.x, z: B.zr }, { x: endX, z: B.zr }], 0.85)];
+  const car = carMesh(seed), person = walkerMesh(seed);
+  let carHere = false, personBack = false;
+  const tryLeave = () => {
+    if (!carHere || !personBack) return;
+    scene.remove(person); person.geometry.dispose();                    // gets into the car
+    wait(0.4, () => drive(car, leavePts, null, { fadeOut: true, speed: 8 }));
+  };
+  const goBack = () => spawnWalker([counter, B.door, B.side, curb], 0, () => { personBack = true; tryLeave(); }, person, true);
+  const atCounter = () => wait(1.0, () => { onCounter && onCounter(counter); wait(1.1, goBack); });
+  if (fromSeat) {
+    const seat = local2world(B, B.queueSpot.x, B.queueSpot.z);
+    drive(car, arrivePts, () => { carHere = true; tryLeave(); }, { fadeIn: true, keep: true, speed: 8 });
+    spawnWalker([seat, counter], 0, atCounter, person, true);
+  } else {
+    drive(car, arrivePts, () => wait(0.4, () => spawnWalker([curb, B.side, B.door, counter], 0, atCounter, person, true)), { fadeIn: true, keep: true, speed: 8 });
+  }
+}
+
+/* everyday life: cars circling the blocks and people strolling on the sidewalks */
+function loopLane(pts, lane) {
+  const n = pts.length, out = [];
+  const nrm = (p, q) => { const dx = q.x - p.x, dz = q.z - p.z, L = Math.hypot(dx, dz) || 1; return { x: dz / L, z: -dx / L }; };
+  for (let k = 0; k < n; k++) {
+    const a = pts[(k - 1 + n) % n], b = pts[k], c = pts[(k + 1) % n];
+    const n1 = nrm(a, b), n2 = nrm(b, c);
+    out.push({ x: b.x + (n1.x + n2.x) * lane, z: b.z + (n1.z + n2.z) * lane });
+  }
+  out.push({ ...out[0] });
+  return out;
+}
+function startAmbient() {
+  for (let k = actors.length - 1; k >= 0; k--) if (actors[k].ambient) { scene.remove(actors[k].mesh); actors.splice(k, 1); }
+  const e = world.ext, r = rng((Date.now() / 1000) | 0);
+  const nCars = quality === 'eco' ? 5 : 10, nPeds = quality === 'eco' ? 8 : 18;
+  const ri = (a, b) => a + Math.floor(r() * (b - a + 1));
+  for (let k = 0; k < nCars; k++) {
+    const i0 = ri(e.imin - 1, e.imax - 1), i1 = ri(i0 + 1, e.imax), j0 = ri(e.jmin - 1, e.jmax - 1), j1 = ri(j0 + 1, e.jmax);
+    const xa = (i0 + 0.5) * P, xb = (i1 + 0.5) * P, za = (j0 + 0.5) * P, zb = (j1 + 0.5) * P;
+    let pts = [{ x: xa, z: za }, { x: xb, z: za }, { x: xb, z: zb }, { x: xa, z: zb }];
+    if (r() > 0.5) pts.reverse();
+    const mesh = carMesh(k * 7 + 3); scene.add(mesh);
+    const info = pathInfo(loopLane(pts, 0.85));
+    addActor({ kind: 'car', mesh, info, speed: 3.2 + r() * 2.5, loop: true, ambient: true, d: r() * info.total });
+  }
+  const blocks = [];
+  for (let i = e.imin; i <= e.imax; i++) for (let j = e.jmin; j <= e.jmax; j++) blocks.push([i, j]);
+  for (let k = 0; k < nPeds; k++) {
+    const [i, j] = blocks[Math.floor(r() * blocks.length)], o = 4.95;
+    let pts = [{ x: i * P - o, z: j * P - o }, { x: i * P + o, z: j * P - o }, { x: i * P + o, z: j * P + o }, { x: i * P - o, z: j * P + o }];
+    if (r() > 0.5) pts.reverse();
+    pts.push({ ...pts[0] });
+    const mesh = walkerMesh(1000 + k * 13); scene.add(mesh);
+    const info = pathInfo(pts);
+    addActor({ kind: 'walker', mesh, info, speed: 0.7 + r() * 0.6, loop: true, ambient: true, own: true, d: r() * info.total });
   }
 }
 
@@ -759,54 +984,49 @@ function nameOf(B) { return B && B.item.ent ? B.item.ent.name : ''; }
 function bld(key) { return key && world ? world.buildings.get(key) : null; }
 
 function playTx(tx) {
-  const amountTxt = hidden() ? '••••' : formatAmount(tx.amount, tx.currency || 'THB');
+  const money2 = (v, cur) => hidden() ? '••••' : formatAmount(Math.abs(v), cur || 'THB');
+  const amountTxt = money2(tx.amount, tx.currency);
   const auto = tx.auto ? 'อัตโนมัติ · ' : '';
+  const seat = Boolean(tx.auto);                       // auto deposits / withdrawals come from the lobby queue
   if (tx.type === 'income') {
     const B = bld(entityKeyFromTx(tx.account)); if (!B) return;
-    spawnTruck(routeToGate(B).reverse(), 'in', `+${amountTxt}`, () => bubble(B, `+${amountTxt}`, 'in'));
+    spawnTruck(routeToGate(B).reverse(), 'in', `+${amountTxt}`);
+    visit(B, at => bubble(B, `+${amountTxt}`, 'in', at), seat);
     feed('deposit', `${auto}รถส่งของเข้า ${nameOf(B)} · +${amountTxt}`, 'in');
   } else if (tx.type === 'expense') {
     const B = bld(entityKeyFromTx(tx.account)); if (!B) return;
-    bubble(B, `−${amountTxt}`, 'out');
-    spawnTruck(routeToGate(B), 'out', `−${amountTxt}`);
-    feed('withdraw', `${auto}รถออกจาก ${nameOf(B)} ไปส่งออเดอร์นอกเมือง · ${amountTxt}`, 'out');
+    visit(B, at => { bubble(B, `−${amountTxt}`, 'out', at); spawnTruck(routeToGate(B), 'out', `−${amountTxt}`); }, seat);
+    feed('withdraw', `${auto}${nameOf(B)} ส่งออเดอร์ออกนอกเมือง · ${amountTxt}`, 'out');
   } else if (tx.type === 'transfer') {
     const A = bld(keyOfAccount(tx.from));
     const B = tx.toType === 'goal' ? bld(keyOfGoal(tx.to)) : tx.toType === 'account' ? bld(keyOfAccount(tx.to)) : null;
     if (A && B) {
-      spawnTruck(routeBetween(A, B), 'move', amountTxt, () => bubble(B, `+${hidden() ? '••••' : formatAmount(tx.received ?? tx.amount, tx.receivedCurrency || tx.currency)}`, 'in'));
+      const got = money2(tx.received ?? tx.amount, tx.receivedCurrency || tx.currency);
+      visit(A, at => {
+        bubble(A, `−${amountTxt}`, 'out', at);
+        spawnTruck(routeBetween(A, B), 'move', amountTxt, () => bubble(B, `+${got}`, 'in'));
+      });
       feed('transfer', `${nameOf(A)} → ${nameOf(B)} · ${amountTxt}`, 'move');
     } else if (A) {
-      spawnTruck(routeToGate(A), 'out', `−${amountTxt}`);
+      visit(A, at => { bubble(A, `−${amountTxt}`, 'out', at); spawnTruck(routeToGate(A), 'out', `−${amountTxt}`); });
       feed('transfer', `${nameOf(A)} ส่งของออกนอกเมือง · ${amountTxt}`, 'out');
     }
   } else if (tx.type === 'internal_transfer') {
     const B = bld(keyOfAccount(tx.account)); if (!B) return;
     const toBank = tx.destination === 'bank';
-    bubble(B, toBank ? 'เงินสด → ธนาคาร' : 'ธนาคาร → เงินสด', 'move');
+    visit(B, at => bubble(B, `${toBank ? 'เงินสด → ธนาคาร' : 'ธนาคาร → เงินสด'} ${amountTxt}`, 'move', at));
     feed('exchange', `${nameOf(B)}: ย้าย${toBank ? 'เงินสดเข้าธนาคาร' : 'เงินจากธนาคารมาเป็นเงินสด'} · ${amountTxt}`, 'move');
   } else if (tx.type === 'cash_reconciliation' || tx.type === 'bank_reconciliation') {
     const B = bld(keyOfAccount(tx.account)); if (!B) return;
     const cashCheck = tx.type === 'cash_reconciliation';
-    bubble(B, cashCheck ? 'นับเงินสดเสร็จ · ปรับยอด' : 'ตรวจยอดธนาคาร · ปรับยอด', 'move');
-    feed('check', `${nameOf(B)}: ${cashCheck ? 'ห้องนับเงินตรวจนับเงินสดแล้ว' : 'เคาน์เตอร์ตรวจยอดธนาคารแล้ว'} · ปรับ ${amountTxt}`, 'move');
+    const delta = Number(cashCheck ? tx.cashDelta : tx.bankDelta);
+    const sign = Number.isFinite(delta) && delta !== 0 ? (delta > 0 ? '+' : '−') : '';
+    visit(B, at => bubble(B, `${cashCheck ? 'นับเงินสด' : 'ตรวจยอดธนาคาร'} · ปรับ ${sign}${amountTxt}`, sign === '−' ? 'out' : 'in', at));
+    feed('check', `${nameOf(B)}: ${cashCheck ? 'ห้องนับเงินตรวจนับเงินสดแล้ว' : 'เคาน์เตอร์ตรวจยอดธนาคารแล้ว'} · ปรับ ${sign}${amountTxt}`, 'move');
   } else if (tx.type === 'adjust') {
     const B = bld(entityKeyFromTx(tx.account)); if (!B) return;
-    bubble(B, `ปรับยอด ${tx.direction === 'out' ? '−' : '+'}${amountTxt}`, tx.direction === 'out' ? 'out' : 'in');
+    visit(B, at => bubble(B, `ปรับยอด ${tx.direction === 'out' ? '−' : '+'}${amountTxt}`, tx.direction === 'out' ? 'out' : 'in', at));
   }
-  // a customer walks in to the counter for anything recorded at this company
-  const key = tx.type === 'transfer' ? keyOfAccount(tx.from) : entityKeyFromTx(tx.account);
-  const W = bld(key);
-  if (W && W.queueSpot && !tx.auto) {
-    const c = local2world(W, W.queueSpot.counterX, W.queueSpot.counterZ + 0.3);
-    spawnWalker([W.side, W.door, c, W.door, W.side], hash(tx.id || String(Math.random())));
-  }
-}
-function servedFromQueue(B) {
-  if (!B.queueSpot) return;
-  const seat = local2world(B, B.queueSpot.x, B.queueSpot.z);
-  const c = local2world(B, B.queueSpot.counterX, B.queueSpot.counterZ + 0.3);
-  spawnWalker([seat, c, B.door, B.side], hash(B.key) + Date.now());
 }
 function markSeen() {
   prefs.seen = txList().sort((a, b) => txTime(b) - txTime(a)).slice(0, 300).map(t => t.id).filter(Boolean);
@@ -833,7 +1053,6 @@ function sync() {
   world.buildings.forEach(B => {
     if (B.kind === 'park') return;
     const item = list.find(it => it.key === B.key); if (item) B.item = item;
-    const prevQueue = B.queue;
     refreshStats(B);
     const vs = visualSig(B);
     if (vs !== B.vsig) {
@@ -842,11 +1061,10 @@ function sync() {
       if (B.kind !== 'lot' && B.stats.floors > oldFloors && oldFloors > 0 && opened) { bubble(B, `ขยายเป็น ${B.stats.floors} ชั้น`, 'up'); feed('up', `${nameOf(B)} ขยายตึกเป็น ${B.stats.floors} ชั้น`, 'up'); }
       applyLight();
     }
-    if (opened && B.queue < prevQueue) servedFromQueue(B);
     fillTag(B);
   });
   if (opened) playNew(0);
-  updateHud();
+  updateHud(); syncXrayButton();
   if (openKey) renderPanel();
 }
 
@@ -858,6 +1076,7 @@ function updateHud() {
   hudValue.textContent = hidden() ? '••••' : formatAmount(total, 'THB');
   hudLevel.textContent = `Lv.${cityLevel()}`;
 }
+function syncXrayButton() { const b = root && root.querySelector('#mpcXray'); if (b) b.setAttribute('aria-pressed', String(xrayOn())); }
 function updateClock() {
   if (!hudClock) return;
   const d = new Date();
@@ -882,9 +1101,11 @@ function recentFor(B) {
 }
 function txLine(t, B) {
   const id = B.item.ent.id;
-  const incoming = t.type === 'income' || (t.type === 'transfer' && t.to === id) || (t.type === 'adjust' && t.direction !== 'out');
-  const outgoing = t.type === 'expense' || (t.type === 'transfer' && t.from === id) || (t.type === 'adjust' && t.direction === 'out');
-  const label = t.note || (incoming ? 'เงินเข้า' : outgoing ? 'เงินออก' : 'รายการ');
+  const recon = t.type === 'cash_reconciliation' || t.type === 'bank_reconciliation';
+  const rd = recon ? Number(t.totalDelta ?? ((Number(t.cashDelta) || 0) + (Number(t.bankDelta) || 0))) : 0;
+  const incoming = t.type === 'income' || (t.type === 'transfer' && t.to === id) || (t.type === 'adjust' && t.direction !== 'out') || rd > 0;
+  const outgoing = t.type === 'expense' || (t.type === 'transfer' && t.from === id) || (t.type === 'adjust' && t.direction === 'out') || rd < 0;
+  const label = t.note || (t.type === 'cash_reconciliation' ? 'ตรวจนับเงินสด' : t.type === 'bank_reconciliation' ? 'ตรวจยอดธนาคาร' : t.type === 'internal_transfer' ? 'ย้ายเงินสด ↔ ธนาคาร' : incoming ? 'เงินเข้า' : outgoing ? 'เงินออก' : 'รายการ');
   const amount = t.type === 'transfer' && t.to === id ? (t.received ?? t.amount) : t.amount;
   const cur = t.type === 'transfer' && t.to === id ? (t.receivedCurrency || t.currency) : t.currency;
   const sign = incoming ? '+' : outgoing ? '−' : '';
@@ -963,7 +1184,7 @@ function closeBuilding() {
 function stepBuildings(dt) {
   world.buildings.forEach(B => {
     if (!B.floors || !B.floors.length) return;
-    const target = B.openGoal;
+    const target = B.openGoal || (xrayOn() && B.kind !== 'lot' && B.kind !== 'park') ? 1 : 0;
     if (Math.abs(B.open - target) < 0.001 && !B._dirty) return;
     B.open += (target - B.open) * Math.min(1, dt * 6);
     if (Math.abs(B.open - target) < 0.002) B.open = target;
@@ -971,11 +1192,11 @@ function stepBuildings(dt) {
     const gap = 1 + GAP * B.open;
     B.floors.forEach((f, i) => {
       f.g.position.y = i * B.fh * gap;
-      const show = B.openGoal === 0 && B.open < 0.06;
+      const show = target === 0 && B.open < 0.06;
       if (f.shell) f.shell.visible = show;
       if (f.lit) f.lit.visible = show && night;
     });
-    if (B.roof) { B.roof.position.y = B.floors.length * B.fh * gap + B.open * 1.5; B.roof.visible = B.openGoal === 0 && B.open < 0.06; }
+    if (B.roof) { B.roof.position.y = B.floors.length * B.fh * gap + B.open * 1.5; B.roof.visible = target === 0 && B.open < 0.06; }
   });
 }
 
@@ -1045,7 +1266,7 @@ function applyLight() {
     if (g.lamps) g.lamps.visible = night;
     if (g.glows) g.glows.visible = night;
     if (g.clouds) g.clouds.children.forEach(c => { c.material.color.set(L.cloud); c.userData.base = L.cloudO; });
-    world.buildings.forEach(B => (B.floors || []).forEach(f => { if (f.lit) f.lit.visible = night && B.openGoal === 0 && B.open < 0.06; }));
+    world.buildings.forEach(B => { B._dirty = true; (B.floors || []).forEach(f => { if (f.lit) f.lit.visible = night && B.openGoal === 0 && !xrayOn() && B.open < 0.06; }); });
   }
 }
 
@@ -1120,17 +1341,19 @@ function fitCity() {
   const R = Math.hypot(gnd.x1 - gnd.x0, gnd.z1 - gnd.z0) / 2 + 4;
   const aspect = Math.max(0.3, canvas.clientWidth / Math.max(1, canvas.clientHeight));
   const fov = BASE_FOV * Math.PI / 180;
-  const dist = (R / Math.tan(fov / 2)) / Math.min(1, aspect) * 0.62;
+  const dist = (R / Math.tan(fov / 2)) / Math.min(1, aspect) * (aspect < 1 ? 0.5 : 0.62);
   goal.tx = cx; goal.tz = cz; goal.ty = 0.8; goal.dist = clamp(dist, 18, 150); goal.az = Math.PI / 4; goal.pol = 1.0;
 }
 function stepCamera(dt) {
   const k = Math.min(1, dt * 7);
   ['tx', 'ty', 'tz', 'dist', 'pol'].forEach(p => { cam[p] += (goal[p] - cam[p]) * k; });
   let d = goal.az - cam.az; d = Math.atan2(Math.sin(d), Math.cos(d)); cam.az += d * k;
-  const sp = Math.sin(cam.pol);
-  camera.position.set(cam.tx + sp * Math.sin(cam.az) * cam.dist, cam.ty + Math.cos(cam.pol) * cam.dist, cam.tz + sp * Math.cos(cam.az) * cam.dist);
+  // closer in, the camera tilts towards the horizon (like a city game), so the hills and mountains come into view
+  const pol = clamp(cam.pol + clamp((70 - cam.dist) / 55) * 0.28, 0.45, 1.32);
+  const sp = Math.sin(pol);
+  camera.position.set(cam.tx + sp * Math.sin(cam.az) * cam.dist, cam.ty + Math.cos(pol) * cam.dist, cam.tz + sp * Math.cos(cam.az) * cam.dist);
   camera.lookAt(cam.tx, cam.ty, cam.tz);
-  scene.fog.near = cam.dist * (look ? look.near : 1.4); scene.fog.far = cam.dist * (look ? look.far : 3.6);
+  scene.fog.near = Math.max(60, cam.dist * (look ? look.near : 1.4)); scene.fog.far = Math.max(380, cam.dist * (look ? look.far : 3.6));
 }
 function placeEl(el, x, y, z) {
   _v.set(x, y, z).project(camera);
@@ -1175,8 +1398,11 @@ function stepTags(dt) {
   for (let k = bubbles.length - 1; k >= 0; k--) {
     const b = bubbles[k]; b.t += dt;
     const B = b.B;
-    const h = B.floors && B.floors.length ? B.floors.length * B.fh * (1 + GAP * B.open) + 2.2 : 3.4;
-    placeEl(b.el, B.kind === 'lot' ? B.cx : B.bx, BASE_Y + h + b.t * 0.8, B.kind === 'lot' ? B.cz : B.bz);
+    if (b.at && B.open > 0.5) placeEl(b.el, b.at.x, BASE_Y + 1.6 + b.t * 0.6, b.at.z);      // over the counter when the building is open
+    else {
+      const h = B.floors && B.floors.length ? B.floors.length * B.fh * (1 + GAP * B.open) + 2.2 : 3.4;
+      placeEl(b.el, B.kind === 'lot' ? B.cx : B.bx, BASE_Y + h + b.t * 0.8, B.kind === 'lot' ? B.cz : B.bz);
+    }
     b.el.style.opacity = String(clamp(b.t < 0.25 ? b.t / 0.25 : 1 - (b.t - 2.2) / 0.6));
     if (b.t > 2.8) { b.el.remove(); bubbles.splice(k, 1); }
   }
@@ -1200,7 +1426,7 @@ function panBy(dx, dy) {
   goal.tx += (-rx * dx + fx * dy / Math.cos(cam.pol * 0.7)) * k;
   goal.tz += (-rz * dx + fz * dy / Math.cos(cam.pol * 0.7)) * k;
   const g = world.ground;
-  goal.tx = clamp(goal.tx, g.x0 - 10, g.farX); goal.tz = clamp(goal.tz, g.z0 - 10, g.z1 + 10);
+  goal.tx = clamp(goal.tx, g.x0 - 10, g.x1 + 40); goal.tz = clamp(goal.tz, g.z0 - 10, g.z1 + 10);
   cam.tx = goal.tx; cam.tz = goal.tz;
 }
 function pickAt(p) {
@@ -1314,6 +1540,7 @@ html[data-theme="dark"] .mpc{--mpc-card:#1b1e24;--mpc-fg:#eef0f3;--mpc-muted:#9a
 .mpc-tools{position:absolute;right:max(14px,env(safe-area-inset-right,0px));top:50%;translate:0 -50%;display:flex;flex-direction:column;gap:2px;padding:4px;border-radius:16px;background:var(--mpc-card);box-shadow:var(--mpc-shadow)}
 .mpc-tools button{display:grid;place-items:center;width:38px;height:38px;border:0;border-radius:12px;background:transparent;color:var(--mpc-fg);font:700 18px/1 system-ui;cursor:pointer}
 .mpc-tools button:active{background:var(--mpc-soft)}
+.mpc-tools button[aria-pressed="true"]{background:var(--mpc-fg);color:var(--mpc-card)}
 .mpc-chips{position:absolute;left:0;right:0;bottom:0;display:flex;gap:8px;overflow-x:auto;padding:10px max(14px,env(safe-area-inset-right,0px)) calc(12px + var(--sa-bottom, env(safe-area-inset-bottom,0px))) max(14px,env(safe-area-inset-left,0px));scrollbar-width:none}
 .mpc-chips::-webkit-scrollbar{display:none}
 .mpc-chip{display:flex;align-items:center;gap:6px;flex:none;padding:9px 13px;border:0;border-radius:999px;background:var(--mpc-card);color:var(--mpc-fg);box-shadow:var(--mpc-shadow);font:600 12.5px 'Noto Sans Thai',system-ui,sans-serif;cursor:pointer}
@@ -1379,6 +1606,7 @@ function buildDom() {
       <button type="button" data-mpc="rot-l" aria-label="หมุนซ้าย">${svg('refresh')}</button>
       <button type="button" data-mpc="rot-r" aria-label="หมุนขวา" style="transform:scaleX(-1)">${svg('refresh')}</button>
       <button type="button" data-mpc="home" aria-label="ดูทั้งเมือง">${svg('home')}</button>
+      <button type="button" data-mpc="xray" id="mpcXray" aria-label="มองเห็นภายในตึกทุกหลัง" aria-pressed="false"><svg class="mpc-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
     </div>
     <nav class="mpc-chips" aria-label="บริษัทในเมือง"></nav>
     <aside class="mpc-panel" hidden></aside>
@@ -1406,6 +1634,7 @@ function buildDom() {
     else if (a === 'rot-l') goal.az += Math.PI / 4;
     else if (a === 'rot-r') goal.az -= Math.PI / 4;
     else if (a === 'home') { closeBuilding(); fitCity(); }
+    else if (a === 'xray') { state.settings.cityXray = !xrayOn(); if (typeof saveState === 'function') saveState(); syncXrayButton(); feed('city', xrayOn() ? 'มองเห็นภายในตึกทุกหลัง' : 'ปิดการมองทะลุตึก', 'move'); }
     else if (a === 'account') { const id = btn.dataset.id; close(); if (typeof openDetail === 'function') openDetail(id); }
     else if (a === 'goal') { const id = btn.dataset.id; close(); if (typeof openTransfer === 'function') openTransfer('thb', `goal:${id}`); }
   });
@@ -1496,7 +1725,7 @@ function open(focusAccountId) {
     } else sync();
   }
   applyLight();
-  applyLight(); updateHud(); updateClock();
+  applyLight(); updateHud(); updateClock(); syncXrayButton();
   clearInterval(clockTimer); clockTimer = setInterval(() => { updateClock(); applyLight(); }, 15000);
   const focusKey = focusAccountId ? keyOfAccount(focusAccountId) : null;
   if (focusKey && bld(focusKey)) { openBuilding(focusKey); cam.dist = goal.dist * 1.6; }
@@ -1515,7 +1744,7 @@ function close() {
   document.body.style.overflow = '';
   closeBuilding();
   markSeen();
-  actors.splice(0).forEach(a => { scene.remove(a.mesh); a.tag?.remove(); });
+  for (let k = actors.length - 1; k >= 0; k--) { const a = actors[k]; if (a.ambient) continue; if (a.mesh) scene.remove(a.mesh); a.tag?.remove(); actors.splice(k, 1); }
   bubbles.splice(0).forEach(b => b.el.remove());
 }
 

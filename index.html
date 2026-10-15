@@ -207,6 +207,7 @@
         </section>
         <section class="settings-group"><h2>เมือง MePocket City</h2>
           <button class="setting-row" data-setting="cityEnabled"><span><b>เปิดใช้เมือง 3 มิติ</b><small>ปุ่มเมืองบนหน้าหลักและหน้าบัญชี</small></span><i class="switch" id="cityEnabledSwitch"></i></button>
+          <button class="setting-row" data-setting="cityXray"><span><b>มองเห็นภายในตึก</b><small>เปิดผนังตึกทุกหลังให้เห็นคนทำงานข้างใน</small></span><i class="switch" id="cityXraySwitch"></i></button>
           <div class="setting-row theme-row"><span><b>คุณภาพภาพ</b><small>ประหยัดแบต หรือสวยเต็มที่ (มีเงา)</small></span><div class="theme-seg" role="radiogroup" aria-label="คุณภาพภาพของเมือง"><button type="button" role="radio" data-city-quality="eco">ประหยัดแบต</button><button type="button" role="radio" data-city-quality="pretty">สวย</button></div></div>
           <div class="setting-row theme-row"><span><b>แสงในเมือง</b><small>เช้า กลางวัน แสงทองตอนเย็น และกลางคืน</small></span><div class="theme-seg" role="radiogroup" aria-label="แสงในเมือง"><button type="button" role="radio" data-city-light="clock">ตามเวลาจริง</button><button type="button" role="radio" data-city-light="theme">ตามธีมแอป</button></div></div>
           <button class="setting-row" data-city-open><span><b>เปิดเมือง</b><small>ดูเงินทุกก้อนเป็นบริษัทในเมือง</small></span><i><svg class="icon"><use href="#i-city"/></svg></i></button>
@@ -223,6 +224,12 @@
           <div class="settings-section-head"><div><h2>ฝาก/ถอนเงินอัตโนมัติ</h2><small>ตั้งวัน เวลา จำนวนเงิน และ Pocket หรือกล่องที่ใช้</small></div><button class="schedule-add" data-action="add-schedule" aria-label="เพิ่มรายการฝากหรือถอนอัตโนมัติ"><svg class="icon"><use href="#i-plus"/></svg></button></div>
           <div id="scheduleList" class="schedule-list"></div>
           <p class="schedule-footnote">หากเว็บปิดอยู่ ระบบจะดำเนินรายการที่ค้างทันทีเมื่อเปิดเว็บครั้งถัดไป</p>
+        </section>
+        <section class="settings-group"><h2>เก็บประวัติ</h2>
+          <button class="setting-row" id="syncOpen"><span><b>บัญชีและการซิงก์</b><small id="syncStatus">ยังไม่ได้เข้าสู่ระบบ · ข้อมูลอยู่ในเครื่องนี้เท่านั้น</small></span><i><svg class="icon"><use href="#i-refresh"/></svg></i></button>
+          <button class="setting-row" id="backupExport"><span><b>สำรองเป็นไฟล์</b><small>บันทึกประวัติทั้งหมดเป็นไฟล์ .json</small></span><i><svg class="icon"><use href="#i-share"/></svg></i></button>
+          <button class="setting-row" id="backupImport"><span><b>กู้คืนจากไฟล์สำรอง</b><small>แทนที่ข้อมูลในเครื่องนี้ด้วยไฟล์ .json</small></span><i><svg class="icon"><use href="#i-refresh"/></svg></i></button>
+          <input type="file" id="backupFile" accept=".json,application/json" hidden />
         </section>
         <section class="settings-group"><h2>ข้อมูล</h2>
           <div class="setting-row static"><span><b>สกุลเงินหลัก</b><small>ใช้คำนวณยอดรวม</small></span><strong>THB</strong></div>
@@ -401,6 +408,14 @@
       <div class="grabber"></div><div class="sheet-head"><div><p class="overline dark-text">บันทึกรายการ</p><h2 id="entryTitle">เพิ่มเงิน</h2></div><button class="close-button" data-close aria-label="ปิด"><svg class="icon"><use href="#i-x"/></svg></button></div>
       <div class="segment"><button class="active" data-entry-type="income">เงินเข้า</button><button data-entry-type="expense">รายจ่าย</button></div>
       <form id="entryForm"><label class="field">บัญชี<select id="entryAccount"></select></label><div class="cf-place" id="entryPlace" data-value="bank" hidden><span class="cf-place-label">รับเข้าที่</span><div class="segment"><button type="button" data-cf-pick="cash">เงินสดในมือ</button><button type="button" data-cf-pick="bank">บัญชีธนาคาร</button></div></div><label class="field">จำนวนเงิน<div class="money-input"><span id="entryCurrency">THB</span><input id="entryAmount" inputmode="decimal" type="number" min="0" step="0.01" placeholder="0.00" /></div></label><label class="field">รายละเอียด<input id="entryNote" maxlength="60" placeholder="เช่น เงินเดือน หรือ ค่าอาหาร" /></label><div class="cf-preview" id="entryPreview" hidden></div><p class="form-error" id="entryError"></p><button class="primary-button" type="submit">บันทึกรายการ</button></form>
+    </section>
+  </div>
+
+  <div class="sheet" id="syncSheet" aria-hidden="true">
+    <div class="sheet-backdrop" data-close></div>
+    <section class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="syncTitle">
+      <div class="grabber"></div><div class="sheet-head"><div><p class="overline dark-text">เก็บประวัติบนคลาวด์</p><h2 id="syncTitle">บัญชีและการซิงก์</h2></div><button class="close-button" data-close aria-label="ปิด"><svg class="icon"><use href="#i-x"/></svg></button></div>
+      <div id="syncBody"></div>
     </section>
   </div>
 
@@ -587,7 +602,7 @@
   (function(){
     var KEY = 'mepocket-site-pass';
     var HASH = '8ad2d53bc5182df6398bec5c9da37f5221873d21a2ca3eae15bdcbc2a1403e15';
-    function boot(){ var s = document.createElement('script'); s.src = './app.js'; document.body.appendChild(s); }
+    function boot(){ var s = document.createElement('script'); s.src = './app.js'; s.onload = function(){ var y = document.createElement('script'); y.src = './sync.js'; document.body.appendChild(y); }; document.body.appendChild(s); }
     var saved = null; try { saved = localStorage.getItem(KEY); } catch (e) {}
     if (saved === HASH) { boot(); return; }
     var gate = document.getElementById('siteGate'), dots = document.getElementById('gateDots'), err = document.getElementById('gateError');

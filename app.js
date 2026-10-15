@@ -158,7 +158,7 @@ const PLAN_CATALOG = [
 const seedState = {
   profileName: 'คุณานนต์',
   plan: 'starter',
-  settings: { hideBalances: false, compactNumbers: false, notifications: true, systemNotifications: false, cityEnabled: true, cityQuality: 'pretty', cityLight: 'clock' },
+  settings: { hideBalances: false, compactNumbers: false, notifications: true, systemNotifications: false, cityEnabled: true, cityQuality: 'pretty', cityLight: 'clock', cityXray: false },
   debitCard: { title:'Pocket Debit', holder:'KUNANON C.', number:'5201884273190426', color:'#18251f' },
   accounts: [
     { id:'thb', currency:'THB', flag:'🇹🇭', badge:'฿', badgeColor:'#52e884', name:'Pocket Save', accountNo:'206-974523-6', balance:26450, gradient:'linear-gradient(135deg,#caffdf 0%,#70f6a3 52%,#14bf8a 100%)', tag:'#eef1ef', country:'ประเทศไทย', rateText:'ดอกเบี้ยสูงสุด 3% ต่อปี' },
@@ -1088,6 +1088,7 @@ function renderAll() {
   $('#interestTotal').textContent = `฿${new Intl.NumberFormat('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}).format(totalTHB()*.00008)}`;
   updateBalanceVisibility();
   window.MePocketCity?.sync();   // the 3D city (if it was opened) follows every change right away
+  window.MePocketSync?.changed(); // copy the change to the cloud (sync.js)
 }
 
 /* ---------- MePocket City (3D) ----------
