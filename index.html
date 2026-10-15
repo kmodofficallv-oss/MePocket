@@ -22,6 +22,7 @@
 </head>
 <body class="auth-locked" data-active-view="home">
   <svg class="icon-sprite" aria-hidden="true">
+    <symbol id="i-city" viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V9l6-3v15"/><path d="M11 21V11l8 3v7"/><path d="M8 11v.01"/><path d="M8 15v.01"/><path d="M15 16v.01"/></symbol>
     <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 8 5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></symbol>
     <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></symbol>
     <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
@@ -86,7 +87,7 @@
           <div class="decor-grid"></div><div class="decor-coin coin-one">P</div><div class="decor-coin coin-two">฿</div>
           <header class="page-top">
             <div class="app-brand-head"><img src="./assets/mepocket.svg" alt="โลโก้ MePocket" /><div><p class="overline">MePocket</p><h1 id="homeTitle">เงินสด</h1></div></div>
-            <button class="profile-dot" data-nav="profile" aria-label="เปิดหน้าฉัน">K</button>
+            <div class="page-top-actions" style="display:flex;gap:8px;align-items:center"><button class="profile-dot" id="homeCity" data-city-open aria-label="เปิดเมือง MePocket City"><svg class="icon"><use href="#i-city"/></svg></button><button class="profile-dot" data-nav="profile" aria-label="เปิดหน้าฉัน">K</button></div>
           </header>
 
           <section class="account-panel" aria-labelledby="accountListTitle">
@@ -135,7 +136,7 @@
       <section class="view" id="accountDetailView" aria-labelledby="detailPageTitle">
         <div class="dark-zone detail-dark">
           <div class="decor-grid"></div>
-          <header class="detail-top"><button class="round-back" id="detailBack" aria-label="กลับหน้าก่อนหน้า"><svg class="icon"><use href="#i-arrow-left"/></svg></button><h1 id="detailPageTitle">เงินสด</h1><span></span></header>
+          <header class="detail-top"><button class="round-back" id="detailBack" aria-label="กลับหน้าก่อนหน้า"><svg class="icon"><use href="#i-arrow-left"/></svg></button><h1 id="detailPageTitle">เงินสด</h1><button class="round-back" id="detailCity" data-city-open="detail" aria-label="ดูบริษัทนี้ในเมือง"><svg class="icon"><use href="#i-city"/></svg></button></header>
           <div class="account-detail-card" id="accountDetailCard"></div>
           <p class="detail-updated"><svg class="icon icon-inline"><use href="#i-refresh"/></svg> ข้อมูลล่าสุด <span id="detailUpdated">วันนี้</span></p>
           <div class="account-actions" id="accountActions"></div>
@@ -203,6 +204,12 @@
           <div class="setting-row theme-row"><span><b>ธีม</b><small>สว่าง มืด หรือตามเครื่อง</small></span><div class="theme-seg" role="radiogroup" aria-label="เลือกธีม"><button type="button" role="radio" data-theme-pick="auto">อัตโนมัติ</button><button type="button" role="radio" data-theme-pick="light">สว่าง</button><button type="button" role="radio" data-theme-pick="dark">มืด</button></div></div>
           <button class="setting-row" data-setting="hideBalances"><span>ซ่อนยอดเงิน</span><i class="switch" id="hideBalancesSwitch"></i></button>
           <button class="setting-row" data-setting="compactNumbers"><span>ย่อจำนวนเงินขนาดใหญ่</span><i class="switch" id="compactNumbersSwitch"></i></button>
+        </section>
+        <section class="settings-group"><h2>เมือง MePocket City</h2>
+          <button class="setting-row" data-setting="cityEnabled"><span><b>เปิดใช้เมือง 3 มิติ</b><small>ปุ่มเมืองบนหน้าหลักและหน้าบัญชี</small></span><i class="switch" id="cityEnabledSwitch"></i></button>
+          <div class="setting-row theme-row"><span><b>คุณภาพภาพ</b><small>ประหยัดแบต หรือสวยเต็มที่ (มีเงา)</small></span><div class="theme-seg" role="radiogroup" aria-label="คุณภาพภาพของเมือง"><button type="button" role="radio" data-city-quality="eco">ประหยัดแบต</button><button type="button" role="radio" data-city-quality="pretty">สวย</button></div></div>
+          <div class="setting-row theme-row"><span><b>แสงในเมือง</b><small>เช้า กลางวัน แสงทองตอนเย็น และกลางคืน</small></span><div class="theme-seg" role="radiogroup" aria-label="แสงในเมือง"><button type="button" role="radio" data-city-light="clock">ตามเวลาจริง</button><button type="button" role="radio" data-city-light="theme">ตามธีมแอป</button></div></div>
+          <button class="setting-row" data-city-open><span><b>เปิดเมือง</b><small>ดูเงินทุกก้อนเป็นบริษัทในเมือง</small></span><i><svg class="icon"><use href="#i-city"/></svg></i></button>
         </section>
         <section class="settings-group"><h2>การแจ้งเตือน</h2>
           <button class="setting-row" data-setting="notifications"><span><b>แจ้งเตือนรายการ</b><small>แจ้งเตือนเมื่อบันทึกหรือโอนเงิน</small></span><i class="switch" id="notificationsSwitch"></i></button>

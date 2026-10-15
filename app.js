@@ -158,7 +158,7 @@ const PLAN_CATALOG = [
 const seedState = {
   profileName: 'คุณานนต์',
   plan: 'starter',
-  settings: { hideBalances: false, compactNumbers: false, notifications: true, systemNotifications: false },
+  settings: { hideBalances: false, compactNumbers: false, notifications: true, systemNotifications: false, cityEnabled: true, cityQuality: 'pretty', cityLight: 'clock' },
   debitCard: { title:'Pocket Debit', holder:'KUNANON C.', number:'5201884273190426', color:'#18251f' },
   accounts: [
     { id:'thb', currency:'THB', flag:'🇹🇭', badge:'฿', badgeColor:'#52e884', name:'Pocket Save', accountNo:'206-974523-6', balance:26450, gradient:'linear-gradient(135deg,#caffdf 0%,#70f6a3 52%,#14bf8a 100%)', tag:'#eef1ef', country:'ประเทศไทย', rateText:'ดอกเบี้ยสูงสุด 3% ต่อปี' },
@@ -909,6 +909,9 @@ function renderProfileAndSettings() {
   $('#profileName').textContent = state.profileName;
   $('#profileStats').innerHTML = `<div class="profile-stat"><span>มูลค่ารวมโดยประมาณ</span><strong class="balance-value">${formatAmount(totalTHB(),'THB')}</strong></div><div class="profile-stat"><span>กล่องเป้าหมาย</span><strong>${state.goals.length} กล่อง</strong></div>`;
   Object.entries(state.settings).forEach(([key,value]) => $(`#${key}Switch`)?.classList.toggle('on',Boolean(value)));
+  $$('[data-city-open]').forEach(button => { button.style.display = state.settings.cityEnabled ? '' : 'none'; });
+  $$('[data-city-quality]').forEach(button => { const on = (state.settings.cityQuality || 'pretty') === button.dataset.cityQuality; button.classList.toggle('active', on); button.setAttribute('aria-checked', String(on)); });
+  $$('[data-city-light]').forEach(button => { const on = (state.settings.cityLight || 'clock') === button.dataset.cityLight; button.classList.toggle('active', on); button.setAttribute('aria-checked', String(on)); });
   const permission = 'Notification' in window ? Notification.permission : 'unsupported';
   const status = $('#systemNotificationStatus');
   if(status) status.textContent = permission === 'granted' ? 'เปิดแล้ว — แจ้งเตือนเมื่อฝากอัตโนมัติสำเร็จ' : permission === 'denied' ? 'ถูกปิดในเบราว์เซอร์ กรุณาเปิดจากการตั้งค่าเครื่อง' : permission === 'unsupported' ? 'เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน' : 'แตะเพื่ออนุญาตการแจ้งเตือน';
@@ -1084,6 +1087,24 @@ function renderAll() {
   $('#updatedAt').textContent = formatTime();
   $('#interestTotal').textContent = `฿${new Intl.NumberFormat('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}).format(totalTHB()*.00008)}`;
   updateBalanceVisibility();
+  window.MePocketCity?.sync();   // the 3D city (if it was opened) follows every change right away
+}
+
+/* ---------- MePocket City (3D) ----------
+   city.js and the 3D engine (assets/three.min.js) load only the first time the city is opened,
+   so the app itself stays as light as before. */
+let cityLoading = null;
+function loadScriptOnce(src) {
+  return new Promise((resolve, reject) => { const script = document.createElement('script'); script.src = src; script.onload = resolve; script.onerror = () => reject(new Error(src)); document.body.appendChild(script); });
+}
+function openCity(accountId = '') {
+  if (!state.settings.cityEnabled) return;
+  if (window.MePocketCity) { window.MePocketCity.open(accountId); return; }
+  if (!cityLoading) {
+    notify('กำลังสร้างเมือง…');
+    cityLoading = (window.THREE ? Promise.resolve() : loadScriptOnce('./assets/three.min.js')).then(() => loadScriptOnce('./city.js')).catch(error => { cityLoading = null; throw error; });
+  }
+  cityLoading.then(() => window.MePocketCity?.open(accountId)).catch(() => notify('เปิดเมืองไม่ได้ ลองต่ออินเทอร์เน็ตแล้วเปิดอีกครั้ง'));
 }
 
 function updateBalanceVisibility() { $$('.balance-value').forEach(element => element.classList.toggle('balance-hidden',state.settings.hideBalances)); }
@@ -2200,6 +2221,9 @@ document.addEventListener('click', event => {
   if(event.target.closest('[data-close-bank]')){closeBankPicker();return;}
   const moveButton=event.target.closest('[data-move-account]'); if(moveButton){moveAccount(moveButton.dataset.moveAccount,moveButton.dataset.direction);return;}
   const editAccountColorButton=event.target.closest('[data-edit-account-color]'); if(editAccountColorButton){openAccountColorEditor(editAccountColorButton.dataset.editAccountColor);return;}
+  const cityButton=event.target.closest('[data-city-open]'); if(cityButton){openCity(cityButton.dataset.cityOpen==='detail'?selectedAccountId:'');return;}
+  const cityQuality=event.target.closest('[data-city-quality]')?.dataset.cityQuality; if(cityQuality){state.settings.cityQuality=cityQuality;saveState();return;}
+  const cityLight=event.target.closest('[data-city-light]')?.dataset.cityLight; if(cityLight){state.settings.cityLight=cityLight;saveState();return;}
   const account=event.target.closest('[data-account]')?.dataset.account; if(account) openDetail(account);
   const goal=event.target.closest('[data-goal-open]')?.dataset.goalOpen; if(goal) openTransfer('thb',`goal:${goal}`);
   const planButton=event.target.closest('[data-select-plan]'); if(planButton){openPay(planButton.dataset.selectPlan);return;}
