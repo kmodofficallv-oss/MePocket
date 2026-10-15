@@ -1028,14 +1028,17 @@ function playTx(tx) {
     visit(B, at => bubble(B, `ปรับยอด ${tx.direction === 'out' ? '−' : '+'}${amountTxt}`, tx.direction === 'out' ? 'out' : 'in', at));
   }
 }
+// remembers every transaction the city has already shown (short id prefixes, so even a long history stays small);
+// only records that are new since the last visit get animated, each one once
+const seenKey = t => String(t.id).slice(0, 10);
 function markSeen() {
-  prefs.seen = txList().sort((a, b) => txTime(b) - txTime(a)).slice(0, 300).map(t => t.id).filter(Boolean);
+  prefs.seen = txList().filter(t => t && t.id).map(seenKey);
   savePrefs();
 }
 function newTransactions() {
   if (!prefs.seen.length) return [];
   const seen = new Set(prefs.seen);
-  return txList().filter(t => t.id && !seen.has(t.id)).sort((a, b) => txTime(a) - txTime(b)).slice(-6);
+  return txList().filter(t => t && t.id && !seen.has(seenKey(t))).sort((a, b) => txTime(a) - txTime(b)).slice(-6);
 }
 function playNew(delay = 0) {
   const fresh = newTransactions();
@@ -1746,6 +1749,7 @@ function close() {
   markSeen();
   for (let k = actors.length - 1; k >= 0; k--) { const a = actors[k]; if (a.ambient) continue; if (a.mesh) scene.remove(a.mesh); a.tag?.remove(); actors.splice(k, 1); }
   bubbles.splice(0).forEach(b => b.el.remove());
+  if (feedEl) feedEl.innerHTML = '';
 }
 
 window.MePocketCity = { open, close, sync: () => { if (world) sync(); }, isOpen: () => opened };
