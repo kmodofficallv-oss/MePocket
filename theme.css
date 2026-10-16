@@ -399,3 +399,15 @@ html[data-theme="light"] .plans-view::before { background: radial-gradient(close
 html[data-theme="dark"] .inner-view,
 html[data-theme="dark"] .pay-view { background: radial-gradient(120% 340px at 85% -60px, rgba(126,224,203,.13), transparent 70%), radial-gradient(90% 260px at 0% -40px, rgba(156,98,255,.09), transparent 70%), var(--page-d); }
 @media (prefers-reduced-motion:reduce) { .plans-view { transition: none; } }
+
+/* bills */
+html[data-theme="dark"] .bill-item, html[data-theme="dark"] .bill-summary > div { border-color: #2d2f33; background: #1c1d1f; color: #eff0f1; }
+html[data-theme="dark"] .bill-item.overdue { border-color: #5a2328; box-shadow: inset 4px 0 0 #e17a83; }
+html[data-theme="dark"] .bill-icon { background: #27282b; color: #eeeff1; }
+html[data-theme="dark"] :is(.bill-copy small, .bill-copy em, .bill-summary small, .bill-summary span, .bill-side strong small, .bill-hint, .bill-done-label) { color: #a3a7ab; }
+html[data-theme="dark"] .bill-item.soon .bill-copy em, html[data-theme="dark"] .bill-item.today .bill-copy em { color: #f0b45a; }
+html[data-theme="dark"] .bill-item.overdue .bill-copy em, html[data-theme="dark"] .bill-summary .late strong, html[data-theme="dark"] .bill-delete { color: #e17a83; }
+html[data-theme="dark"] .bill-progress { background: #2d2f33; }
+html[data-theme="dark"] .bill-progress i, html[data-theme="dark"] .bill-side button { background: #eff0f1; color: #17181b; }
+html[data-theme="dark"] .bill-more { color: #c5c7c8; }
+html[data-theme="dark"] .quick-badge { border-color: #17181b; }

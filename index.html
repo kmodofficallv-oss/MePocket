@@ -50,7 +50,7 @@
     <symbol id="i-up" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></symbol>
     <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
     <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></symbol>
-    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></symbol>
+    <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M6 3h12v18l-2.5-1.5L13 21l-2-1.5L9 21l-3-1.5z"/><path d="M9 8h6M9 12h6M9 16h3"/></symbol><symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
     <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/></symbol>
     <symbol id="i-sparkle" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M12 2.5c.7 5.3 3.2 7.8 8.5 8.5-5.3.7-7.8 3.2-8.5 8.5-.7-5.3-3.2-7.8-8.5-8.5 5.3-.7 7.8-3.2 8.5-8.5Z"/></symbol>
@@ -112,11 +112,16 @@
               <button data-action="exchange"><span><svg class="icon"><use href="#i-exchange"/></svg></span><b>แลกเงิน</b></button>
               <button data-action="income"><span><svg class="icon"><use href="#i-deposit"/></svg></span><b>ฝากเงิน</b></button>
               <button data-action="scan"><span><svg class="icon"><use href="#i-scan"/></svg></span><b>สแกน</b></button>
+              <button data-nav="bills"><span><svg class="icon"><use href="#i-receipt"/></svg></span><b>บิล</b><i class="quick-badge" id="billsBadge" hidden></i></button>
             </div>
           </section>
         </div>
 
         <section class="light-zone home-light">
+          <section class="bill-strip" id="billStrip" aria-labelledby="billStripTitle" hidden>
+            <div class="section-heading compact"><h2 id="billStripTitle">บิลใกล้ถึง</h2><button class="text-link" data-nav="bills">ดูทั้งหมด →</button></div>
+            <div class="bill-list" id="billStripList"></div>
+          </section>
           <section class="debit-home-section" aria-labelledby="debitHomeTitle">
             <div class="section-heading"><h2 id="debitHomeTitle">บัตรเดบิต</h2></div>
             <div class="debit-mini-card" id="debitMiniCard"></div>
@@ -184,12 +189,20 @@
         <div id="allTransactions" class="transaction-list large-list"></div>
       </section>
 
+      <section class="view inner-view" id="billsView" aria-labelledby="billsTitle">
+        <header class="inner-header"><div><p class="overline">รายจ่ายประจำ</p><h1 id="billsTitle">บิลของฉัน</h1></div><button class="circle-action" data-action="add-bill" aria-label="เพิ่มบิล"><svg class="icon"><use href="#i-plus"/></svg></button></header>
+        <div class="bill-summary" id="billSummary"></div>
+        <div class="filter-row" id="billTabs"><button class="active" data-bill-tab="sub">รายเดือน</button><button data-bill-tab="utility">ค่าน้ำค่าไฟ</button><button data-bill-tab="debt">หนี้ค้าง</button></div>
+        <div class="bill-list" id="billList"></div>
+      </section>
+
       <section class="view inner-view" id="profileView" aria-labelledby="profileTitle">
         <header class="inner-header"><div><p class="overline">บัญชีผู้ใช้</p><h1 id="profileTitle">ฉัน</h1></div><button class="circle-action" data-nav="settings" aria-label="การตั้งค่า"><svg class="icon"><use href="#i-settings"/></svg></button></header>
         <section class="profile-card"><div class="profile-avatar">K</div><div><h2 id="profileName">คุณานนต์</h2><p>กระเป๋าส่วนตัวของฉัน</p></div><button class="outline-small" id="editName">แก้ไข</button></section>
         <div class="profile-stats" id="profileStats"></div>
         <section class="menu-card">
           <button data-nav="accounts"><span><svg class="icon"><use href="#i-wallet"/></svg></span><div><b>บัญชีและกล่องเงิน</b><small>จัดการแหล่งเงินทั้งหมด</small></div><i><svg class="icon"><use href="#i-chevron-right"/></svg></i></button>
+          <button data-nav="bills"><span><svg class="icon"><use href="#i-receipt"/></svg></span><div><b>บิลและรายจ่ายประจำ</b><small>ค่าบริการรายเดือน ค่าน้ำค่าไฟ หนี้ค้าง</small></div><i><svg class="icon"><use href="#i-chevron-right"/></svg></i></button>
           <button data-nav="transactions"><span><svg class="icon"><use href="#i-history"/></svg></span><div><b>ประวัติรายการ</b><small>ดูรายการเงินเข้าออก</small></div><i><svg class="icon"><use href="#i-chevron-right"/></svg></i></button>
           <button data-nav="settings"><span><svg class="icon"><use href="#i-settings"/></svg></span><div><b>การตั้งค่า</b><small>สกุลเงินและการแสดงผล</small></div><i><svg class="icon"><use href="#i-chevron-right"/></svg></i></button>
         </section>
@@ -502,6 +515,34 @@
         <div class="conversion-note" id="scheduleDestinationNote">เลือกได้ทั้ง Pocket ในเงินของฉันและกล่องเป้าหมาย</div>
         <p class="form-error" id="scheduleError"></p><button class="primary-button" type="submit" id="scheduleSubmit">ตั้งเวลาฝากเงิน</button>
       </form>
+    </section>
+  </div>
+
+  <div class="sheet" id="billSheet" aria-hidden="true">
+    <div class="sheet-backdrop" data-close></div>
+    <section class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="billSheetTitle">
+      <div class="grabber"></div><div class="sheet-head"><div><p class="overline dark-text">บิลและรายจ่ายประจำ</p><h2 id="billSheetTitle">เพิ่มบิล</h2></div><button class="close-button" data-close aria-label="ปิด"><svg class="icon"><use href="#i-x"/></svg></button></div>
+      <form id="billForm">
+        <div class="segment bill-kind-seg"><button type="button" class="active" data-bill-kind="sub">รายเดือน</button><button type="button" data-bill-kind="utility">ค่าน้ำค่าไฟ</button><button type="button" data-bill-kind="debt">หนี้ค้าง</button></div>
+        <label class="field">ชื่อบิล<input id="billName" maxlength="40" placeholder="เช่น Netflix" required /></label>
+        <label class="field" id="billRemainingField" hidden>ยอดหนี้คงเหลือ<div class="money-input"><span class="bill-currency">THB</span><input id="billRemaining" inputmode="decimal" type="number" min="0" step="0.01" placeholder="0.00" /></div></label>
+        <label class="field"><span id="billAmountLabel">ราคาต่อรอบ</span><div class="money-input"><span class="bill-currency">THB</span><input id="billAmount" inputmode="decimal" type="number" min="0" step="0.01" placeholder="0.00" /></div></label>
+        <div class="schedule-date-grid"><label class="field">ครบกำหนดครั้งถัดไป<input id="billDue" type="date" required /></label><label class="field">รอบ<select id="billRepeat"><option value="monthly">ทุกเดือน</option><option value="yearly">ทุกปี</option><option value="once">ครั้งเดียว</option></select></label></div>
+        <label class="field">จ่ายจาก<select id="billAccount"></select></label>
+        <label class="field">เตือนล่วงหน้า<select id="billRemind"><option value="0">วันครบกำหนด</option><option value="1">1 วันก่อน</option><option value="3">3 วันก่อน</option><option value="7">7 วันก่อน</option></select></label>
+        <p class="bill-hint" id="billHint"></p>
+        <p class="form-error" id="billError"></p><button class="primary-button" type="submit" id="billSubmit">บันทึกบิล</button>
+        <button class="bill-delete" type="button" id="billDelete" hidden>ลบบิลนี้</button>
+      </form>
+    </section>
+  </div>
+
+  <div class="sheet" id="billDueSheet" aria-hidden="true">
+    <div class="sheet-backdrop" data-close></div>
+    <section class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="billDueTitle">
+      <div class="grabber"></div><div class="sheet-head"><div><p class="overline dark-text">แจ้งเตือนบิล</p><h2 id="billDueTitle">มีบิลต้องจ่าย</h2></div><button class="close-button" data-close aria-label="ปิด"><svg class="icon"><use href="#i-x"/></svg></button></div>
+      <div class="bill-list" id="billDueList"></div>
+      <button class="primary-button bill-due-ok" type="button" data-close>รับทราบ</button>
     </section>
   </div>
 

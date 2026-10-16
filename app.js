@@ -173,6 +173,7 @@ const seedState = {
   externalBanks: [],
   favorites: [],
   scheduledDeposits: [],
+  bills: [],
   transactions: [
     { id:'t1', type:'income', account:'thb', amount:35000, currency:'THB', note:'รายได้จากงานออกแบบ', date:'2026-09-18T09:40:00.000Z' },
     { id:'t2', type:'transfer', from:'thb', toType:'goal', to:'trip', amount:3000, currency:'THB', received:3000, receivedCurrency:'THB', note:'เก็บเพิ่มสำหรับทริป', date:'2026-09-18T08:18:00.000Z' },
@@ -233,7 +234,7 @@ let editingAccountColorId = null;
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    return saved?.accounts?.length ? { ...clone(seedState), ...saved, settings:{...seedState.settings,...saved.settings}, debitCard:{...seedState.debitCard,...saved.debitCard}, externalBanks:Array.isArray(saved.externalBanks)?saved.externalBanks:[], favorites:Array.isArray(saved.favorites)?saved.favorites:[], scheduledDeposits:Array.isArray(saved.scheduledDeposits)?saved.scheduledDeposits.filter(item=>item.status!=='done'):[] } : clone(seedState);
+    return saved?.accounts?.length ? { ...clone(seedState), ...saved, settings:{...seedState.settings,...saved.settings}, debitCard:{...seedState.debitCard,...saved.debitCard}, externalBanks:Array.isArray(saved.externalBanks)?saved.externalBanks:[], favorites:Array.isArray(saved.favorites)?saved.favorites:[], scheduledDeposits:Array.isArray(saved.scheduledDeposits)?saved.scheduledDeposits.filter(item=>item.status!=='done'):[], bills:Array.isArray(saved.bills)?saved.bills:[] } : clone(seedState);
   } catch { return clone(seedState); }
 }
 
@@ -352,6 +353,7 @@ function showPinScreen(mode='unlock') {
 function unlockApp() {
   stopFaceIdAnimation();
   $('#splashScreen').hidden=true; $('#pinScreen').hidden=true; document.body.classList.remove('auth-locked'); $('#app').setAttribute('aria-hidden','false');
+  setTimeout(maybeShowBillReminder,650);
 }
 
 async function submitPin() {
@@ -1082,8 +1084,166 @@ function notifyMoney(direction, amount, currency, place, date = new Date()) {
     `จำนวน ${formatDepositAmount(amount, currency)} ${out ? 'จากบัญชี' : 'เข้าบัญชี'} ${ref} วันที่ ${stamp} ยอดเงินที่ใช้ได้ ${formatDepositAmount(place.entity.balance, place.type === 'goal' ? 'THB' : place.entity.currency)}`);
 }
 
+/* ---------- Bills: monthly services, water/electricity, debts ----------
+   A bill only remembers its next due day (nextDue, YYYY-MM-DD) and its cycle. “จ่ายแล้ว” opens the normal expense
+   entry already filled in; once that record is saved the bill moves to its next cycle (a debt lowers what is left).
+   The home strip shows bills due within 7 days, and once a day a sheet lists the ones inside their reminder window. */
+const BILL_KINDS = { sub:'รายเดือน', utility:'ค่าน้ำค่าไฟ', debt:'หนี้ค้าง' };
+const BILL_SHEET_DAY_KEY = 'mepocket-bill-sheet-day';
+let billTab = 'sub', billKind = 'sub', editingBillId = null, entryBillId = null;
+const billById = id => (state.bills || []).find(bill => bill.id === id);
+const activeBills = () => (state.bills || []).filter(bill => !bill.closed);
+function dayKey(date = new Date()) { return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`; }
+function parseDay(key) { const [y,m,d] = String(key).split('-').map(Number); return new Date(y, (m||1)-1, d||1); }
+function billDaysLeft(bill) { return Math.round((parseDay(bill.nextDue) - parseDay(dayKey())) / 86400000); }
+function billNextCycle(bill) {
+  const due = parseDay(bill.nextDue), base = new Date(due.getFullYear(), due.getMonth() + (bill.repeat === 'yearly' ? 12 : 1), 1);
+  const y = base.getFullYear(), m = base.getMonth();
+  return dayKey(new Date(y, m, Math.min(bill.dueDay || due.getDate(), new Date(y, m + 1, 0).getDate())));   // the 31st falls back to the month's last day
+}
+function billDueText(days) { return days < 0 ? `เลยกำหนด ${-days} วัน` : days === 0 ? 'ครบกำหนดวันนี้' : days === 1 ? 'ครบกำหนดพรุ่งนี้' : `อีก ${days} วัน`; }
+function billRepeatText(bill) {
+  const due = parseDay(bill.nextDue), month = new Intl.DateTimeFormat('th-TH', { month:'short' }).format(due);
+  if (bill.repeat === 'yearly') return `ทุกปี ${due.getDate()} ${month}`;
+  if (bill.repeat === 'once') return `ครั้งเดียว ${due.getDate()} ${month}`;
+  return `ทุกวันที่ ${bill.dueDay || due.getDate()}`;
+}
+function billTone(bill) { const days = billDaysLeft(bill); return days < 0 ? 'overdue' : days <= 1 ? 'today' : days <= (bill.remindDays ?? 3) ? 'soon' : ''; }
+// what one cycle costs, in the bill's own currency (0 = not known yet)
+function billCycleAmount(bill) {
+  if (bill.kind === 'debt') return Math.min(bill.amount > 0 ? bill.amount : bill.remaining, bill.remaining) || 0;
+  return bill.amount > 0 ? bill.amount : (bill.lastAmount || 0);
+}
+function billRowHTML(bill) {
+  const days = billDaysLeft(bill), account = accountById(bill.accountId);
+  let amount;
+  if (bill.kind === 'debt') amount = formatAmount(bill.amount > 0 ? Math.min(bill.amount, bill.remaining) : bill.remaining, bill.currency, true);
+  else if (bill.amount > 0) amount = formatAmount(bill.amount, bill.currency, true);
+  else amount = bill.lastAmount ? `<small>ครั้งก่อน</small>${formatAmount(bill.lastAmount, bill.currency, true)}` : '<small>ยอดไม่คงที่</small>';
+  const pct = bill.kind === 'debt' && bill.total > 0 ? Math.round((1 - bill.remaining / bill.total) * 100) : 0;
+  const debt = bill.kind === 'debt' ? `<span class="bill-progress" aria-hidden="true"><i style="width:${Math.max(0, Math.min(100, pct))}%"></i></span><small>${bill.closed ? `ปิดหนี้แล้ว · ${formatAmount(bill.total, bill.currency, true)}` : bill.total > bill.remaining ? `เหลือ ${formatAmount(bill.remaining, bill.currency, true).replace(` ${bill.currency}`, '')} / ${formatAmount(bill.total, bill.currency, true)}` : `เหลือ ${formatAmount(bill.remaining, bill.currency, true)}`}</small>` : '';
+  const meta = [billRepeatText(bill), account?.name].filter(Boolean).join(' · ');
+  const status = bill.closed ? (bill.kind === 'debt' ? 'จ่ายครบแล้ว' : 'จ่ายแล้ว') : billDueText(days);
+  return `<article class="bill-item ${bill.closed ? 'closed' : billTone(bill)}" data-bill-open="${esc(bill.id)}"><span class="bill-icon">${esc(Array.from(bill.name.trim())[0] || '•').toUpperCase()}</span><span class="bill-copy"><b>${esc(bill.name)}</b><small>${esc(meta)}</small>${debt}<em>${status}</em></span><span class="bill-side"><strong>${amount}</strong>${bill.closed ? '' : `<button type="button" data-bill-pay="${esc(bill.id)}">จ่ายแล้ว</button>`}</span></article>`;
+}
+const byDue = (a, b) => parseDay(a.nextDue) - parseDay(b.nextDue);
+
+function renderBills() {
+  const active = activeBills().sort(byDue);
+  // home: only what is due within a week (or already late)
+  const soon = active.filter(bill => billDaysLeft(bill) <= 7);
+  const strip = $('#billStrip');
+  if (strip) {
+    strip.hidden = !soon.length;
+    $('#billStripList').innerHTML = soon.slice(0, 3).map(billRowHTML).join('') + (soon.length > 3 ? `<button class="bill-more" data-nav="bills">ดูอีก ${soon.length - 3} รายการ</button>` : '');
+  }
+  const badge = $('#billsBadge'); if (badge) badge.hidden = !active.some(bill => billDaysLeft(bill) <= 0);
+  // bills page
+  const list = $('#billList'); if (!list) return;
+  $$('[data-bill-tab]').forEach(button => button.classList.toggle('active', button.dataset.billTab === billTab));
+  const now = new Date(), monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const due = active.filter(bill => parseDay(bill.nextDue) <= monthEnd);
+  const dueTotal = due.reduce((sum, bill) => sum + billCycleAmount(bill) * rateOf(bill.currency), 0);
+  const late = active.filter(bill => billDaysLeft(bill) < 0).length, unknown = due.filter(bill => !billCycleAmount(bill)).length;
+  $('#billSummary').innerHTML = `<div><small>ต้องจ่ายถึงสิ้นเดือนนี้</small><strong>${formatAmount(dueTotal, 'THB', true)}</strong><span>${due.length} รายการ${unknown ? ` · ยังไม่รู้ยอด ${unknown}` : ''}</span></div><div class="${late ? 'late' : ''}"><small>เลยกำหนด</small><strong>${late} รายการ</strong><span>${late ? 'กดจ่ายแล้วเมื่อจ่ายเสร็จ' : 'ไม่มีบิลค้าง'}</span></div>`;
+  const inTab = (state.bills || []).filter(bill => bill.kind === billTab);
+  const open = inTab.filter(bill => !bill.closed).sort(byDue), done = inTab.filter(bill => bill.closed);
+  list.innerHTML = inTab.length
+    ? open.map(billRowHTML).join('') + (done.length ? `<p class="bill-done-label">ปิดแล้ว</p>${done.map(billRowHTML).join('')}` : '')
+    : `<p class="schedule-empty">ยังไม่มีบิล${BILL_KINDS[billTab]} กด + เพื่อเพิ่ม</p>`;
+}
+
+function openBillEditor(id = null) {
+  const bill = id ? billById(id) : null; editingBillId = bill ? bill.id : null;
+  billKind = bill?.kind || billTab;
+  const cashflow = state.accounts.find(isCashflow);
+  $('#billAccount').innerHTML = state.accounts.map(account => `<option value="${esc(account.id)}">${account.flag||''} ${esc(account.name)} · ${esc(account.currency)}</option>`).join('');
+  $('#billAccount').value = accountById(bill?.accountId) ? bill.accountId : (cashflow || state.accounts[0])?.id || '';
+  $('#billName').value = bill?.name || '';
+  $('#billAmount').value = bill?.amount > 0 ? bill.amount : '';
+  $('#billRemaining').value = bill?.kind === 'debt' ? bill.remaining : '';
+  $('#billDue').value = bill?.nextDue || dayKey();
+  $('#billRepeat').value = bill?.repeat || 'monthly';
+  $('#billRemind').value = String(bill?.remindDays ?? 3);
+  $('#billSheetTitle').textContent = bill ? 'แก้ไขบิล' : 'เพิ่มบิล';
+  $('#billDelete').hidden = !bill;
+  $('#billError').textContent = '';
+  updateBillKind(); showSheet('#billSheet');
+}
+function updateBillKind() {
+  $$('[data-bill-kind]').forEach(button => button.classList.toggle('active', button.dataset.billKind === billKind));
+  const debt = billKind === 'debt';
+  $('#billRemainingField').hidden = !debt;
+  $('#billAmountLabel').textContent = debt ? 'ผ่อนต่องวด (ไม่ใส่ก็ได้)' : billKind === 'utility' ? 'ยอดโดยประมาณ (ไม่ใส่ก็ได้)' : 'ราคาต่อรอบ';
+  $('#billName').placeholder = debt ? 'เช่น ผ่อนมือถือ, ยืมเพื่อน' : billKind === 'utility' ? 'เช่น ค่าไฟ, ค่าน้ำ, ค่าเน็ต' : 'เช่น Netflix, Spotify';
+  $('#billHint').textContent = debt ? 'จ่ายแต่ละครั้งยอดหนี้จะลดลง ครบแล้วบิลจะปิดเอง' : billKind === 'utility' ? 'ยอดแต่ละเดือนไม่เท่ากัน ตอนกด “จ่ายแล้ว” ค่อยใส่ยอดจริง' : '';
+  const currency = accountById($('#billAccount').value)?.currency || 'THB';
+  $$('.bill-currency').forEach(element => element.textContent = currency);
+}
+function handleBillSubmit(event) {
+  event.preventDefault();
+  const name = $('#billName').value.trim(), amount = roundMoney($('#billAmount').value), remaining = roundMoney($('#billRemaining').value);
+  const due = $('#billDue').value, account = accountById($('#billAccount').value); let error = '';
+  if (!name) error = 'กรุณาใส่ชื่อบิล';
+  else if (!/^\d{4}-\d{2}-\d{2}$/.test(due)) error = 'กรุณาเลือกวันครบกำหนด';
+  else if (!account) error = 'กรุณาเลือก Pocket ที่ใช้จ่าย';
+  else if (amount < 0 || remaining < 0) error = 'จำนวนเงินต้องไม่ติดลบ';
+  else if (billKind === 'sub' && !(amount > 0)) error = 'กรุณาใส่ราคาต่อรอบ';
+  else if (billKind === 'debt' && !(remaining > 0)) error = 'กรุณาใส่ยอดหนี้คงเหลือ';
+  $('#billError').textContent = error; if (error) return;
+  const data = { name, kind:billKind, amount, nextDue:due, dueDay:Number(due.slice(8, 10)), repeat:$('#billRepeat').value, accountId:account.id, currency:account.currency, remindDays:Number($('#billRemind').value) };
+  const bill = editingBillId && billById(editingBillId);
+  if (billKind === 'debt') Object.assign(data, { remaining, total:Math.max(remaining, bill?.kind === 'debt' ? bill.total || 0 : 0), closed:false });
+  if (bill) Object.assign(bill, data);
+  else (state.bills = state.bills || []).push({ id:crypto.randomUUID(), createdAt:new Date().toISOString(), payments:[], ...data });
+  billTab = billKind; closeSheets(); saveState(bill ? `แก้ไข “${name}” แล้ว` : `เพิ่มบิล “${name}” แล้ว`);
+}
+function deleteBill() {
+  const bill = billById(editingBillId); if (!bill) return;
+  if (!confirm(`ลบบิล “${bill.name}” หรือไม่? รายการที่จ่ายไปแล้วยังอยู่ในประวัติ`)) return;
+  state.bills = state.bills.filter(item => item.id !== bill.id); editingBillId = null; closeSheets(); saveState(`ลบบิล “${bill.name}” แล้ว`);
+}
+// “จ่ายแล้ว” → the normal expense entry, filled in for this bill
+function payBill(id) {
+  const bill = billById(id); if (!bill || bill.closed) return;
+  closeSheets();
+  const account = accountById(bill.accountId) || state.accounts.find(isCashflow) || state.accounts[0];
+  openEntry('expense', account.id, 'bank');
+  entryBillId = bill.id;
+  const amount = billCycleAmount(bill);
+  if (bill.amount > 0 || bill.kind === 'debt') $('#entryAmount').value = amount || '';
+  $('#entryNote').value = `${bill.kind === 'debt' ? 'ชำระหนี้' : 'จ่ายบิล'} ${bill.name}`;
+  $('#entryTitle').textContent = `จ่าย ${bill.name}`;
+  updateEntryCashflow();
+}
+// called after the expense record is saved
+function settleBill(id, amount, currency, txId) {
+  const bill = billById(id); if (!bill) return;
+  const paid = roundMoney(amount * rateOf(currency) / rateOf(bill.currency));
+  bill.lastAmount = paid; bill.lastPaidAt = new Date().toISOString();
+  bill.payments = [...(bill.payments || []), { tx:txId, amount:paid, due:bill.nextDue, date:bill.lastPaidAt }].slice(-36);
+  if (bill.kind === 'debt') { bill.remaining = Math.max(0, addMoney(bill.remaining, -paid)); if (bill.remaining <= 0) { bill.closed = true; return; } if (bill.repeat === 'once') return; }
+  else if (bill.repeat === 'once') { bill.closed = true; return; }
+  bill.nextDue = billNextCycle(bill);
+}
+// once a day, right after unlocking: the bills inside their reminder window
+function maybeShowBillReminder() {
+  if (!$('#pinScreen').hidden || !$('#splashScreen').hidden || $('.sheet.open') || depositPopupActive || window.MePocketCity?.isOpen?.()) return;
+  const today = dayKey(); let shown = '';
+  try { shown = localStorage.getItem(BILL_SHEET_DAY_KEY) || ''; } catch {}
+  if (shown === today) return;
+  const list = activeBills().filter(bill => billDaysLeft(bill) <= (bill.remindDays ?? 3)).sort(byDue);
+  if (!list.length) return;
+  try { localStorage.setItem(BILL_SHEET_DAY_KEY, today); } catch {}
+  const late = list.filter(bill => billDaysLeft(bill) < 0).length;
+  $('#billDueTitle').textContent = `มีบิลต้องจ่าย ${list.length} รายการ`;
+  $('#billDueTitle').previousElementSibling.textContent = late ? `แจ้งเตือนบิล · เลยกำหนด ${late} รายการ` : 'แจ้งเตือนบิล';
+  $('#billDueList').innerHTML = list.map(billRowHTML).join('');
+  showSheet('#billDueSheet');
+}
+
 function renderAll() {
-  renderAccounts(); renderGoals(); renderExternalBanks(); renderFavoriteTransfers(); renderTransactions(); renderDetail(); renderDebitCard(); renderProfileAndSettings(); renderPlans(); renderSchedules(); fillSelects();
+  renderAccounts(); renderGoals(); renderExternalBanks(); renderFavoriteTransfers(); renderTransactions(); renderDetail(); renderDebitCard(); renderProfileAndSettings(); renderPlans(); renderSchedules(); renderBills(); fillSelects();
   $('#updatedAt').textContent = formatTime();
   $('#interestTotal').textContent = `฿${new Intl.NumberFormat('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}).format(totalTHB()*.00008)}`;
   updateBalanceVisibility();
@@ -1769,7 +1929,7 @@ function confirmCfCheck() {
 }
 
 function openEntry(type='income', accountId='thb', place='cash') {
-  entryType=type; fillSelects(); if(accountById(accountId)) $('#entryAccount').value=accountId; setCfPlace('#entryPlace',false,place);
+  entryType=type; entryBillId=null; fillSelects(); if(accountById(accountId)) $('#entryAccount').value=accountId; setCfPlace('#entryPlace',false,place);
   $('#entryAmount').value=''; $('#entryNote').value=''; updateEntryType(); updateEntryCurrency(); showSheet('#entrySheet');
 }
 function updateEntryType(){ $$('[data-entry-type]').forEach(button=>button.classList.toggle('active',button.dataset.entryType===entryType)); const cf=isCashflow(accountById($('#entryAccount').value)); $('#entryTitle').textContent=entryType==='income'?(cf?'รับเงิน':'บันทึกเงินเข้า'):(cf?'จ่ายเงิน':'บันทึกรายจ่าย'); updateEntryCashflow(); }
@@ -1789,8 +1949,10 @@ function handleEntrySubmit(event) {
   $('#entryError').textContent=error; if(error) return;
   const moved=pocketAdd(account,entryType==='income'?roundMoney(amount):-roundMoney(amount),place);
   const cfFields=cf?{place,...(entryType==='income'?{destination:place}:{source:place}),...moved}:{};
-  state.transactions.push({id:crypto.randomUUID(),type:entryType,account:account.id,amount:roundMoney(amount),currency:account.currency,note:$('#entryNote').value.trim()||(entryType==='income'?(cf?'รับเงิน':'เงินเข้า'):(cf?'จ่ายเงิน':'รายจ่าย')),date:new Date().toISOString(),...cfFields});
-  closeSheets(); saveState(entryType==='income'?'บันทึกเงินเข้าแล้ว':'บันทึกรายจ่ายแล้ว');
+  const txId=crypto.randomUUID(), billId=entryType==='expense'&&billById(entryBillId)?entryBillId:null; entryBillId=null;
+  state.transactions.push({id:txId,type:entryType,account:account.id,amount:roundMoney(amount),currency:account.currency,note:$('#entryNote').value.trim()||(entryType==='income'?(cf?'รับเงิน':'เงินเข้า'):(cf?'จ่ายเงิน':'รายจ่าย')),date:new Date().toISOString(),...cfFields,...(billId?{bill:billId}:{})});
+  if(billId) settleBill(billId,roundMoney(amount),account.currency,txId);
+  closeSheets(); saveState(billId?'บันทึกการจ่ายบิลแล้ว':entryType==='income'?'บันทึกเงินเข้าแล้ว':'บันทึกรายจ่ายแล้ว');
 }
 
 function handleGoalSubmit(event) {
@@ -2215,6 +2377,10 @@ document.addEventListener('click', event => {
   const cfMove=event.target.closest('[data-cf-move]'); if(cfMove){cfMoveKind=cfMove.dataset.cfMove;$('#cfMoveError').textContent='';updateCfMove();return;}
   const cfCheck=event.target.closest('[data-cf-check]'); if(cfCheck){cfCheckKind=cfCheck.dataset.cfCheck;$('#cfCheckActual').value='';$('#cfCheckError').textContent='';updateCfCheck();return;}
   const historyMore=event.target.closest('[data-history-more]')?.dataset.historyMore; if(historyMore){if(historyMore==='all')historyLimit+=HISTORY_STEP*2;else accountHistoryLimit+=HISTORY_STEP*2;renderTransactions();updateBalanceVisibility();return;}
+  const billPay=event.target.closest('[data-bill-pay]')?.dataset.billPay; if(billPay){payBill(billPay);return;}
+  const billOpen=event.target.closest('[data-bill-open]')?.dataset.billOpen; if(billOpen){closeSheets();openBillEditor(billOpen);return;}
+  const billTabButton=event.target.closest('[data-bill-tab]')?.dataset.billTab; if(billTabButton){billTab=billTabButton;renderBills();return;}
+  const billKindButton=event.target.closest('[data-bill-kind]')?.dataset.billKind; if(billKindButton){billKind=billKindButton;updateBillKind();return;}
   const scheduleKindButton=event.target.closest('[data-schedule-kind]'); if(scheduleKindButton){scheduleKind=scheduleKindButton.dataset.scheduleKind;updateScheduleKind();return;}
   const deleteScheduleButton=event.target.closest('[data-delete-schedule]'); if(deleteScheduleButton){deleteSchedule(deleteScheduleButton.dataset.deleteSchedule);return;}
   const bankTab=event.target.closest('[data-bank-tab]')?.dataset.bankTab; if(bankTab){switchBankTab(bankTab);return;}
@@ -2258,6 +2424,7 @@ document.addEventListener('click', event => {
   if(action==='add-account'){ if(state.accounts.length>=MAX_POCKETS){ notify(`กระเป๋าเต็มแล้ว ใส่การ์ดได้สูงสุด ${MAX_POCKETS} ใบ`); return; } updateAccountCreatePreview(); showSheet('#accountSheet'); }
   if(action==='add-external-bank') showSheet('#externalBankSheet');
   if(action==='add-schedule') openScheduleEditor();
+  if(action==='add-bill') openBillEditor();
   if(action==='enable-system-notifications') requestSystemNotifications();
   if(action==='choose-bank') showSheet('#bankPickerSheet');
   if(action==='toggle-reorder'){reorderMode=!reorderMode;renderAccounts();updateBalanceVisibility();}
@@ -2307,6 +2474,9 @@ $('#debitNumberInput').addEventListener('input',event=>{const digits=event.targe
 $('#cardEditForm').addEventListener('submit',handleCardEdit);
 $('#scheduleDestination').addEventListener('change',updateScheduleDestination);
 $('#scheduleForm').addEventListener('submit',handleScheduleSubmit);
+$('#billForm').addEventListener('submit',handleBillSubmit);
+$('#billDelete').addEventListener('click',deleteBill);
+$('#billAccount').addEventListener('change',updateBillKind);
 $('#entryAmount').addEventListener('input',updateEntryCashflow);
 $('#cfMoveAmount').addEventListener('input',()=>{$('#cfMoveError').textContent='';updateCfMove();});
 $('#cfMoveConfirm').addEventListener('click',confirmCfMove);
@@ -2387,7 +2557,7 @@ syncViewChrome(activeView);
 initializeAppLock();
 processScheduledDeposits();
 setInterval(processScheduledDeposits,30000);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)processScheduledDeposits();});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){processScheduledDeposits();renderBills();setTimeout(maybeShowBillReminder,650);}});
 window.addEventListener('focus',processScheduledDeposits);
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('#qrSheet')?.classList.contains('open'))closeQR();});
 
