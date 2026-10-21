@@ -268,7 +268,43 @@ body{display:flex;align-items:center;justify-content:center;padding:0;gap:0;min-
 .account-card.expanded .card-details svg{width:12px;height:12px;transform:rotate(180deg)}
 @keyframes route-enter{from{transform:translateX(12px);opacity:.6}to{transform:translateX(0);opacity:1}}
 </style>
-</head>
+<style>
+.device-wrap{aspect-ratio:auto}
+.profile-menu .choice-row{gap:14px;min-height:68px}
+.profile-menu .choice-row>svg{width:24px;height:24px;flex:none}
+.profile-menu .choice-row>span{flex:1}
+.profile-menu .profile-exit{margin-top:24px;color:#111}
+.bottom-nav{height:calc(76px + max(19px, env(safe-area-inset-bottom, 0px)));padding-bottom:env(safe-area-inset-bottom, 0px)}
+</style><style>
+/* Card artwork and live data are separate layers. No painted masks cover old numbers. */
+.card-visual{background:none!important;isolation:isolate;overflow:hidden}
+.card-art{position:absolute;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none}
+.card-visual:after{content:'';position:absolute;left:0;right:0;bottom:0;height:4px;background:linear-gradient(90deg,#48ff70,#3ee8c6,#168be4);pointer-events:none}
+.card-visual.usd:after{background:linear-gradient(90deg,#e5c5fb,#bb50ff,#8f00fb)}
+.card-visual.fcd:after{background:linear-gradient(90deg,#a8ef49,#94d938,#4e7308)}
+.card-account-flag{position:absolute;left:16px;top:17px}
+.card-account-flag .flag{--flag-size:32px}
+.card-name{position:absolute;left:60px;top:14px;margin:0;font:700 17px/24px Inter,'Noto Sans Thai',sans-serif;letter-spacing:-.3px}
+.card-account-number{position:absolute;left:60px;top:38px;display:flex;align-items:center;gap:4px;font-size:12px;line-height:18px;color:#3e4742;white-space:nowrap}
+.card-bank-mark{display:inline-grid;place-items:center;width:12px;height:12px;border-radius:50%;background:#65527a;color:white;font-size:9px}
+.card-number-copy{display:grid;place-items:center;width:16px;height:20px}
+.card-number-copy svg{width:13px;height:15px}
+.card-book{position:absolute;right:16px;top:22px;display:flex;align-items:center;justify-content:center;gap:4px;background:#ffffff85;border-radius:20px;min-width:79px;height:24px;font-size:12px;font-weight:600;padding:0 9px}
+.card-book svg{width:12px;height:13px}
+.card-available-label{position:absolute;left:16px;top:66px;margin:0;font-size:14px;font-weight:600;line-height:20px}
+.card-live-amount,.card-live-fx,.card-live-total{background:transparent!important;box-shadow:none!important;border:0}
+.card-live-amount{width:auto;max-width:340px;left:16px;top:91px}
+.card-live-fx{left:16px;top:134px;width:auto}
+.card-read-details{position:absolute;right:16px;top:136px;display:flex;align-items:center;justify-content:flex-end;gap:4px;width:auto;height:22px;font-size:12px;white-space:nowrap}
+.card-read-details svg{width:13px;height:13px}
+.account-card.expanded .card-read-details{background:transparent!important}
+.card-total-panel{position:absolute;left:16px;right:16px;top:164px;height:41px;border-radius:8px;background:#ffffff75;display:flex;align-items:center;padding:0 9px;gap:5px}
+.card-total-label{display:flex;align-items:center;gap:4px;font-size:14px;font-weight:600;white-space:nowrap}
+.card-total-label>svg{width:15px;height:16px;color:#00bc48}
+.usd .card-total-label>svg{color:#8650fd}
+.card-total-label .info{color:#111;background:#ffffffc0;margin-left:1px}
+.card-total-panel .card-live-total{position:static;flex:1;min-width:0;width:auto;height:auto;padding:0;top:auto;right:auto;font-size:16px;line-height:24px;letter-spacing:-.5px}
+</style></head>
 <body>
   <aside class="studio" aria-label="เครื่องมือต้นแบบ">
     <div class="studio-brand"><span class="studio-mark">D<span>!</span></span><span>CASH <small>INTERFACE STUDY</small></span></div>
@@ -390,7 +426,12 @@ const flag=(id)=>{
 function action(label,name,op){return `<button data-action="${op}" aria-label="${label}"><span class="action-circle">${icon(name)}</span><span>${label}</span></button>`;}
 function interest(id,home=false){const a=accounts[id],estimate=accrual(id,a.balance);return `<button class="${home?'interest-home':'detail-interest'}" data-action="interest" aria-label="ดอกเบี้ยสะสมประมาณการ ${money(estimate.gross)} ${a.currency}"><span class="${home?'':'interest-icon-wrap'}">${icon('interest','interest-icon')}</span><span class="interest-copy"><strong>ดอกเบี้ยสะสม ${info(true)}</strong><small>ประมาณการ · จ่ายในอีก ${estimate.daysToPayment} วัน</small></span><span class="interest-value">${money(estimate.gross)} ${a.currency}${id==='fcd'?`<small>≈ ${money(estimate.gross*FX_SAMPLE)} THB</small>`:''}</span></button>`;}
 function home(){return `<section class="hero home-hero">${ambient()}${status()}<h1 class="home-heading">เงินสด</h1><section class="account-panel" aria-labelledby="myAccounts"><h2 id="myAccounts">บัญชีของฉัน</h2><div class="panel-meta"><span class="meta-date">ข้อมูล ณ 21 ต.ค. 69 - 12:34 น. <button data-action="refresh" aria-label="อัปเดตข้อมูล">${icon('refresh')}</button></span><button class="rate-link" data-action="rates">อัตราแลกเปลี่ยน ${info()}</button></div><div class="account-list">${order.map(id=>{const a=accounts[id];return `<button class="account-row" data-screen="${id}" aria-label="เปิดบัญชี ${a.name}">${flag(id)}<span class="account-name"><strong>${a.currency}</strong><span class="pill ${id}">${id==='fcd'?'Dime! FCD':a.name}</span></span><span class="account-amount"><strong>${money(a.balance)} ${a.currency}</strong>${id!=='thb'?`<small>≈ ${money(a.balance*FX_SAMPLE)} THB</small>`:''}</span>${icon('chevron','chevron')}</button>`}).join('')}</div><button class="more-accounts" data-action="more"><span class="mini-flags" aria-hidden="true"></span><span class="more-label">แสดงเพิ่มเติม ${icon('down')}</span></button></section>${interest('thb',true)}<div class="quick-label">${icon('sparkle')} เมนูลัด</div><div class="actions home-actions">${action('โอนเงิน','transfer','transfer')}${action('แลกเงิน','exchange','exchange')}${action('ฝากเงิน','deposit','deposit')}${action('สแกน','scan','scan')}</div></section><section class="debit-panel"><h2>บัตรไดม์เนิน</h2><div class="debit-art" role="img" aria-label="บัตรเดบิต ไดม์เนิน มาสเตอร์การ์ด"><button class="debit-open" data-action="card" aria-label="ดูข้อมูลบัตร"></button></div></section><nav class="bottom-nav" aria-label="เมนูหลัก">${[['หน้าหลัก','home','nav-home'],['ค้นหา','search',''],['เงินสด','wallet','active'],['สินทรัพย์','pie',''],['รายการ','history',''],['ฉัน','user','']].map(([label,n,cl])=>`<button class="${cl}" data-action="nav-${n}" ${n==='wallet'?'aria-current="page"':''}><span class="nav-icon nav-icon-${n}">${icon(n)}</span><span>${label}</span></button>`).join('')}</nav>`;}
-function accountCard(id){const a=accounts[id],parts=money(a.balance).split('.');return `<section class="account-card" data-card="${id}" aria-label="${a.name} ยอดเงินที่ถอนได้ ${money(a.balance)} ${a.currency}"><div class="card-visual ${id}"><span class="sr-only">${a.name} เลขที่บัญชี ${a.number} ยอดเงินที่ถอนได้ ${money(a.balance)} ${a.currency} ยอดเงินรวม ${money(a.balance)} ${a.currency}</span><div class="card-live-amount" aria-hidden="true"><span>${parts[0]}<small>.${parts[1]}</small> <em>${a.currency}</em></span></div>${id!=='thb'?`<div class="card-live-fx" aria-hidden="true">≈ ${money(a.balance*FX_SAMPLE)} THB</div>`:''}<div class="card-live-total" aria-hidden="true">${money(a.balance)} ${a.currency}</div><button class="card-hit card-copy" data-action="copy" aria-label="คัดลอกเลขที่บัญชี"></button>${id!=='usd'?'<button class="card-hit card-passbook" data-action="passbook" aria-label="สมุดบัญชี"></button>':''}<button class="card-hit card-details" data-action="details" aria-label="ดูรายละเอียดบัญชี" aria-expanded="false"></button><button class="card-hit card-balance-info" data-action="balance" aria-label="รายละเอียดของยอดเงินรวม"></button></div><div class="card-extra" hidden>${dl([['ยอดเงินที่ถอนได้',money(a.balance)+' '+a.currency],['ยอดเงินระหว่างดำเนินการ','0.00 '+a.currency],['ยอดเงินรวม',money(a.balance)+' '+a.currency]])}</div><div class="card-description">${a.caption}</div></section>`;}
+function cardArtwork(id){
+ const gradient=id==='thb'?'<stop stop-color="#c9fffa"/><stop offset="1" stop-color="#b1f9d1"/>':id==='usd'?'<stop stop-color="#fffaff"/><stop offset="1" stop-color="#edcaff"/>':'<stop stop-color="#fffff9"/><stop offset="1" stop-color="#e2ff9e"/>';
+ const shapes=id==='thb'?'<ellipse cx="-25" cy="-15" rx="112" ry="80" fill="#27d78b" opacity=".64" transform="rotate(-32)"/><path d="M-20 44 43-16h58L15 72Z" fill="#76ffd3" opacity=".58"/><ellipse cx="354" cy="163" rx="87" ry="115" fill="#2cdb70" opacity=".63" transform="rotate(36 354 163)"/><path d="m418 63-92 154h54Z" fill="#e0fff1" opacity=".33"/>':id==='usd'?'<path d="m352 5 14 78 77 6-68 40 19 77-63-50-62 49 21-77-68-43 80-2Z" fill="#ba6cf0" opacity=".46"/><path d="m263-14 12 29 32 2-25 21 8 31-27-18-27 18 8-31-25-21 32-2Z" fill="#cda0ef" opacity=".25"/><path d="m-9 126 10 29 32 1-26 20 8 31-25-18-26 18 8-31-25-20 33-1Z" fill="#dab9f6" opacity=".3"/>':'<path d="M0 10Q83 35 153-8H0Z" fill="#c0ef72" opacity=".38"/><g fill="#9cda2c" opacity=".48"><path d="m316 111-17 18-27 67h87l-11-65-16-20Z"/><path d="m329 128 17-27-2-56h11l9 64-18 47Z"/><path d="m343 47-4-10 5-6 11 3 4 13Z"/><path d="m346 31-1-11 5-13 7 6-1 12-5 7Z"/><path d="m315 83 7-22 6 21 17-16-9 25 26-3-23 13 19 12-27-2-13 17-5-21-23 7 15-20-24-9 28 2-4-19Z"/><path d="M309 95q6-9 16-3l7 15-6 17-13-5-7-13Z"/><path d="m299 143-29 10 14 41 29-10Z"/></g><path d="m300 139 27 15-17 58h-32Z" fill="#c0ef63" opacity=".54"/>';
+ return `<svg class="card-art" viewBox="0 0 372 217" aria-hidden="true"><defs><linearGradient id="card-grad-${id}" x1="0" y1="0" x2="1" y2="1">${gradient}</linearGradient></defs><rect width="372" height="217" fill="url(#card-grad-${id})"/>${shapes}</svg>`;
+}
+function accountCard(id){const a=accounts[id],parts=money(a.balance).split('.');return `<section class="account-card" data-card="${id}" aria-label="${a.name} ยอดเงินที่ถอนได้ ${money(a.balance)} ${a.currency}"><div class="card-visual ${id}">${cardArtwork(id)}<div class="card-account-flag">${flag(id)}</div><h2 class="card-name">${a.name}</h2><div class="card-account-number">${id==='usd'?'เลขที่บัญชี : ':''}${id==='thb'?'<span class="card-bank-mark" aria-hidden="true">▣</span> ':''}${a.number}<button class="card-number-copy" data-action="copy" aria-label="คัดลอกเลขที่บัญชี">${icon('copy')}</button></div>${id!=='usd'?`<button class="card-book" data-action="passbook">สมุดบัญชี ${icon('chevron')}</button>`:''}<p class="card-available-label">ยอดเงินที่ถอนได้</p><div class="card-live-amount"><span>${parts[0]}<small>.${parts[1]}</small> <em>${a.currency}</em></span></div>${id!=='thb'?`<div class="card-live-fx">≈ ${money(a.balance*FX_SAMPLE)} THB</div>`:''}<button class="card-read-details card-details" data-action="details" aria-label="ดูรายละเอียดบัญชี" aria-expanded="false">ดูรายละเอียด ${icon('down')}</button><div class="card-total-panel"><button class="card-total-label" data-action="balance">${icon('money')}<span>ยอดเงินรวม</span>${info()}</button><div class="card-live-total">${money(a.balance)} ${a.currency}</div></div></div><div class="card-extra" hidden>${dl([['ยอดเงินที่ถอนได้',money(a.balance)+' '+a.currency],['ยอดเงินระหว่างดำเนินการ','0.00 '+a.currency],['ยอดเงินรวม',money(a.balance)+' '+a.currency]])}</div><div class="card-description">${a.caption}</div></section>`;}
 function transactions(){return `<section class="fcd-transactions"><h2>${icon('money')} รายการทั้งหมดของยอดเงินรวม <button data-action="transactions" aria-label="รายการทั้งหมด">${icon('right')}</button></h2><button class="statement-button" data-action="statement">${icon('document')} ขอรายการเดินบัญชี</button>${transaction(false)}${transaction(true)}</section>`;}
 function transaction(incoming){return `<div class="transaction"><span class="transaction-circle">${icon(incoming?'incoming':'out')}</span><div class="transaction-copy"><strong>${incoming?'โอนเข้า':'โอนออก'}</strong><b class="${incoming?'positive':''}">${incoming?'+':'-'}21.40 USD</b><small>22 ก.ย. 2569 - 06:11 น.</small></div></div>`;}
 function usdTransactionRow({title,subtitle,amount,date,time},index){return `<button class="usd-transaction" data-action="usd-transaction-${index}" aria-label="${title} ${amount>=0?'บวก':'ลบ'} ${money(Math.abs(amount))} USD"><span class="usd-transaction-icon" aria-hidden="true"><svg viewBox="0 0 28 28" fill="currentColor"><path d="M3 17h12v-4l7 7-7 7v-4H3Z"/><path d="M25 11H13v4L6 8l7-7v4h12Z"/></svg></span><span class="usd-transaction-body"><span class="usd-transaction-primary"><strong>${title}</strong><b class="${amount>=0?'positive':''}">${amount>=0?'+':'-'}${money(Math.abs(amount))} USD</b></span><span class="usd-transaction-secondary"><span>${subtitle}</span><time>${date?date+' - ':''}${time?time+' น.':''}</time></span></span></button>`;}
@@ -407,7 +448,7 @@ function toggleCardDetails(){
    const button=card.querySelector('.card-details');
    button.setAttribute('aria-expanded',String(expanded));
    button.setAttribute('aria-label',expanded?'ซ่อนรายละเอียดบัญชี':'ดูรายละเอียดบัญชี');
-   button.innerHTML=expanded?`ซ่อนรายละเอียด ${icon('down')}`:'';
+   button.innerHTML=expanded?`ซ่อนรายละเอียด ${icon('down')}`:`ดูรายละเอียด ${icon('down')}`;
  });
 }
 function resetCardDetails(){if(!cardDetailsOpen)return;toggleCardDetails();}
@@ -514,7 +555,8 @@ function act(op){const a=current();if(op.startsWith('usd-transaction-')){const i
  case 'nav-wallet':case 'nav-home':navigate('home');break;
  case 'nav-search':sheet('ค้นหา',`${demo()}<form class="sheet-form" id="searchForm"><label>ค้นหาบัญชี<input name="query" type="search" placeholder="ชื่อบัญชี หรือสกุลเงิน" autofocus></label><div id="searchResults"></div></form>`);const render=()=>{$('#searchResults').innerHTML=order.filter(k=>(accounts[k].name+' '+accounts[k].currency).toLowerCase().includes($('#searchForm').query.value.toLowerCase())).map(k=>`<button type="button" class="choice-row" data-screen="${k}">${flag(k)} ${accounts[k].name}${icon('chevron')}</button>`).join('')||'<p>ไม่พบบัญชี</p>';};$('#searchForm').addEventListener('submit',e=>e.preventDefault());$('#searchForm').addEventListener('input',render);render();break;
  case 'nav-pie':sheet('สินทรัพย์',`${demo()}${dl(order.map(id=>[accounts[id].name,money(accounts[id].balance)+' '+accounts[id].currency]))}`);break;
- case 'nav-user':sheet('ฉัน',`${demo()}<p>ต้นแบบหน้าจอที่สร้างจากภาพอ้างอิง 5 ภาพ ไม่ได้เชื่อมต่อบัญชีหรือบริการทางการเงิน</p><button class="primary-button" data-screen="home">กลับหน้าเงินสด</button>`);break;
+ case 'nav-user':sheet('ฉัน',`<div class="profile-menu"><button class="choice-row" data-action="more">${icon('wallet')}<span>บัญชีของฉัน</span>${icon('chevron')}</button><button class="choice-row profile-exit" data-action="exit-main">${icon('out')}<span>กลับ MePocket</span>${icon('chevron')}</button></div>`);break;
+ case 'exit-main':window.parent.postMessage({type:'mepocket:dime:exit',version:1},'*');break;
  case 'currency-aud':case 'currency-chf':case 'unavailable-currency':sheet('บัญชีสกุลเงินอื่น',`${demo()}<p>ภาพอ้างอิงมีรายละเอียดบัญชี THB, USD และ FCD จึงทำหน้าจอไว้ครบทั้ง 3 บัญชี</p><button class="primary-button" data-action="more">เลือกบัญชี</button>`);break;
 }}
 document.addEventListener('click',e=>{const card=e.target.closest('.account-card');if(card&&card.dataset.card!==screen){navigate(card.dataset.card);return;}const b=e.target.closest('button');if(b?.dataset.screen){navigate(b.dataset.screen);return;}if(b?.hasAttribute('data-close')){closeSheet();clearPages();return;}if(b?.dataset.action){act(b.dataset.action);return;}if(e.target.matches('.sheet-backdrop'))closeSheet();});
@@ -563,7 +605,7 @@ function bindSwipe(){
  c.addEventListener('lostpointercapture',e=>finish(e,true));
  c.addEventListener('click',e=>{if(performance.now()<suppressUntil){e.preventDefault();e.stopImmediatePropagation();}},true);
 }
-function resize(){const width=440,height=956,scale=Math.min(innerWidth/width,innerHeight/height);$('#deviceWrap').style.width=width*scale+'px';$('#deviceWrap').style.height=height*scale+'px';$('#device').style.transform=`scale(${scale})`;$('#device').style.width=width+'px';$('#device').style.height=height+'px';$('#app').style.width=width+'px';$('#app').style.height=height+'px';}
+function resize(){const width=440,scale=Math.min(innerWidth/width,1),height=innerHeight/scale;$('#deviceWrap').style.width=width*scale+'px';$('#deviceWrap').style.height=innerHeight+'px';$('#device').style.transform=`scale(${scale})`;$('#device').style.width=width+'px';$('#device').style.height=height+'px';$('#app').style.width=width+'px';$('#app').style.height=height+'px';}
 $('#compareToggle').addEventListener('click',()=>{compare=!compare;$('#referenceOverlay').hidden=!compare;$('.compare-range').hidden=!compare;$('#compareToggle').classList.toggle('active',compare);});$('#compareRange').addEventListener('input',e=>$('#referenceOverlay').style.opacity=e.target.value/100);
 addEventListener('resize',resize);navigate('home',true);resize();
 </script>
