@@ -19,6 +19,8 @@
   <link rel="stylesheet" href="./concept.css" />
   <link rel="stylesheet" href="./theme.css" />
   <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="stylesheet" href="./dime-preview/launcher.css" />
+  <script src="./dime-preview/launcher.js" defer></script>
 </head>
 <body class="auth-locked" data-active-view="home">
   <svg class="icon-sprite" aria-hidden="true">
@@ -212,6 +214,9 @@
         <header class="inner-header"><div><p class="overline">ปรับให้เป็นแบบของฉัน</p><h1 id="settingsTitle">การตั้งค่า</h1></div></header>
         <section class="settings-group"><h2>แพลน</h2>
           <button class="setting-row" data-nav="plans"><span><b>แพลนของฉัน</b><small id="currentPlanLabel">STARTER · ฿0</small></span><i><svg class="icon"><use href="#i-chevron-right"/></svg></i></button>
+        </section>
+        <section class="settings-group" aria-labelledby="dimePreviewGroupTitle"><h2 id="dimePreviewGroupTitle">พื้นที่ทดลอง</h2>
+          <button type="button" class="setting-row" id="dimePreviewOpen" aria-haspopup="dialog"><span><b>Dime จำลอง</b><small>เปิดต้นแบบแยกจากยอดเงินและรายการ MePocket</small></span><i><svg class="icon"><use href="#i-chevron-right"/></svg></i></button>
         </section>
         <section class="settings-group"><h2>การแสดงผล</h2>
           <div class="setting-row theme-row"><span><b>ธีม</b><small>สว่าง มืด หรือตามเครื่อง</small></span><div class="theme-seg" role="radiogroup" aria-label="เลือกธีม"><button type="button" role="radio" data-theme-pick="auto">อัตโนมัติ</button><button type="button" role="radio" data-theme-pick="light">สว่าง</button><button type="button" role="radio" data-theme-pick="dark">มืด</button></div></div>
