@@ -310,7 +310,7 @@ body{display:flex;align-items:center;justify-content:center;padding:0;gap:0;min-
 .portfolio-page{container-type:inline-size;background:#fff;animation:none;padding-bottom:0;overscroll-behavior:contain}
 .portfolio-screen{container-type:inline-size;min-height:100%;padding-bottom:21.5909091cqw;background:#fff;color:#151615;font-family:Inter,'Noto Sans Thai',sans-serif;--up:#00bf4a;--down:#ec5481}
 .portfolio-screen button{font:inherit}
-.portfolio-hero{position:relative;isolation:isolate;height:87.0454545cqw;padding:0;background:#7c53f1}
+.portfolio-hero{position:relative;isolation:isolate;z-index:1;height:87.0454545cqw;padding:0;background:#7c53f1}
 .portfolio-hero:after{content:'';position:absolute;left:0;right:0;bottom:-0.2272727cqw;height:4.7727273cqw;border-radius:3.8636364cqw 3.8636364cqw 0 0;background:#fff;z-index:-1}
 .portfolio-background{position:absolute;inset:0;width:100%;height:100%;z-index:-2;overflow:hidden;clip-path:inset(0);pointer-events:none}
 .portfolio-header{position:absolute;left:5.4545455cqw;right:5.4545455cqw;top:17.2727273cqw;display:flex;align-items:center;justify-content:space-between;gap:1.8181818cqw;height:6.3636364cqw;color:white}
@@ -331,7 +331,7 @@ body{display:flex;align-items:center;justify-content:center;padding:0;gap:0;min-
 .portfolio-us-mark{position:relative;width:4.5454545cqw;height:5.2272727cqw;display:block;color:#8c58e8}
 .portfolio-us-mark>svg{width:4.5454545cqw;height:5.2272727cqw}
 .portfolio-us-mark .portfolio-flag{position:absolute;right:-0.2272727cqw;bottom:0.4545455cqw;width:2.0454545cqw;height:2.0454545cqw}
-.portfolio-summary{position:absolute;left:5.4545455cqw;right:5.4545455cqw;top:41.5909091cqw;height:45.4545455cqw;margin:0;padding:2.2727273cqw 3.6363636cqw 2.7272727cqw;border:0;border-radius:3.6363636cqw;background:#fff;box-shadow:0 2.2727273cqw 5.4545455cqw #30204908;z-index:1}
+.portfolio-summary{position:absolute;left:5.4545455cqw;right:5.4545455cqw;top:41.5909091cqw;height:45.4545455cqw;margin:0;padding:2.2727273cqw 3.6363636cqw 2.7272727cqw;border:0;border-radius:3.6363636cqw;background:#fff;box-shadow:0 1.1363636cqw 3.4090909cqw #0000000a;z-index:1}
 .portfolio-asof{margin:0;color:#878b88;font-family:'Noto Sans Thai',sans-serif;font-size:3.25cqw;font-weight:500;line-height:5cqw;white-space:nowrap;letter-spacing:-.0.6818182cqw}
 .portfolio-asof time{font-size:2.5cqw;color:#555b57;font-weight:400}
 .portfolio-value{display:flex;align-items:baseline;height:10cqw;font-size:6.8181818cqw;font-weight:800;line-height:10cqw;letter-spacing:-0.2272727cqw;white-space:nowrap;font-variant-numeric:normal}
@@ -346,12 +346,13 @@ body{display:flex;align-items:center;justify-content:center;padding:0;gap:0;min-
 .portfolio-performance{display:flex;align-items:center;justify-content:space-between;gap:0.9090909cqw;min-height:5.9090909cqw;white-space:nowrap}
 .portfolio-performance>button{position:relative;top:0.4545455cqw;display:flex;align-items:center;gap:1.1363636cqw;flex:none;font-family:'Noto Sans Thai',sans-serif;font-size:3.1818182cqw;font-weight:600;line-height:5cqw;letter-spacing:-.7.9545455cqw;text-align:left}
 .portfolio-performance>button svg{width:2.7272727cqw;height:2.7272727cqw;color:#818681}
-.portfolio-performance>b{position:relative;top:.1.1363636cqw;font-size:3.6363636cqw;line-height:5.4545455cqw;font-weight:700;letter-spacing:-.7.9545455cqw}
+.portfolio-performance>b{position:relative;top:.1.1363636cqw;flex:1;min-width:0;text-align:right;font-size:3.6363636cqw;line-height:5.4545455cqw;font-weight:700;letter-spacing:-.7.9545455cqw}
 .portfolio-performance:last-child>b{top:0.4545455cqw;font-size:3.6363636cqw;letter-spacing:-.7.9545455cqw}
-.portfolio-performance:last-child>b.compact-gain{letter-spacing:-.2.0454545cqw}
+.portfolio-performance [data-gain-value]{display:inline-block;white-space:nowrap;max-width:none}
 .portfolio-screen .positive{color:var(--up)}
 .portfolio-screen .negative{color:var(--down)}
-.portfolio-body{position:relative;isolation:isolate;padding-top:4.7727273cqw;background:#fff}
+.portfolio-screen .neutral{color:#858b88}
+.portfolio-body{position:relative;isolation:isolate;z-index:0;padding-top:4.7727273cqw;background:#fff}
 .portfolio-body:before{content:'';position:absolute;left:0;right:0;top:0;height:0.2272727cqw;background:#fff;pointer-events:none}
 .portfolio-tools{display:flex;align-items:center;justify-content:space-between;gap:2.7272727cqw;padding:0 5.4545455cqw}
 .portfolio-tools>button{display:flex;align-items:center;justify-content:center;gap:1.1363636cqw;border:0.2272727cqw solid #e2e3e4;background:#fff;border-radius:2.7272727cqw;min-height:7.2727273cqw;padding:0.6818182cqw 1.8181818cqw;font-family:'Noto Sans Thai',sans-serif;font-size:2.9545455cqw;color:#8c908c;white-space:nowrap}
@@ -512,14 +513,14 @@ body{display:flex;align-items:center;justify-content:center;padding:0;gap:0;min-
   return {lots:lots.filter(lot=>lot.quantity.n),quantity,totalCost,averageCost:quantity.n?div(totalCost,quantity):null};
  }
  function holding(trades,price,previousClose,fx){
-  price=decimal(price);previousClose=decimal(previousClose);fx=decimal(fx);
-  if(price.n<0n||previousClose.n<=0n||fx.n<=0n)throw new RangeError('Invalid quote');
+  price=decimal(price);previousClose=previousClose===null||previousClose===undefined||previousClose===''?null:decimal(previousClose);fx=decimal(fx);
+  if(price.n<0n||(previousClose!==null&&previousClose.n<=0n)||fx.n<=0n)throw new RangeError('Invalid quote');
   const position=compressedFIFO(trades),value=mul(position.quantity,price),profit=sub(value,position.totalCost);
-  return {...position,price,previousClose,fx,value,profit,thb:mul(value,fx),profitPct:position.totalCost.n?mul(div(profit,position.totalCost),'100'):null,dayPct:mul(div(sub(price,previousClose),previousClose),'100'),dayAbsolute:mul(position.quantity,sub(price,previousClose))};
+  return {...position,price,previousClose,fx,value,profit,thb:mul(value,fx),profitPct:position.totalCost.n?mul(div(profit,position.totalCost),'100'):null,dayPct:previousClose===null?null:mul(div(sub(price,previousClose),previousClose),'100'),dayAbsolute:previousClose===null?null:mul(position.quantity,sub(price,previousClose))};
  }
- const snapshot={symbol:'NVDA',name:'NVIDIA',price:'221.97',previousClose:'216.47',fx:'33.66',asOf:'22 ต.ค. 69 - 16:45 น.',trades:[{date:'2024-01-26',side:'buy',quantity:'3.80399260',price:'61.031'},{date:'2024-01-30',side:'buy',quantity:'12.29088190',price:'62.774'}]};
+ const snapshot={symbol:'NVDA',name:'NVIDIA',price:'221.97',previousClose:'216.47',fx:'33.67',asOf:'22 ต.ค. 69 - 17:22 น.',trades:[{date:'2024-01-26',side:'buy',quantity:'3.80399260',price:'61.031'},{date:'2024-01-30',side:'buy',quantity:'12.29088190',price:'62.774'}]};
  snapshot.history={"launchMonth":"2022-09","announcementDate":"2022-09-06","annualReportLaunchDate":"2022-09-08","firstNvdaDimeDate":null,"split":{"tradingDate":"2024-06-10","ratio":"10"},"basis":"Hypothetical quantities at documented market closes; not actual broker fills or verified NVDA availability dates.","preSplitTrades":[{"date":"2024-01-26","side":"buy","quantity":"0.38039926","price":"610.31"},{"date":"2024-01-30","side":"buy","quantity":"1.22908819","price":"627.74"}],"sources":{"dimeLaunch":"https://kkpfg.com/th/news/2022090661553?fs=e&s=cl","dimeAnnualReport":"https://kkp.listedcompany.com/misc/one-report/20230322-kkp-one-report2022-th.pdf","jan26Close":"https://materials.proxyvote.com/Approved/67066G/20240429/COMBO_574555.PDF","jan30Close":"https://www.wsj.com/public/resources/documents/rbNIoQQvae4VDpOJ9Am1-WSJNewsPaper-1-31-2024.pdf","split":"https://investor.nvidia.com/files/doc_downloads/2024/06/nvidia-2024-stock-split_faq_investors.pdf"}};
- snapshot.quoteEvidence={"referencePrice":"221.97","reportedDayPercent":"2.54","referenceFx":"33.66","previousClose":"216.47","previousCloseBasis":"approximation inferred from rounded reference day percentage; not independently verified market close","referenceImage":"user image 1, 2026-10-22 16:45"};
+ snapshot.quoteEvidence={"referencePrice":"221.97","referenceFx":"33.67","previousClose":"216.47","reportedDayPercent":"2.54","previousCloseBasis":"Approximate reference baseline consistent with the rounded daily change in the user-provided screenshot; not independently verified market close or live data. Restored at user request.","referenceImage":"user image 1, 2026-10-22 17:22"};
  const api={decimal,add,sub,mul,div,cmp,format,compressedFIFO,holding,snapshot};
  root.PortfolioMath=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
@@ -719,10 +720,10 @@ let portfolioQuote={price:portfolioSnapshot.price,previousClose:portfolioSnapsho
 let portfolioHolding=PM.holding(portfolioSnapshot.trades,portfolioQuote.price,portfolioQuote.previousClose,portfolioQuote.fx);
 const portfolioState={hidden:false,expanded:true,profitMode:'percent',filter:'us',sort:'value'};
 const pMoney=value=>PM.format(value);
-const pSign=value=>PM.cmp(value,'0')>=0?'+':'−';
-const pAbs=value=>PM.cmp(value,'0')<0?PM.mul(value,'-1'):value;
-const pClass=value=>PM.cmp(value,'0')<0?'negative':'positive';
-const pArrow=value=>PM.cmp(value,'0')<0?'↘':'↗';
+const pSign=value=>value===null?'':PM.cmp(value,'0')>=0?'+':'−';
+const pAbs=value=>value===null?null:PM.cmp(value,'0')<0?PM.mul(value,'-1'):value;
+const pClass=value=>value===null?'neutral':PM.cmp(value,'0')<0?'negative':'positive';
+const pArrow=value=>value===null?'':PM.cmp(value,'0')<0?'↘':'↗';
 const pEye=()=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>';
 const pInfo=()=>'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor"><circle cx="8" cy="8" r="6.2"/><path d="M8 7v4m0-7v1" stroke-width="1.5"/></svg>';
 const pPie=()=>'<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" opacity=".55"/><path d="M12 2v10H2A10 10 0 0 1 12 2Z" opacity=".85"/><path d="m12 12-7 7a10 10 0 0 1-3-7Z"/></svg>';
@@ -753,28 +754,41 @@ function portfolioNav(){return `<nav class="bottom-nav portfolio-nav" aria-label
 function portfolioTabs(){return `<nav class="portfolio-tabs" aria-label="ประเภทสินทรัพย์"><button data-action="portfolio-all">← ทั้งหมด</button><span class="portfolio-tab-divider"></span><span class="portfolio-tab-edge" aria-hidden="true"></span><button data-action="portfolio-th" aria-pressed="${portfolioState.filter==='th'}">หุ้นไทย</button><button data-action="portfolio-us" aria-pressed="${portfolioState.filter==='us'}">${pUsMark()}หุ้นสหรัฐฯ</button><button data-action="portfolio-gold" aria-pressed="${portfolioState.filter==='gold'}">ทองคำ</button><button data-action="portfolio-funds" aria-pressed="${portfolioState.filter==='funds'}">กองทุน</button></nav>`;}
 function portfolioView(){
  const h=portfolioHolding,hasHolding=portfolioState.filter==='us',value=hasHolding?h.value:PM.decimal('0'),cost=hasHolding?h.totalCost:PM.decimal('0'),profit=hasHolding?h.profit:PM.decimal('0');
- const performance=hasHolding?`${pArrow(h.dayPct)} ${pMoney(pAbs(h.dayPct))}%`:'—';
+ const performance=hasHolding&&h.dayPct!==null?`${pArrow(h.dayPct)} ${pMoney(pAbs(h.dayPct))}%`:'—';
  const gain=hasHolding?`${pArrow(h.profitPct)} ${pMoney(pAbs(h.profitPct))}% (${pSign(profit)}${pMoney(pAbs(profit))} USD)`:'—';
  const visible=value=>portfolioState.hidden?'••••':value;
  return `<div class="portfolio-screen">`+
  `<section class="portfolio-hero">${pBackground()}<header class="portfolio-header"><h1>สินทรัพย์ของฉัน <button data-action="portfolio-hide" aria-label="${portfolioState.hidden?'แสดง':'ซ่อน'}มูลค่าสินทรัพย์" aria-pressed="${portfolioState.hidden}">${pEye()}</button></h1><button class="portfolio-analytics" data-action="portfolio-analytics">${pPie()} Dime! Analytics ${icon('right')}</button></header>${portfolioTabs()}`+
- `<section class="portfolio-summary" aria-label="สรุปสินทรัพย์"><p class="portfolio-asof">มูลค่าสินทรัพย์ทั้งหมด <span>(${portfolioTime()})</span></p><div class="portfolio-value">${portfolioState.hidden?'••••':`<span>${pMoney(value).split('.')[0]}</span><small>.${pMoney(value).split('.')[1]}</small><small class="portfolio-currency">USD</small>`}</div><div class="portfolio-fx"><span>≈ ${visible(pMoney(PM.mul(value,h.fx))+' THB')}</span><span>${pFlag()} 1 USD = ${pMoney(h.fx)} THB</span></div><p class="portfolio-cost">~ ต้นทุนรวม: ${visible(pMoney(cost)+' USD')}</p><div class="portfolio-performance"><button data-action="portfolio-calculation">% เปลี่ยนแปลงจากวันก่อน ${pInfo()}</button><b class="${pClass(h.dayPct)}">${visible(performance)}</b></div><div class="portfolio-performance"><button data-action="portfolio-calculation">กำไรของสินทรัพย์ที่ถืออยู่</button><b class="${pClass(profit)}${gain.length>24?' compact-gain':''}">${visible(gain)}</b></div></section></section>`+
+ `<section class="portfolio-summary" aria-label="สรุปสินทรัพย์"><p class="portfolio-asof">มูลค่าสินทรัพย์ทั้งหมด <span>(${portfolioTime()})</span></p><div class="portfolio-value">${portfolioState.hidden?'••••':`<span>${pMoney(value).split('.')[0]}</span><small>.${pMoney(value).split('.')[1]}</small><small class="portfolio-currency">USD</small>`}</div><div class="portfolio-fx"><span>≈ ${visible(pMoney(PM.mul(value,h.fx))+' THB')}</span><span>${pFlag()} 1 USD = ${pMoney(h.fx)} THB</span></div><p class="portfolio-cost">~ ต้นทุนรวม: ${visible(pMoney(cost)+' USD')}</p><div class="portfolio-performance"><button data-action="portfolio-calculation">% เปลี่ยนแปลงจากวันก่อน ${pInfo()}</button><b class="${pClass(h.dayPct)}">${visible(performance)}</b></div><div class="portfolio-performance"><button data-action="portfolio-calculation">กำไรของสินทรัพย์ที่ถืออยู่</button><b class="${pClass(profit)}" data-gain-field><span data-gain-value>${visible(gain)}</span></b></div></section></section>`+
  `<section class="portfolio-body"><div class="portfolio-tools"><button data-action="portfolio-sort">เรียงตาม: <b>${portfolioState.sort==='value'?'มูลค่าสินทรัพย์':portfolioState.sort==='name'?'ชื่อสินทรัพย์':'กำไรขาดทุน'}</b> ${icon('down')}</button><button data-action="portfolio-mode">${portfolioState.profitMode==='percent'?'กำไรขาดทุน':'มูลค่าเปลี่ยนแปลง'} ${icon('transfer')}</button></div><div class="portfolio-columns"><span>${hasHolding?'1':'0'} สินทรัพย์</span><span>มูลค่าสินทรัพย์ (USD)</span><span>% กำไรและมูลค่า</span></div>`+
  (hasHolding?`<button class="portfolio-holding" data-action="portfolio-expand" aria-expanded="${portfolioState.expanded}" aria-controls="portfolioPositionDetails">${pLogo()}<span class="portfolio-holding-name"><strong>NVDA</strong><small>${icon('pie')} ${visible('100.00%')}</small></span><span class="portfolio-holding-value"><b>${visible(pMoney(h.value))}</b><small>≈ ${visible(pMoney(h.thb)+' THB')}</small></span><span class="portfolio-holding-gain ${pClass(h.profit)}"><b class="${portfolioState.profitMode==='amount'?'amount-mode':''}">${visible(portfolioState.profitMode==='percent'?pArrow(h.profitPct)+' '+pMoney(pAbs(h.profitPct))+'%':pSign(h.profit)+pMoney(pAbs(h.profit))+' USD')}</b><small>(${visible(portfolioState.profitMode==='percent'?pSign(h.profit)+pMoney(pAbs(h.profit))+' USD':pArrow(h.profitPct)+' '+pMoney(pAbs(h.profitPct))+'%')})</small></span></button>`+
- `<section class="portfolio-details" id="portfolioPositionDetails" ${portfolioState.expanded?'':'hidden'}><div class="portfolio-detail-top"><div><label>จำนวนหุ้นคงเหลือ</label><strong>${visible(PM.format(h.quantity,8,false))}</strong></div><div><label>ราคา (USD) และ % เปลี่ยน 1 วัน</label><strong>${pMoney(h.price)}</strong><b class="${pClass(h.dayPct)}">${pArrow(h.dayPct)} ${pMoney(pAbs(h.dayPct))}%</b></div></div><div class="portfolio-detail-bottom"><div><label>ต้นทุนต่อหุ้น (USD)</label><strong>${visible(pMoney(h.averageCost))}</strong></div><div><label>ต้นทุนรวม (USD)</label><strong>${visible(pMoney(h.totalCost))}</strong></div><button class="portfolio-trade" data-action="portfolio-trade">ซื้อ-ขาย</button></div></section>`:'<div class="portfolio-empty">ยังไม่มีสินทรัพย์ประเภทนี้</div>')+
+ `<section class="portfolio-details" id="portfolioPositionDetails" ${portfolioState.expanded?'':'hidden'}><div class="portfolio-detail-top"><div><label>จำนวนหุ้นคงเหลือ</label><strong>${visible(PM.format(h.quantity,8,false))}</strong></div><div><label>ราคา (USD) และ % เปลี่ยน 1 วัน</label><strong>${pMoney(h.price)}</strong><b class="${pClass(h.dayPct)}">${performance}</b></div></div><div class="portfolio-detail-bottom"><div><label>ต้นทุนต่อหุ้น (USD)</label><strong>${visible(pMoney(h.averageCost))}</strong></div><div><label>ต้นทุนรวม (USD)</label><strong>${visible(pMoney(h.totalCost))}</strong></div><button class="portfolio-trade" data-action="portfolio-trade">ซื้อ-ขาย</button></div></section>`:'<div class="portfolio-empty">ยังไม่มีสินทรัพย์ประเภทนี้</div>')+
  `</section>${portfolioNav()}</div>`;
 }
-function openPortfolio(){closeSheet();clearPages();const page=document.createElement('section');page.className='route-page portfolio-page';page.dataset.title='สินทรัพย์ของฉัน';page.setAttribute('tabindex','-1');page.innerHTML=portfolioView();$('#routeRoot').append(page);$('#referenceOverlay').hidden=true;document.title='สินทรัพย์ของฉัน — Dime';resize();page.focus();}
-function refreshPortfolio(){const page=$('.portfolio-page');if(!page)return;const y=page.scrollTop,tabScroll=page.querySelector?.('.portfolio-tabs')?.scrollLeft||0;page.innerHTML=portfolioView();page.scrollTop=y;const tabs=page.querySelector?.('.portfolio-tabs');if(tabs)tabs.scrollLeft=tabScroll;}
+function openPortfolio(){closeSheet();clearPages();const page=document.createElement('section');page.className='route-page portfolio-page';page.dataset.title='สินทรัพย์ของฉัน';page.setAttribute('tabindex','-1');page.innerHTML=portfolioView();$('#routeRoot').append(page);$('#referenceOverlay').hidden=true;document.title='สินทรัพย์ของฉัน — Dime';resize();fitPortfolioGain();page.focus();}
+function refreshPortfolio(){const page=$('.portfolio-page');if(!page)return;const y=page.scrollTop,tabScroll=page.querySelector?.('.portfolio-tabs')?.scrollLeft||0;page.innerHTML=portfolioView();page.scrollTop=y;const tabs=page.querySelector?.('.portfolio-tabs');if(tabs)tabs.scrollLeft=tabScroll;fitPortfolioGain();}
+function fitPortfolioGain(){
+ const page=$('.portfolio-page'),field=page?.querySelector?.('[data-gain-field]'),span=page?.querySelector?.('[data-gain-value]');
+ if(!field||!span)return;
+ span.style.fontSize='';
+ const available=field.clientWidth,natural=span.getBoundingClientRect().width;
+ if(available<=0||natural<=available)return;
+ const base=parseFloat(getComputedStyle(span).fontSize);
+ span.style.fontSize=(base*available/natural*.995).toFixed(3)+'px';
+ const after=span.getBoundingClientRect().width;
+ if(after>available)span.style.fontSize=(parseFloat(span.style.fontSize)*available/after*.995).toFixed(3)+'px';
+}
 function portfolioCalculation(){
- const h=portfolioHolding,previousValue=PM.mul(h.quantity,h.previousClose);
- const origin=portfolioQuote.source==='manual'?'ราคาปิดวันก่อนและอัตราแปลงเป็นค่าที่คุณกรอกเอง':'ภาพอ้างอิงล่าสุดระบุราคา NVDA 221.97 USD และเพิ่มขึ้นรายวัน 2.54% ใช้ราคาปิดวันก่อนประมาณ 216.47 USD เป็นฐานคำนวณ ค่านี้อนุมานจากเปอร์เซ็นต์ที่ปัดแล้วในภาพ ไม่ใช่ราคาปิดทศนิยมเต็มที่ยืนยันจากตลาด ส่วนเรต 33.66 THB/USD อ่านจากภาพล่าสุด';
- sheet('การคำนวณสินทรัพย์',`<p>คำนวณมูลค่า ณ ${portfolioNow()} ตามนาฬิกาเครื่อง (เวลาไทย) ไม่ได้เชื่อมราคาตลาดสด เวลาในหัวการ์ดเป็นเวลาคำนวณ ไม่ใช่เวลาที่ได้รับราคาจากตลาด</p><p>${origin}</p>${dl([['วันที่ของราคาอ้างอิง',portfolioQuote.priceDate],['ราคา NVDA',pMoney(h.price)+' USD'],['ราคาปิดวันก่อนที่ใช้อ้างอิง',pMoney(h.previousClose)+' USD'],['อัตราแปลงเพื่อประเมินมูลค่า',pMoney(h.fx)+' THB/USD'],['จำนวนหุ้นคงเหลือ',PM.format(h.quantity,8,false)],['มูลค่า = จำนวนหุ้น × ราคา',pMoney(h.value)+' USD'],['มูลค่าตามราคาปิดก่อนหน้า',pMoney(previousValue)+' USD'],['ส่วนต่างรายวัน = หุ้น × (ราคา − ปิดก่อน)',pSign(h.dayAbsolute)+pMoney(pAbs(h.dayAbsolute))+' USD'],['% รายวัน = (ราคา ÷ ปิดก่อน − 1) × 100',pMoney(h.dayPct)+'%'],['ต้นทุนต่อหุ้น',pMoney(h.averageCost)+' USD'],['ต้นทุนรวม',pMoney(h.totalCost)+' USD'],['กำไรที่ยังไม่ขาย',pSign(h.profit)+pMoney(pAbs(h.profit))+' USD'],['% กำไรสะสมเทียบต้นทุน',pMoney(h.profitPct)+'%'],['มูลค่าเงินบาท',pMoney(h.thb)+' THB']])}<p>จำนวนหุ้นที่เพิ่มทำให้ส่วนต่างเป็นเงินเพิ่มตาม แต่ไม่ทำให้เปอร์เซ็นต์เปลี่ยน 1 วันเพิ่ม เมื่อใช้ราคาและราคาปิดก่อนหน้าเดียวกัน เปอร์เซ็นต์รายวันยังเท่ากัน ต้นทุนซื้อใช้คำนวณกำไรสะสมแยกจากเปอร์เซ็นต์รายวัน</p><p>ต้นทุนและจำนวนหุ้นเป็นตัวอย่างที่กำหนดไว้ ใช้ Compressed FIFO และปรับฐานการแตกหุ้น 10 ต่อ 1 แล้ว จำนวนซื้อสมมติ 3.80399260 หุ้นที่ราคาฐานปัจจุบัน 61.031 USD (26 ม.ค. 2567) กับ 12.29088190 หุ้นที่ 62.774 USD (30 ม.ค. 2567) ไม่ใช่ประวัติซื้อจริง</p><p>คำนวณจากทศนิยมเต็มแล้วปัดเฉพาะตอนแสดงผล กำไรไม่รวมเงินปันผล กำไรที่ขายแล้ว ภาษี และค่าใช้จ่ายขาย</p><button class="primary-button" data-action="portfolio-quote">ปรับราคาอ้างอิง</button>`);
+ const h=portfolioHolding,previousValue=h.previousClose===null?null:PM.mul(h.quantity,h.previousClose);
+ const unit=value=>value===null?'—':pMoney(value)+' USD';
+ const signed=value=>value===null?'—':pSign(value)+pMoney(pAbs(value))+' USD';
+ sheet('การคำนวณสินทรัพย์',`<p>คำนวณมูลค่า ณ ${portfolioNow()} ตามนาฬิกาเครื่อง (เวลาไทย) ไม่ได้เชื่อมราคาตลาดสด เวลาในหัวการ์ดเป็นเวลาคำนวณ ไม่ใช่เวลาที่ได้รับราคาจากตลาด</p><p>${h.previousClose===null?'ยังไม่มีราคาปิดวันก่อนที่ยืนยัน จึงแสดงเปอร์เซ็นต์และส่วนต่างรายวันเป็น — โดยไม่คัดเปอร์เซ็นต์จากภาพหรืออนุมานราคาปิดย้อนหลัง':(portfolioQuote.source==='reference'?'ใช้ฐานอ้างอิงประมาณ 216.47 USD เพื่อให้ราคา 221.97 USD แสดงการเปลี่ยนแปลงรายวัน +2.54% ตามภาพที่ให้ ไม่ใช่ราคาปิดที่ตรวจยืนยันจากตลาดหรือข้อมูลสด':'ราคาปิดวันก่อนเป็นค่าที่คุณกรอก เปอร์เซ็นต์รายวันคำนวณจากราคานี้กับราคา NVDA ที่กำหนด')}</p>${dl([['วันที่ของราคาอ้างอิง',portfolioQuote.priceDate],['ราคา NVDA',pMoney(h.price)+' USD'],['ราคาปิดวันก่อน',unit(h.previousClose)],['อัตราแปลงเพื่อประเมินมูลค่า',pMoney(h.fx)+' THB/USD'],['จำนวนหุ้นคงเหลือ',PM.format(h.quantity,8,false)],['มูลค่า = จำนวนหุ้น × ราคา',unit(h.value)],['มูลค่าตามราคาปิดก่อนหน้า',unit(previousValue)],['ส่วนต่างรายวัน',signed(h.dayAbsolute)],['% เปลี่ยน 1 วัน',h.dayPct===null?'—':pMoney(h.dayPct)+'%'],['ต้นทุนต่อหุ้น',unit(h.averageCost)],['ต้นทุนรวม',unit(h.totalCost)],['กำไรที่ยังไม่ขาย',signed(h.profit)],['% กำไรสะสมเทียบต้นทุน',pMoney(h.profitPct)+'%'],['มูลค่าเงินบาท',pMoney(h.thb)+' THB']])}<p>เปอร์เซ็นต์รายวันใช้ (ราคา ÷ ราคาปิดวันก่อน − 1) × 100 ส่วนกำไรสะสมใช้ (มูลค่า − ต้นทุนคงเหลือ) ÷ ต้นทุนคงเหลือ × 100 จึงเป็นคนละค่า เมื่อกรอกราคาปิดวันก่อน ระบบจะคำนวณรายวันให้ทันที</p><p>ต้นทุนและจำนวนหุ้นเป็นตัวอย่างที่กำหนดไว้ ใช้ Compressed FIFO และปรับฐานการแตกหุ้น 10 ต่อ 1 แล้ว จำนวนซื้อสมมติ 3.80399260 หุ้นที่ราคาฐานปัจจุบัน 61.031 USD (26 ม.ค. 2567) กับ 12.29088190 หุ้นที่ 62.774 USD (30 ม.ค. 2567) ไม่ใช่ประวัติซื้อจริง</p><p>คำนวณจากทศนิยมเต็มแล้วปัดเฉพาะตอนแสดงผล กำไรไม่รวมเงินปันผล กำไรที่ขายแล้ว ภาษี และค่าใช้จ่ายขาย</p><button class="primary-button" data-action="portfolio-quote">ปรับราคาอ้างอิง</button>`);
 }
 function setPortfolioQuote(input){
  const next={};
  for(const key of ['price','previousClose','fx']){
   const value=String(input[key]??'').trim();
+  if(key==='previousClose'&&value===''){next[key]=null;continue;}
   if(!/^\d{1,8}(\.\d{1,6})?$/.test(value)||PM.cmp(value,'0')<=0||PM.cmp(value,'10000000')>0)throw new RangeError('กรอกตัวเลขมากกว่า 0 และทศนิยมไม่เกิน 6 ตำแหน่ง');
   next[key]=value;
  }
@@ -783,7 +797,7 @@ function setPortfolioQuote(input){
  portfolioHolding=holding;refreshPortfolio();return holding;
 }
 function portfolioQuoteEditor(){
- sheet('ราคาอ้างอิง',`<p class="quote-editor-note">เปลี่ยนราคาเพื่อประเมินมูลค่าและกำไรขาดทุนทันที ไม่มีการเชื่อมราคาตลาดออนไลน์ ต้นทุนและจำนวนหุ้นคงเดิม</p><form id="portfolioQuoteForm" class="sheet-form"><label>ราคา NVDA (USD)<input name="price" inputmode="decimal" type="text" required maxlength="16" value="${PM.format(portfolioHolding.price,6,false).replace(/0+$/,'').replace(/\.$/,'')}"></label><label>${portfolioQuote.source==='reference'?'ราคาปิดวันก่อนโดยประมาณ (USD)':'ราคาปิดวันก่อน (USD)'}<input name="previousClose" inputmode="decimal" type="text" required maxlength="16" value="${PM.format(portfolioHolding.previousClose,6,false).replace(/0+$/,'').replace(/\.$/,'')}"></label><label>อัตราแปลง THB/USD<input name="fx" inputmode="decimal" type="text" required maxlength="16" value="${PM.format(portfolioHolding.fx,6,false).replace(/0+$/,'').replace(/\.$/,'')}"></label><p id="portfolioQuoteError" role="alert" hidden></p><button class="primary-button" type="submit">คำนวณมูลค่า</button></form><p class="quote-editor-time">ราคาอ้างอิงเดิม ${portfolioQuote.priceDate}<br>เก็บการเปลี่ยนแปลงเฉพาะระหว่างเปิดหน้า Dime</p>`);
+ sheet('ราคาอ้างอิง',`<p class="quote-editor-note">เปลี่ยนราคาเพื่อประเมินมูลค่าและกำไรขาดทุนทันที ไม่มีการเชื่อมราคาตลาดออนไลน์ ต้นทุนและจำนวนหุ้นคงเดิม ช่องราคาปิดวันก่อนเว้นว่างได้ ระบบจะแสดง — จนกว่าจะกรอกฐานราคา</p><form id="portfolioQuoteForm" class="sheet-form"><label>ราคา NVDA (USD)<input name="price" inputmode="decimal" type="text" required maxlength="16" value="${PM.format(portfolioHolding.price,6,false).replace(/0+$/,'').replace(/\.$/,'')}"></label><label>ราคาปิดวันก่อน (USD)<input name="previousClose" inputmode="decimal" type="text" placeholder="เว้นว่างเมื่อยังไม่มีข้อมูล" maxlength="16" value="${portfolioHolding.previousClose===null?'':PM.format(portfolioHolding.previousClose,6,false).replace(/0+$/,'').replace(/\.$/,'')}"></label><label>อัตราแปลง THB/USD<input name="fx" inputmode="decimal" type="text" required maxlength="16" value="${PM.format(portfolioHolding.fx,6,false).replace(/0+$/,'').replace(/\.$/,'')}"></label><p id="portfolioQuoteError" role="alert" hidden></p><button class="primary-button" type="submit">คำนวณมูลค่า</button></form><p class="quote-editor-time">ราคาอ้างอิงเดิม ${portfolioQuote.priceDate}<br>เก็บการเปลี่ยนแปลงเฉพาะระหว่างเปิดหน้า Dime</p>`);
  $('#portfolioQuoteForm').addEventListener('submit',event=>{event.preventDefault();const form=event.currentTarget;try{setPortfolioQuote({price:form.elements.price.value,previousClose:form.elements.previousClose.value,fx:form.elements.fx.value});closeSheet();toast('อัปเดตมูลค่าตามราคาอ้างอิงแล้ว');}catch(error){const node=$('#portfolioQuoteError');node.hidden=false;node.textContent=error.message;}});
 }
 function portfolioAll(){const h=portfolioHolding,cashTHB=PM.decimal(String(accounts.thb.balance)),cashUSD=PM.add(String(accounts.usd.balance),String(accounts.fcd.balance)),cashInTHB=PM.add(cashTHB,PM.mul(cashUSD,h.fx)),total=PM.add(cashInTHB,h.thb);openPage('สินทรัพย์ทั้งหมด',`${dl([['มูลค่ารวม',pMoney(total)+' THB'],['เงินสดใน Dime',pMoney(cashInTHB)+' THB'],['หุ้นสหรัฐฯ',pMoney(h.thb)+' THB']])}<button class="choice-row" data-action="portfolio-us">${pLogo()} หุ้นสหรัฐฯ · NVDA ${icon('chevron')}</button><button class="choice-row" data-action="nav-wallet">${icon('wallet')} เงินสด ${icon('chevron')}</button><p class="rate-note">ประเมินด้วยอัตราอ้างอิง ${pMoney(h.fx)} THB/USD ณ ${portfolioNow()}</p>`);}
@@ -851,12 +865,14 @@ function bindSwipe(){
  c.addEventListener('lostpointercapture',e=>finish(e,true));
  c.addEventListener('click',e=>{if(performance.now()<suppressUntil){e.preventDefault();e.stopImmediatePropagation();}},true);
 }
-function resize(){const native=!!$('.portfolio-page'),width=native?Math.min(innerWidth,600):440,scale=native?1:Math.min(innerWidth/width,1),height=innerHeight/scale;$('#deviceWrap').style.width=width*scale+'px';$('#deviceWrap').style.height=innerHeight+'px';$('#device').style.transform=native?'none':`scale(${scale})`;$('#device').style.width=width+'px';$('#device').style.height=height+'px';$('#app').style.width=width+'px';$('#app').style.height=height+'px';}
+function resize(){const native=!!$('.portfolio-page'),width=native?Math.min(innerWidth,600):440,scale=native?1:Math.min(innerWidth/width,1),height=innerHeight/scale;$('#deviceWrap').style.width=width*scale+'px';$('#deviceWrap').style.height=innerHeight+'px';$('#device').style.transform=native?'none':`scale(${scale})`;$('#device').style.width=width+'px';$('#device').style.height=height+'px';$('#app').style.width=width+'px';$('#app').style.height=height+'px';if(native)fitPortfolioGain();}
 $('#compareToggle').addEventListener('click',()=>{compare=!compare;$('#referenceOverlay').hidden=!compare;$('.compare-range').hidden=!compare;$('#compareToggle').classList.toggle('active',compare);});$('#compareRange').addEventListener('input',e=>$('#referenceOverlay').style.opacity=e.target.value/100);
 addEventListener('resize',resize);navigate('home',true);resize();
 
 setInterval(tickValuationClock,1000);
 document.addEventListener('visibilitychange',tickValuationClock);
+
+if(document.fonts?.ready)document.fonts.ready.then(fitPortfolioGain);
 </script>
 </body>
 </html>
