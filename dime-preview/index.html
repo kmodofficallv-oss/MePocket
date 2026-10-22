@@ -310,42 +310,47 @@ body{display:flex;align-items:center;justify-content:center;padding:0;gap:0;min-
 .portfolio-page{container-type:inline-size;background:#fff;animation:none;padding-bottom:0;overscroll-behavior:contain}
 .portfolio-screen{container-type:inline-size;min-height:100%;padding-bottom:21.5909091cqw;background:#fff;color:#151615;font-family:Inter,'Noto Sans Thai',sans-serif;--up:#00bf4a;--down:#ec5481}
 .portfolio-screen button{font:inherit}
-.portfolio-hero{position:relative;isolation:isolate;padding:17.2727273cqw 5.4545455cqw 0;background:#7950f1}
-.portfolio-hero:after{content:'';position:absolute;inset:auto 0 0;height:4.5454545cqw;border-radius:3.8636364cqw 3.8636364cqw 0 0;background:#fff;z-index:-1}
-.portfolio-background{position:absolute;inset:0;width:100%;height:100%;z-index:-2;overflow:hidden}
-.portfolio-header{display:flex;align-items:center;justify-content:space-between;gap:1.8181818cqw;height:6.3636364cqw;color:white}
-.portfolio-header h1{display:flex;align-items:center;gap:1.8181818cqw;white-space:nowrap;font-family:'Noto Sans Thai',sans-serif;font-size:5.4545455cqw;line-height:7.2727273cqw;letter-spacing:-.1.5909091cqw;margin:0;font-weight:700}
+.portfolio-hero{position:relative;isolation:isolate;height:87.0454545cqw;padding:0;background:#7c53f1}
+.portfolio-hero:after{content:'';position:absolute;left:0;right:0;bottom:-0.2272727cqw;height:4.7727273cqw;border-radius:3.8636364cqw 3.8636364cqw 0 0;background:#fff;z-index:-1}
+.portfolio-background{position:absolute;inset:0;width:100%;height:100%;z-index:-2;overflow:hidden;clip-path:inset(0);pointer-events:none}
+.portfolio-header{position:absolute;left:5.4545455cqw;right:5.4545455cqw;top:17.2727273cqw;display:flex;align-items:center;justify-content:space-between;gap:1.8181818cqw;height:6.3636364cqw;color:white}
+.portfolio-header h1{display:flex;align-items:center;gap:1.8181818cqw;white-space:nowrap;font-family:'Noto Sans Thai',sans-serif;font-size:5.4545455cqw;line-height:7.2727273cqw;letter-spacing:-.12.5cqw;margin:0;font-weight:700}
 .portfolio-header h1 button{display:grid;place-items:center;width:4.3181818cqw;height:6.3636364cqw;flex:none}
 .portfolio-header h1 button svg{width:3.8636364cqw;height:3.8636364cqw}
-.portfolio-analytics{display:flex;align-items:center;justify-content:center;white-space:nowrap;border-radius:4.5454545cqw;background:#5b33b8b3;padding:0.9090909cqw 1.8181818cqw;gap:0.9090909cqw;font-size:3.1818182cqw!important;line-height:5cqw;letter-spacing:-.12.5cqw;font-weight:600!important}
+.portfolio-analytics{display:flex;align-items:center;justify-content:center;white-space:nowrap;border-radius:4.5454545cqw;background:#5b33b8b3;padding:0.9090909cqw 2.0454545cqw;gap:0.9090909cqw;font-size:3.1818182cqw!important;line-height:5cqw;letter-spacing:-.10.2272727cqw;font-weight:600!important}
 .portfolio-analytics svg{width:3.4090909cqw;height:3.4090909cqw;color:#bc9aef}
-.portfolio-tabs{display:flex;align-items:center;gap:2.2727273cqw;margin:3.4090909cqw -5.4545455cqw 0;padding:0 5.4545455cqw 0.2272727cqw;overflow:auto;scrollbar-width:none;scroll-padding-inline:5.4545455cqw}
+.portfolio-tabs{position:absolute;left:0;right:0;top:27.0454545cqw;display:flex;align-items:center;gap:2.2727273cqw;margin:0;padding:0 5.4545455cqw 0.2272727cqw;overflow:auto;scrollbar-width:none;scroll-padding-inline:5.4545455cqw}
 .portfolio-tabs::-webkit-scrollbar{display:none}
 .portfolio-tabs>button{flex:none;display:flex;align-items:center;justify-content:center;gap:1.3636364cqw;white-space:nowrap;min-height:9.0909091cqw;padding:0 3.1818182cqw;border-radius:5.2272727cqw;background:#fff;border:0.2272727cqw solid #eee7f7;color:#86878c;font-family:'Noto Sans Thai',sans-serif;font-size:3.1818182cqw;font-weight:600}
 .portfolio-tabs>button:first-child{border-radius:3.4090909cqw;min-width:21.3636364cqw}
+.portfolio-tabs>button[data-action="portfolio-th"],.portfolio-tabs>button[data-action="portfolio-gold"],.portfolio-tabs>button[data-action="portfolio-funds"]{width:15cqw;padding:0}
+.portfolio-tabs>button[data-action="portfolio-us"]{width:24.5454545cqw;padding:0}
 .portfolio-tab-divider{flex:none;align-self:stretch;width:0.2272727cqw;background:#582fa5;margin-left:-0.4545455cqw}
+.portfolio-tab-edge{display:block;flex:none;width:2.9545455cqw;height:9.0909091cqw;background:#fff;border-radius:0 100% 100% 0;margin-left:-0.4545455cqw;margin-right:-0.4545455cqw}
 .portfolio-tabs>button[aria-pressed=true]{color:#17151a;background:#dac4ff;border:0.3409091cqw solid #40235b;box-shadow:0 0 0 0.4545455cqw #6136ae40}
 .portfolio-us-mark{position:relative;width:4.5454545cqw;height:5.2272727cqw;display:block;color:#8c58e8}
 .portfolio-us-mark>svg{width:4.5454545cqw;height:5.2272727cqw}
-.portfolio-us-mark .portfolio-flag{position:absolute;right:-0.6818182cqw;bottom:0;width:2.2727273cqw;height:2.2727273cqw}
-.portfolio-summary{position:relative;margin-top:5.2272727cqw;min-height:45.4545455cqw;padding:2.2727273cqw 3.6363636cqw 2.7272727cqw;border-radius:3.6363636cqw;background:#fff;box-shadow:0 2.2727273cqw 5.4545455cqw #30204908;z-index:1}
+.portfolio-us-mark .portfolio-flag{position:absolute;right:-0.2272727cqw;bottom:0.4545455cqw;width:2.0454545cqw;height:2.0454545cqw}
+.portfolio-summary{position:absolute;left:5.4545455cqw;right:5.4545455cqw;top:41.5909091cqw;height:45.4545455cqw;margin:0;padding:2.2727273cqw 3.6363636cqw 2.7272727cqw;border:0;border-radius:3.6363636cqw;background:#fff;box-shadow:0 2.2727273cqw 5.4545455cqw #30204908;z-index:1}
 .portfolio-asof{margin:0;color:#878b88;font-family:'Noto Sans Thai',sans-serif;font-size:3.1818182cqw;font-weight:500;line-height:5cqw;white-space:nowrap;letter-spacing:-.0.6818182cqw}
 .portfolio-asof time{font-size:2.5cqw;color:#555b57;font-weight:400}
-.portfolio-value{font-size:6.8181818cqw;font-weight:800;line-height:10cqw;letter-spacing:-0.2272727cqw;white-space:nowrap;font-variant-numeric:tabular-nums}
-.portfolio-value small{font-size:4.7727273cqw;letter-spacing:-.0.9090909cqw;font-weight:800}
+.portfolio-value{display:flex;align-items:baseline;height:10cqw;font-size:6.8181818cqw;font-weight:800;line-height:10cqw;letter-spacing:-0.2272727cqw;white-space:nowrap;font-variant-numeric:tabular-nums}
+.portfolio-value small{font-size:4.7727273cqw;line-height:1;letter-spacing:-.0.9090909cqw;font-weight:800}
+.portfolio-value .portfolio-currency{margin-left:1.3636364cqw}
 .portfolio-fx{display:flex;justify-content:space-between;align-items:center;gap:1.3636364cqw;font-size:3.1818182cqw;line-height:5.2272727cqw;color:#434743;white-space:nowrap}
 .portfolio-fx>span:last-child{display:flex;align-items:center;gap:0.6818182cqw;font-size:2.2727273cqw;letter-spacing:-.0.4545455cqw}
 .portfolio-flag{display:inline-block;flex:none;width:2.0454545cqw;height:2.0454545cqw;border-radius:50%;overflow:hidden}
 .portfolio-flag svg{width:100%;height:100%}
 .portfolio-cost{font-size:3.1818182cqw;line-height:5.2272727cqw;color:#8b908c;margin:0.2272727cqw 0 0.9090909cqw;padding-bottom:1.8181818cqw;border-bottom:0.2272727cqw dashed #dedfe3;letter-spacing:-.0.4545455cqw}
 .portfolio-performance{display:flex;align-items:center;justify-content:space-between;gap:0.9090909cqw;min-height:5.9090909cqw;white-space:nowrap}
-.portfolio-performance>button{display:flex;align-items:center;gap:1.1363636cqw;flex:none;font-family:'Noto Sans Thai',sans-serif;font-size:3.0454545cqw;font-weight:600;line-height:5cqw;letter-spacing:-.7.9545455cqw;text-align:left}
+.portfolio-performance>button{display:flex;align-items:center;gap:1.1363636cqw;flex:none;font-family:'Noto Sans Thai',sans-serif;font-size:3.1818182cqw;font-weight:600;line-height:5cqw;letter-spacing:-.7.9545455cqw;text-align:left}
 .portfolio-performance>button svg{width:2.7272727cqw;height:2.7272727cqw;color:#818681}
 .portfolio-performance>b{font-size:3.6363636cqw;line-height:5.4545455cqw;font-weight:700;letter-spacing:-.7.9545455cqw}
 .portfolio-performance:last-child>b{font-size:3.4090909cqw;letter-spacing:-.1.1363636cqw}
 .portfolio-screen .positive{color:var(--up)}
 .portfolio-screen .negative{color:var(--down)}
-.portfolio-body{padding-top:4.7727273cqw;background:#fff}
+.portfolio-body{position:relative;isolation:isolate;padding-top:4.7727273cqw;background:#fff}
+.portfolio-body:before{content:'';position:absolute;left:0;right:0;top:0;height:0.2272727cqw;background:#fff;pointer-events:none}
 .portfolio-tools{display:flex;align-items:center;justify-content:space-between;gap:2.7272727cqw;padding:0 5.4545455cqw}
 .portfolio-tools>button{display:flex;align-items:center;justify-content:center;gap:1.1363636cqw;border:0.2272727cqw solid #e2e3e4;background:#fff;border-radius:2.7272727cqw;min-height:7.2727273cqw;padding:0.6818182cqw 1.8181818cqw;font-family:'Noto Sans Thai',sans-serif;font-size:2.9545455cqw;color:#8c908c;white-space:nowrap}
 .portfolio-tools b,.portfolio-tools>button:last-child{color:#454b47;font-weight:600}
@@ -354,7 +359,7 @@ body{display:flex;align-items:center;justify-content:center;padding:0;gap:0;min-
 .portfolio-columns>span:not(:first-child){text-align:right}
 .portfolio-holding{display:grid;grid-template-columns:7.2727273cqw minmax(0,1fr) 28.6363636cqw 26.8181818cqw;column-gap:1.5909091cqw;align-items:center;width:100%;padding:0 5.4545455cqw 4.0909091cqw;min-height:14.7727273cqw;text-align:left}
 .portfolio-logo{display:grid;place-items:center;flex:none;width:7.2727273cqw;height:7.2727273cqw;border-radius:50%;background:#111612;overflow:hidden}
-.portfolio-logo>svg{width:6.1363636cqw;height:6.1363636cqw;fill:#80b400}
+.portfolio-logo>svg{width:5.2272727cqw;height:5.2272727cqw;fill:#80b400}
 .portfolio-holding-name,.portfolio-holding-value,.portfolio-holding-gain{display:grid;gap:2.0454545cqw;white-space:nowrap}
 .portfolio-holding-name strong{font-size:3.6363636cqw;font-weight:700;line-height:4.5454545cqw}
 .portfolio-holding-name small{display:flex;align-items:center;gap:0.9090909cqw;font-size:2.7272727cqw;line-height:4.0909091cqw;color:#484e49;letter-spacing:-.0.6818182cqw}
@@ -365,7 +370,7 @@ body{display:flex;align-items:center;justify-content:center;padding:0;gap:0;min-
 .portfolio-holding-value small{color:#969c97}
 .portfolio-holding-gain small{font-weight:600}
 .portfolio-holding-gain .amount-mode{font-size:2.9545455cqw}
-.portfolio-details{background:#f7f8fc;padding:3.4090909cqw 5.4545455cqw 4.0909091cqw;min-height:38.6363636cqw}
+.portfolio-details{background:#f7f8fc;padding:3.4090909cqw 5.4545455cqw 3.8636364cqw;min-height:38.6363636cqw}
 .portfolio-detail-top{display:grid;grid-template-columns:33.6363636cqw minmax(0,1fr);gap:2.2727273cqw}
 .portfolio-details label{display:block;color:#85898d;font-family:'Noto Sans Thai',sans-serif;font-size:3.1818182cqw;font-weight:500;line-height:5cqw;white-space:nowrap}
 .portfolio-details strong{display:block;font-size:3.8636364cqw;font-weight:400;line-height:6.3636364cqw;letter-spacing:-.0.9090909cqw;font-variant-numeric:tabular-nums}
@@ -373,8 +378,8 @@ body{display:flex;align-items:center;justify-content:center;padding:0;gap:0;min-
 .portfolio-detail-bottom{display:grid;grid-template-columns:33.6363636cqw minmax(0,1fr) 17.7272727cqw;gap:2.2727273cqw;align-items:center;margin-top:3.4090909cqw}
 .portfolio-trade{border-radius:1.8181818cqw;background:#111312;color:#fff;font-family:'Noto Sans Thai',sans-serif;font-size:2.9545455cqw!important;font-weight:600!important;min-height:7.2727273cqw;line-height:4.5454545cqw;padding:0.9090909cqw}
 .portfolio-empty{padding:10.2272727cqw 5.4545455cqw 15.9090909cqw;color:#929993;text-align:center;font-size:3.4090909cqw}
-.portfolio-nav{position:fixed;left:calc((100vw - min(100vw,600px))/2);right:auto;bottom:0;width:min(100vw,600px);height:calc(17.2727273cqw + max(4.3181818cqw,env(safe-area-inset-bottom,0cqw)));padding:2.5cqw 0 max(4.3181818cqw,env(safe-area-inset-bottom,0cqw));background:#fff;border-top:0.2272727cqw solid #fafafa;z-index:30;display:grid;grid-template-columns:repeat(6,minmax(0,1fr))}
-.portfolio-nav>button{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:0.4545455cqw;font-family:'Noto Sans Thai',sans-serif;font-size:2.2727273cqw;line-height:4.0909091cqw;color:#c7cdce}
+.portfolio-nav{position:fixed;left:calc((100vw - min(100vw,600px))/2);right:auto;bottom:0;width:min(100vw,600px);height:max(21.5909091cqw,calc(12.9545455cqw + env(safe-area-inset-bottom,0cqw)));padding:2.5cqw 0 env(safe-area-inset-bottom,0cqw);background:#fff;border-top:0;z-index:30;display:grid;grid-template-columns:repeat(6,minmax(0,1fr))}
+.portfolio-nav>button{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:0.4545455cqw;font-family:'Noto Sans Thai',sans-serif;font-size:2.7272727cqw;line-height:4.0909091cqw;color:#c7cdce}
 .portfolio-nav>button.active{color:#111;font-weight:700}
 .portfolio-nav .nav-icon{display:block;width:5.9090909cqw;height:5.9090909cqw;background:none!important;opacity:1;position:relative}
 .portfolio-nav .nav-icon>svg{width:5.9090909cqw;height:5.9090909cqw;display:block;visibility:visible;fill:none;stroke:currentColor;stroke-width:1.9}
@@ -386,6 +391,8 @@ body{display:flex;align-items:center;justify-content:center;padding:0;gap:0;min-
 .bottom-nav .nav-icon>svg{visibility:visible;width:100%;height:100%}
 .bottom-nav .nav-icon-wallet>svg{fill:currentColor}
 .bottom-nav .nav-icon-wallet>svg circle{fill:#fff}
+.portfolio-nav .nav-icon-wallet>svg{fill:none!important}
+.portfolio-nav .nav-icon-wallet>svg circle{fill:currentColor;stroke:none}
 .home-actions .action-circle,.detail-actions .action-circle{background-image:none!important;background-color:#4ff38a}
 .home-actions .action-circle>svg,.detail-actions .action-circle>svg{visibility:visible}
 .quote-editor-note{font-size:13px;color:#77817a;line-height:1.8}
@@ -711,11 +718,11 @@ const pClass=value=>PM.cmp(value,'0')<0?'negative':'positive';
 const pArrow=value=>PM.cmp(value,'0')<0?'↘':'↗';
 const pEye=()=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>';
 const pInfo=()=>'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor"><circle cx="8" cy="8" r="6.2"/><path d="M8 7v4m0-7v1" stroke-width="1.5"/></svg>';
-const pPie=()=>'<svg viewBox="0 0 24 24" fill="currentColor"><path opacity=".5" d="M10 3a9 9 0 1 0 11 11H10Z"/><path d="M13 1v10h10A10 10 0 0 0 13 1Z"/></svg>';
+const pPie=()=>'<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" opacity=".55"/><path d="M12 2v10H2A10 10 0 0 1 12 2Z" opacity=".85"/><path d="m12 12-7 7a10 10 0 0 1-3-7Z"/></svg>';
 const pLogo=()=>'<span class="portfolio-logo" aria-hidden="true"><svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>NVIDIA</title><path d="M8.948 8.798v-1.43a6.7 6.7 0 0 1 .424-.018c3.922-.124 6.493 3.374 6.493 3.374s-2.774 3.851-5.75 3.851c-.398 0-.787-.062-1.158-.185v-4.346c1.528.185 1.837.857 2.747 2.385l2.04-1.714s-1.492-1.952-4-1.952a6.016 6.016 0 0 0-.796.035m0-4.735v2.138l.424-.027c5.45-.185 9.01 4.47 9.01 4.47s-4.08 4.964-8.33 4.964c-.37 0-.733-.035-1.095-.097v1.325c.3.035.61.062.91.062 3.957 0 6.82-2.023 9.593-4.408.459.371 2.34 1.263 2.73 1.652-2.633 2.208-8.772 3.984-12.253 3.984-.335 0-.653-.018-.971-.053v1.864H24V4.063zm0 10.326v1.131c-3.657-.654-4.673-4.46-4.673-4.46s1.758-1.944 4.673-2.262v1.237H8.94c-1.528-.186-2.73 1.245-2.73 1.245s.68 2.412 2.739 3.11M2.456 10.9s2.164-3.197 6.5-3.533V6.201C4.153 6.59 0 10.653 0 10.653s2.35 6.802 8.948 7.42v-1.237c-4.84-.6-6.492-5.936-6.492-5.936z"/></svg></span>';
 const pFlag=()=>'<span class="portfolio-flag" aria-hidden="true"><svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#fff"/><path d="M0 2h32M0 7h32M0 12h32M0 17h32M0 22h32M0 27h32M0 32h32" stroke="#ec3652" stroke-width="2.5"/><path d="M0 0h17v18H0Z" fill="#2d3c86"/><path d="M3 3h1m3 0h1m3 0h1M3 7h1m3 0h1m3 0h1M3 11h1m3 0h1m3 0h1M3 15h1m3 0h1m3 0h1" stroke="#fff" stroke-width="1.5"/></svg></span>';
-const pUsMark=()=>`<span class="portfolio-us-mark" aria-hidden="true"><svg viewBox="0 0 24 26" fill="none"><rect x="2" y="3" width="17" height="17" rx="5" fill="#bb90f8"/><ellipse cx="10.5" cy="8" rx="6" ry="2.5" fill="#8c57e4"/><path d="M5 12c5 3 8 3 12 0M5 15c4 3 8 3 12 0" stroke="#7851ca" stroke-width="1.5"/><path d="m11 2 6 6-6 6" stroke="#6943b9" stroke-width="1.6"/></svg>${pFlag()}</span>`;
-const pBackground=()=>'<svg class="portfolio-background" viewBox="0 0 589 514" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="portfolioPurple" x2="1" y2="1"><stop stop-color="#7c50f1"/><stop offset=".65" stop-color="#7c50f1"/><stop offset="1" stop-color="#6434bf"/></linearGradient><path id="portfolioStar" d="M0-100 24-33 95-31 39 13 58 82 0 42-58 82-39 13-95-31-24-33Z"/></defs><path fill="url(#portfolioPurple)" d="M0 0h589v514H0Z"/><g fill="#5c32bd"><use href="#portfolioStar" transform="translate(85 14) rotate(-12) scale(1.1)" opacity=".74"/><use href="#portfolioStar" transform="translate(214 54) rotate(9) scale(.95)" opacity=".65"/><use href="#portfolioStar" transform="translate(365 2) rotate(10) scale(.64)" opacity=".72"/><use href="#portfolioStar" transform="translate(588 192) rotate(13) scale(1.1)" opacity=".62"/><use href="#portfolioStar" transform="translate(15 374) rotate(-10) scale(1.35)" opacity=".73"/><use href="#portfolioStar" transform="translate(502 438) rotate(-5) scale(1.74)" opacity=".55"/></g><g fill="#ab7eff" opacity=".18"><path d="m137-17 35 28 45-34-18 64-60-5Z"/><path d="m-29 198 60 69-24 46-44-20Z"/></g></svg>';
+const pUsMark=()=>`<span class="portfolio-us-mark" aria-hidden="true"><svg viewBox="0 0 24 26" fill="none"><circle cx="11" cy="12" r="10" fill="#b58af4"/><path d="M5 17V8h11v7M5 8h11M6 16l4-4 3 2 4-5" stroke="#7750cf" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="m13 8 4 1-1 4" stroke="#7750cf" stroke-width="1.5" stroke-linejoin="round"/></svg>${pFlag()}</span>`;
+const pBackground=()=>'<svg class="portfolio-background" viewBox="0 0 589 514" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="portfolioStarShade" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#623bcc"/><stop offset="1" stop-color="#6941d5"/></linearGradient><linearGradient id="portfolioRightShade" x1="1" y1="0" x2="0" y2="1"><stop stop-color="#663bd0"/><stop offset="1" stop-color="#5831b7"/></linearGradient></defs><path fill="#7c53f1" d="M0 0h589v514H0Z"/><g fill="url(#portfolioStarShade)"><path d="M39 0H133L112 15 128 65 84 34 41 65 58 15Z"/><path d="M225 0H234L247 41H299L256 74 273 126 229 94 185 126 201 74 159 40H212Z"/><path d="M329 0H424L402 16 419 65 374 35 332 65 348 15Z"/></g><path d="M589 87 566 149 368 148 493 244H559V391L589 370Z" fill="url(#portfolioRightShade)"/><path d="M0 251 31 278V487H16L0 503Z" fill="#5d37c0"/></svg>';
 
 function portfolioNow(date=new Date()){
  const parts=new Intl.DateTimeFormat('th-TH-u-nu-latn',{timeZone:'Asia/Bangkok',day:'numeric',month:'short',year:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(date);
@@ -724,8 +731,19 @@ function portfolioNow(date=new Date()){
 }
 function portfolioTime(){return `<time data-valuation-time datetime="${new Date().toISOString()}" aria-label="เวลาคำนวณมูลค่า">${portfolioNow()}</time>`;}
 function tickValuationClock(){const now=new Date(),label=portfolioNow(now);document.querySelectorAll('[data-valuation-time]').forEach(node=>{if(node.textContent!==label)node.textContent=label;node.dateTime=now.toISOString();});}
-function portfolioNav(){return `<nav class="bottom-nav portfolio-nav" aria-label="เมนูหลัก">${[['หน้าหลัก','home'],['ค้นหา','search'],['เงินสด','wallet'],['สินทรัพย์','pie'],['รายการ','history'],['ฉัน','user']].map(([label,name])=>`<button class="${name==='pie'?'active':''}" data-action="nav-${name}" ${name==='pie'?'aria-current="page"':''}><span class="nav-icon nav-icon-${name}">${icon(name)}</span><span>${label}</span></button>`).join('')}</nav>`;}
-function portfolioTabs(){return `<nav class="portfolio-tabs" aria-label="ประเภทสินทรัพย์"><button data-action="portfolio-all">← ทั้งหมด</button><span class="portfolio-tab-divider"></span><button data-action="portfolio-th" aria-pressed="${portfolioState.filter==='th'}">หุ้นไทย</button><button data-action="portfolio-us" aria-pressed="${portfolioState.filter==='us'}">${pUsMark()}หุ้นสหรัฐฯ</button><button data-action="portfolio-gold" aria-pressed="${portfolioState.filter==='gold'}">ทองคำ</button><button data-action="portfolio-funds" aria-pressed="${portfolioState.filter==='funds'}">กองทุน</button></nav>`;}
+function pNavIcon(name){
+ const shapes={
+ home:'<path d="m3 10 9-8 9 8v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/>',
+ search:'<circle cx="10.5" cy="10.5" r="8"/><path d="m17 17 4 4M8 5.5c5-1 8 4 5 7l-2.5 3-2-2 2.5-2.7c1-1.4-.3-3.2-2-3.2H8Z"/>',
+ wallet:'<path d="M4 7V4a2 2 0 0 1 2-2h11v5M4 7h15a2 2 0 0 1 2 2v12H5a2 2 0 0 1-2-2V9a2 2 0 0 1 1-2Z"/><circle cx="17.5" cy="14" r="1"/>',
+ pie:'<path d="M11 3a9 9 0 1 0 10 10H11Z"/><path d="M15 2v7h7a8 8 0 0 0-7-7Z"/>',
+ history:'<path d="M10 2.4a9.8 9.8 0 1 1-7.8 11M12.8 6.4v6.4l-4 1.5"/><circle cx="5.5" cy="4.4" r=".65" fill="currentColor" stroke="none"/><circle cx="2.5" cy="8.4" r=".65" fill="currentColor" stroke="none"/>',
+ user:'<circle cx="12" cy="6" r="4"/><path d="M8 14c-3 .8-4 3-4 7h16c0-4-1-6.2-4-7"/>'
+ };
+ return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${shapes[name]}</svg>`;
+}
+function portfolioNav(){return `<nav class="bottom-nav portfolio-nav" aria-label="เมนูหลัก">${[['หน้าหลัก','home'],['ค้นหา','search'],['เงินสด','wallet'],['สินทรัพย์','pie'],['รายการ','history'],['ฉัน','user']].map(([label,name])=>`<button class="${name==='pie'?'active':''}" data-action="nav-${name}" ${name==='pie'?'aria-current="page"':''}><span class="nav-icon nav-icon-${name}">${pNavIcon(name)}</span><span>${label}</span></button>`).join('')}</nav>`;}
+function portfolioTabs(){return `<nav class="portfolio-tabs" aria-label="ประเภทสินทรัพย์"><button data-action="portfolio-all">← ทั้งหมด</button><span class="portfolio-tab-divider"></span><span class="portfolio-tab-edge" aria-hidden="true"></span><button data-action="portfolio-th" aria-pressed="${portfolioState.filter==='th'}">หุ้นไทย</button><button data-action="portfolio-us" aria-pressed="${portfolioState.filter==='us'}">${pUsMark()}หุ้นสหรัฐฯ</button><button data-action="portfolio-gold" aria-pressed="${portfolioState.filter==='gold'}">ทองคำ</button><button data-action="portfolio-funds" aria-pressed="${portfolioState.filter==='funds'}">กองทุน</button></nav>`;}
 function portfolioView(){
  const h=portfolioHolding,hasHolding=portfolioState.filter==='us',value=hasHolding?h.value:PM.decimal('0'),cost=hasHolding?h.totalCost:PM.decimal('0'),profit=hasHolding?h.profit:PM.decimal('0');
  const performance=hasHolding?`${pArrow(h.dayPct)} ${pMoney(pAbs(h.dayPct))}%`:'—';
@@ -733,7 +751,7 @@ function portfolioView(){
  const visible=value=>portfolioState.hidden?'••••':value;
  return `<div class="portfolio-screen">`+
  `<section class="portfolio-hero">${pBackground()}<header class="portfolio-header"><h1>สินทรัพย์ของฉัน <button data-action="portfolio-hide" aria-label="${portfolioState.hidden?'แสดง':'ซ่อน'}มูลค่าสินทรัพย์" aria-pressed="${portfolioState.hidden}">${pEye()}</button></h1><button class="portfolio-analytics" data-action="portfolio-analytics">${pPie()} Dime! Analytics ${icon('right')}</button></header>${portfolioTabs()}`+
- `<section class="portfolio-summary" aria-label="สรุปสินทรัพย์"><p class="portfolio-asof">มูลค่าสินทรัพย์ทั้งหมด <span>(${portfolioTime()})</span></p><div class="portfolio-value">${portfolioState.hidden?'••••':pMoney(value).split('.')[0]+`<small>.${pMoney(value).split('.')[1]} USD</small>`}</div><div class="portfolio-fx"><span>≈ ${visible(pMoney(PM.mul(value,h.fx))+' THB')}</span><span>${pFlag()} 1 USD = ${pMoney(h.fx)} THB</span></div><p class="portfolio-cost">~ ต้นทุนรวม: ${visible(pMoney(cost)+' USD')}</p><div class="portfolio-performance"><button data-action="portfolio-calculation">% เปลี่ยนแปลงจากวันก่อน ${pInfo()}</button><b class="${pClass(h.dayPct)}">${visible(performance)}</b></div><div class="portfolio-performance"><button data-action="portfolio-calculation">กำไรของสินทรัพย์ที่ถืออยู่</button><b class="${pClass(profit)}">${visible(gain)}</b></div></section></section>`+
+ `<section class="portfolio-summary" aria-label="สรุปสินทรัพย์"><p class="portfolio-asof">มูลค่าสินทรัพย์ทั้งหมด <span>(${portfolioTime()})</span></p><div class="portfolio-value">${portfolioState.hidden?'••••':`<span>${pMoney(value).split('.')[0]}</span><small>.${pMoney(value).split('.')[1]}</small><small class="portfolio-currency">USD</small>`}</div><div class="portfolio-fx"><span>≈ ${visible(pMoney(PM.mul(value,h.fx))+' THB')}</span><span>${pFlag()} 1 USD = ${pMoney(h.fx)} THB</span></div><p class="portfolio-cost">~ ต้นทุนรวม: ${visible(pMoney(cost)+' USD')}</p><div class="portfolio-performance"><button data-action="portfolio-calculation">% เปลี่ยนแปลงจากวันก่อน ${pInfo()}</button><b class="${pClass(h.dayPct)}">${visible(performance)}</b></div><div class="portfolio-performance"><button data-action="portfolio-calculation">กำไรของสินทรัพย์ที่ถืออยู่</button><b class="${pClass(profit)}">${visible(gain)}</b></div></section></section>`+
  `<section class="portfolio-body"><div class="portfolio-tools"><button data-action="portfolio-sort">เรียงตาม: <b>${portfolioState.sort==='value'?'มูลค่าสินทรัพย์':portfolioState.sort==='name'?'ชื่อสินทรัพย์':'กำไรขาดทุน'}</b> ${icon('down')}</button><button data-action="portfolio-mode">${portfolioState.profitMode==='percent'?'กำไรขาดทุน':'มูลค่าเปลี่ยนแปลง'} ${icon('transfer')}</button></div><div class="portfolio-columns"><span>${hasHolding?'1':'0'} สินทรัพย์</span><span>มูลค่าสินทรัพย์ (USD)</span><span>% กำไรและมูลค่า</span></div>`+
  (hasHolding?`<button class="portfolio-holding" data-action="portfolio-expand" aria-expanded="${portfolioState.expanded}" aria-controls="portfolioPositionDetails">${pLogo()}<span class="portfolio-holding-name"><strong>NVDA</strong><small>${icon('pie')} ${visible('100.00%')}</small></span><span class="portfolio-holding-value"><b>${visible(pMoney(h.value))}</b><small>≈ ${visible(pMoney(h.thb)+' THB')}</small></span><span class="portfolio-holding-gain ${pClass(h.profit)}"><b class="${portfolioState.profitMode==='amount'?'amount-mode':''}">${visible(portfolioState.profitMode==='percent'?pArrow(h.profitPct)+' '+pMoney(pAbs(h.profitPct))+'%':pSign(h.profit)+pMoney(pAbs(h.profit))+' USD')}</b><small>(${visible(portfolioState.profitMode==='percent'?pSign(h.profit)+pMoney(pAbs(h.profit))+' USD':pArrow(h.profitPct)+' '+pMoney(pAbs(h.profitPct))+'%')})</small></span></button>`+
  `<section class="portfolio-details" id="portfolioPositionDetails" ${portfolioState.expanded?'':'hidden'}><div class="portfolio-detail-top"><div><label>จำนวนหุ้นคงเหลือ</label><strong>${visible(PM.format(h.quantity,8,false))}</strong></div><div><label>ราคา (USD) และ % เปลี่ยน 1 วัน</label><strong>${pMoney(h.price)}</strong><b class="${pClass(h.dayPct)}">${pArrow(h.dayPct)} ${pMoney(pAbs(h.dayPct))}%</b></div></div><div class="portfolio-detail-bottom"><div><label>ต้นทุนต่อหุ้น (USD)</label><strong>${visible(pMoney(h.averageCost))}</strong></div><div><label>ต้นทุนรวม (USD)</label><strong>${visible(pMoney(h.totalCost))}</strong></div><button class="portfolio-trade" data-action="portfolio-trade">ซื้อ-ขาย</button></div></section>`:'<div class="portfolio-empty">ยังไม่มีสินทรัพย์ประเภทนี้</div>')+
